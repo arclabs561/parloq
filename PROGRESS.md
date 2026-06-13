@@ -129,3 +129,21 @@ temp-0 provider nondeterminism is real, so MAGNITUDES carry ~±20pt error bars.
 Stable across runs: the sign (positive) and arousal~affect competitiveness.
 Real-use feel, not benchmark magnitude, is the right arbiter -> proceed to A
 (build the MVP and try it).
+
+### A: MVP shipped — recorder `--prosody` (opt-in, off by default)
+
+`toolbox/recorder` commit 322b8a9. Adds `recorder dictate --prosody`: prefixes
+[emphatic] when an utterance's RMS energy is z>0.8 above a per-session running
+baseline (last 20 utterances; baseline handles mic/level sensitivity). Applied
+AFTER polish (so it survives), tags-only (lexical text untouched), off unless
+--prosody is passed (existing behavior unchanged).
+
+Verified: `eval/test_emphasis_tag.py` loads the REAL function and asserts it
+tags a loud utterance, stays silent on quiet ones, and skips sub-0.5s clips
+without polluting the baseline. py_compile clean.
+
+To try it: `recorder dictate --daemon --prosody` (or add --prosody to the
+launchd plist), then dictate normally; emphatic utterances arrive prefixed
+[emphatic]. Real open question now is feel-in-use: does the tag help or annoy
+over a week. Not yet tested: end-to-end with a live mic (needs the daemon +
+osascript paste, can't automate here); the z>0.8 threshold is an untuned guess.
