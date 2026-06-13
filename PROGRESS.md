@@ -108,3 +108,24 @@ VERDICT (revised): the channel has real-but-modest value for task dictation
 is worth the recorder-integration cost — a judgment call for the user, on solid
 evidence. Open: re-measure affect tags on neutral sentences at temp 0 to fully
 disentangle word-semantics from prosody-dimension; test on naturalistic data.
+
+### Disentangle eval (`ab_disentangle.py`, temp 0) — arousal IS competitive
+
+Crossed tag-dimension x sentence-type, net of per-type noise floor:
+
+| condition | neutral (net) | affect (net) |
+|---|---|---|
+| arousal_code [arousal:high] | +25 | +58 |
+| arousal_word [emphatic]     | +42 | +42 |
+| affect_word [frustrated]    | +42 | +50 |
+
+Answer to the disentangling question: arousal (producible from energy) is
+COMPETITIVE with emotion-word semantics (arousal_word ~ affect_word), not
+dominated by it. => the arousal-only MVP is justified.
+
+VARIANCE CAVEAT: same 4 neutral sentences scored arousal_word +12 (refine run)
+vs +42 (this run), same temp-0 setup — a 30pt swing. n=24/cell is too small and
+temp-0 provider nondeterminism is real, so MAGNITUDES carry ~±20pt error bars.
+Stable across runs: the sign (positive) and arousal~affect competitiveness.
+Real-use feel, not benchmark magnitude, is the right arbiter -> proceed to A
+(build the MVP and try it).

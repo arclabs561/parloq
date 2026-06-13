@@ -1,0 +1,15 @@
+Installed 5 packages in 6ms
+panel (6), sentences 8, tags ['arousal_code', 'arousal_word', 'affect_word']
+
+responses done in 47s
+judged in 17s
+
+condition                neutral            affect
+(noise floor)       21% (raw)        25% (raw)
+arousal_code       46% ( +25 net)     83% ( +58 net)
+arousal_word       62% ( +42 net)     67% ( +42 net)
+affect_word        62% ( +42 net)     75% ( +50 net)
+
+net = above per-type noise floor. arousal_* ~ affect_word => arousal tag competitive (MVP ok).
+affect_word >> arousal_* => value is emotion-word semantics the energy tagger can't make.
+saved -> results/ab_disentangle_2026-06-13.json

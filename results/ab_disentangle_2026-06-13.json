@@ -1,0 +1,60 @@
+{
+  "panel": [
+    "openai/gpt-4o-mini",
+    "anthropic/claude-3.5-haiku",
+    "meta-llama/llama-3.3-70b-instruct",
+    "mistralai/mistral-small-3.2-24b-instruct",
+    "qwen/qwen-2.5-72b-instruct",
+    "deepseek/deepseek-chat-v3.1"
+  ],
+  "sentences": [
+    [
+      "neutral",
+      "let's go with the second option"
+    ],
+    [
+      "neutral",
+      "can you review this function"
+    ],
+    [
+      "neutral",
+      "we should refactor the auth module"
+    ],
+    [
+      "neutral",
+      "ship the release"
+    ],
+    [
+      "affect",
+      "this is the third time it crashed"
+    ],
+    [
+      "affect",
+      "we're way behind on this"
+    ],
+    [
+      "affect",
+      "I've been stuck on this for hours"
+    ],
+    [
+      "affect",
+      "the build keeps failing"
+    ]
+  ],
+  "net_above_floor": {
+    "neutral": {
+      "arousal_code": 0.25,
+      "arousal_word": 0.417,
+      "affect_word": 0.417
+    },
+    "affect": {
+      "arousal_code": 0.583,
+      "arousal_word": 0.417,
+      "affect_word": 0.5
+    }
+  },
+  "floor": {
+    "neutral": 0.20833333333333334,
+    "affect": 0.25
+  }
+}
