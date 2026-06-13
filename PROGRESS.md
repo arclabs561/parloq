@@ -39,7 +39,43 @@ sensitive, real dictation needs per-utterance normalization.
 Open fork (user to steer):
 - B is the path for emphasis/intensity tags. Affect-valence would need a model
   (deferred, and the categorical one failed).
-- Next experiment options: (a) confirm energy survives level-normalization +
-  test on naturalistic data (EMOVOME); (b) jump to the actual A/B — wire a
-  minimal energy-based `[emphatic]`/`[flat]` tag and test if it changes Claude's
-  responses (the real go/no-go); (c) revisit fork C (audio-LLM) for valence.
+### Evals built (reusable, not one-off)
+
+- `eval/separability_bench.py` — tagger x dataset -> per-dimension AUC + latency.
+  Pluggable tagger registry. Confirms: energy_std AUC 0.893 (arousal), valence
+  0.66 even with logreg over all features. `energy_std` alone beats 5-feature
+  logreg (0.845) -> one feature, not a model.
+- `eval/ab_tag_response.py` — cross-model A/B via OpenRouter (6-model panel).
+  Does an inline prosody tag change the reply? NAIVE (no tag explanation).
+
+### A/B RESULT (the go/no-go): downstream WORKS
+
+100% ADAPTED across all 6 models (gpt-4o-mini, claude-3.5-haiku, llama-3.3-70b,
+mistral-small, qwen-2.5-72b, deepseek-v3.1), zero-shot, no tag explanation.
+Inspected raw pairs (not just judge): genuine + tone-appropriate. Best case:
+qwen on [uncertain] flips from "Agreed, let's plan the update" to "Could you
+share what issues you're seeing?" — untagged would send the user down a rewrite
+they only tentatively proposed. [frustrated] reliably adds empathy + concision.
+-> `results/ab_tag_response_2026-06-13.json`.
+
+Caveat: tests EXPLICIT English tags, so it proves the *consumer* uses correct
+tags; it does not prove signal-derived tags are producible. That's the clean
+decomposition below.
+
+### Synthesis across all evidence
+
+- Downstream (do LLMs use inline tags): YES, 100%, genuine, all models. Bottleneck
+  is NOT the LLM (CP-Bench lexical-shortcut did not bite for inline text tags).
+- Tagger / arousal (emphasis): cheap energy works, AUC 0.89, no model.
+- Tagger / valence (affect): cheap features fail (0.66); categorical model fails
+  (42%). Needs an audio-LLM (fork C) or a better SER model.
+- => End-to-end MVP is viable NOW for the EMPHASIS/AROUSAL dimension: energy tag
+  is producible AND LLMs use it. Richer affect (frustrated/uncertain) clearly
+  helps downstream but isn't cheaply producible yet -> fork C territory.
+
+### Next forks (user to steer)
+- (a) Build the emphasis MVP into recorder dictate (energy -> [emphatic]/[flat]).
+- (b) Pursue fork C (audio-LLM, e.g. Qwen3-Omni) for the richer affect tags the
+  A/B showed pay off but cheap features can't produce.
+- (c) Harden the tagger eval: level-normalization + naturalistic data (EMOVOME),
+  and add the "informed" A/B condition (system prompt explains tags).

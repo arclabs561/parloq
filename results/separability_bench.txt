@@ -1,0 +1,15 @@
+Installed 30 packages in 238ms
+320 clips
+feature extraction: 117ms/clip
+
+tagger             arousal   valence
+energy_std           0.893         -
+energy_mean          0.884         -
+pitch_std            0.624         -
+pitch_range          0.602         -
+pause_ratio          0.566         -
+logreg_allfeats      0.845     0.662
+
+AUC>=0.8 separates; ~0.5 no signal. Theme check: arousal high, valence ~chance.
+
+saved -> results/separability_bench_2026-06-13.json

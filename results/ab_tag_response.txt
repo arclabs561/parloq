@@ -1,0 +1,18 @@
+Installed 5 packages in 7ms
+dropped (not live): ['google/gemini-2.0-flash-001', 'x-ai/grok-2-1212']
+panel (6): ['openai/gpt-4o-mini', 'anthropic/claude-3.5-haiku', 'meta-llama/llama-3.3-70b-instruct', 'mistralai/mistral-small-3.2-24b-instruct', 'qwen/qwen-2.5-72b-instruct', 'deepseek/deepseek-chat-v3.1']
+cases: 6
+
+72 response calls in 13s
+36 judge calls in 4s
+
+model                                       adapted/total   rate
+openai/gpt-4o-mini                           6/6           100%
+anthropic/claude-3.5-haiku                   6/6           100%
+meta-llama/llama-3.3-70b-instruct            6/6           100%
+mistralai/mistral-small-3.2-24b-instruct     6/6           100%
+qwen/qwen-2.5-72b-instruct                   6/6           100%
+deepseek/deepseek-chat-v3.1                  6/6           100%
+
+overall ADAPTED rate: 100%  (high = inline tags work zero-shot)
+saved -> results/ab_tag_response_2026-06-13.json
