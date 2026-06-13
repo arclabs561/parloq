@@ -1,0 +1,14 @@
+panel (6), texts 4, conditions ['noise', 'code', 'word']
+
+responses done in 31s
+judged in 5s
+
+condition  SUBSTANTIVE   COSMETIC   IGNORED  n
+noise             12%        71%       17%  24
+code              29%        67%        4%  24
+word              25%        75%        0%  24
+
+noise floor (subtract this): 12%
+code signal above floor: +17 pts
+word signal above floor: +12 pts
+saved -> results/ab_refine_temp0_2026-06-13.json

@@ -1,0 +1,15 @@
+Installed 5 packages in 7ms
+panel (6), cases 12 across ['coded', 'congruent', 'incongruent', 'placebo']
+
+144 response calls in 34s
+72 judge calls in 5s
+
+condition      SUBSTANTIVE   COSMETIC   IGNORED  n
+coded                  17%        83%        0%  18
+congruent              83%        17%        0%  18
+incongruent            17%        83%        0%  18
+placebo                28%        72%        0%  18
+
+overall SUBSTANTIVE: 36% (vs 100% ADAPTED in the soft eval)
+placebo SUBSTANTIVE should be ~0; if high the judge over-fires.
+saved -> results/ab_hard_2026-06-13.json

@@ -1,0 +1,759 @@
+{
+  "panel": [
+    "openai/gpt-4o-mini",
+    "anthropic/claude-3.5-haiku",
+    "meta-llama/llama-3.3-70b-instruct",
+    "mistralai/mistral-small-3.2-24b-instruct",
+    "qwen/qwen-2.5-72b-instruct",
+    "deepseek/deepseek-chat-v3.1"
+  ],
+  "judge": "openai/gpt-4o-mini",
+  "by_condition": {
+    "coded": {
+      "SUBSTANTIVE": 3,
+      "COSMETIC": 15,
+      "IGNORED": 0,
+      "UNPARSED": 0
+    },
+    "congruent": {
+      "SUBSTANTIVE": 15,
+      "COSMETIC": 3,
+      "IGNORED": 0,
+      "UNPARSED": 0
+    },
+    "incongruent": {
+      "SUBSTANTIVE": 3,
+      "COSMETIC": 15,
+      "IGNORED": 0,
+      "UNPARSED": 0
+    },
+    "placebo": {
+      "SUBSTANTIVE": 5,
+      "COSMETIC": 13,
+      "IGNORED": 0,
+      "UNPARSED": 0
+    }
+  },
+  "raw": [
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "congruent",
+      "text": "I think we should rewrite the auth module",
+      "tag": "[uncertain]",
+      "untagged": "Rewriting the auth module could be beneficial if there are significant issues or outdated practices. We should assess the current implementation to identify specific problems and define the goals for the rewrite. Let\u2019s discuss what features or improvements you have in mind!",
+      "tagged": "That could be a good idea if the current implementation has limitations or security concerns. We should analyze the requirements and identify any specific issues before proceeding. Would you like to discuss potential improvements?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B only adds a tone tag and slightly adjusts wording for empathy, while the underlying recommendation and action remain the same as in A."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "congruent",
+      "text": "this is the third time it crashed",
+      "tag": "[frustrated]",
+      "untagged": "I'm sorry to hear that! Could you provide more details about the crashes? Knowing what you were doing when it happened could help in troubleshooting the issue.",
+      "tagged": "I understand how frustrating that can be! Have you tried restarting your device or updating the software? If the problem persists, it might be worth looking into potential fixes or contacting support.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B changes its actual content by suggesting specific troubleshooting steps like restarting the device or updating the software, which A does not mention."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "congruent",
+      "text": "we need to ship this today",
+      "tag": "[stressed]",
+      "untagged": "Understood! Please confirm the details and destination, and I'll make sure it's shipped out today.",
+      "tagged": "I understand the urgency. Let\u2019s prioritize the remaining tasks to ensure we can meet the deadline. How can I assist you in getting it done?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - B introduces a different focus on prioritizing tasks and explicitly offers assistance, altering the approach compared to A\u2019s straightforward request for confirmation."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "incongruent",
+      "text": "everything is working perfectly now",
+      "tag": "[frustrated]",
+      "untagged": "That's great to hear! If you need any further assistance or have questions, feel free to ask. Enjoy!",
+      "tagged": "That's great to hear! It sounds like you've resolved the issues. If you need any further assistance or have any questions, feel free to ask!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a recognition of the user's frustrated tone but does not change the substantive content of A."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "incongruent",
+      "text": "this whole thing is completely broken",
+      "tag": "[calm]",
+      "untagged": "I'm sorry to hear that you're experiencing difficulties. Can you provide more details about what's broken? I\u2019m here to help!",
+      "tagged": "I understand how frustrating that can be. Can you share more details about what specifically feels broken? I'm here to help.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B changes the tone to reflect calmness and empathy but the substance of the response remains the same as A."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "incongruent",
+      "text": "I guess we could try your idea",
+      "tag": "[excited]",
+      "untagged": "Great! I'm glad you're open to it. Let me know if you need any help getting started!",
+      "tagged": "That sounds great! I'm excited to see how it goes. Let me know if you need any help along the way!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds excitement and enthusiasm to the response without changing the substance or action being suggested."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:high]",
+      "untagged": "Okay, great choice! Let me know if you need any further assistance or details regarding the second option.",
+      "tagged": "Great choice! Let me know how I can assist you further with that option.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds a tone tag for enthusiasm but does not change the recommended action or substance, which remains the same as Reply A."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:low]",
+      "untagged": "Sounds great! What\u2019s the next step you\u2019d like to take with the second option?",
+      "tagged": "Sounds good! Let me know if you need any further assistance with that option.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B changes the tone slightly by including \"further assistance,\" but the substance and meaning remain the same as A."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "coded",
+      "text": "can you review this function",
+      "tag": "[arousal:high]",
+      "untagged": "Of course! Please share the function you'd like me to review, and I'll provide feedback.",
+      "tagged": "Of course! Please share the function you'd like me to review, and let me know if there are specific aspects you want feedback on.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B includes an additional request for specific aspects to focus on, but the overall substance of providing a review remains the same as in A."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "placebo",
+      "text": "the meeting is at three",
+      "tag": "[neutral]",
+      "untagged": "Got it! Let me know if you need any help preparing for it.",
+      "tagged": "Thanks for the update! I'll be there at three.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B changes its actual content by confirming attendance at three, while A offers assistance in preparation."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "placebo",
+      "text": "the file is in the src folder",
+      "tag": "[xq7]",
+      "untagged": "Thanks for the update! Let me know if you need any help with the file or if you have any questions about it.",
+      "tagged": "Got it! If you need help with that file or have any questions about it, feel free to ask!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B simply modifies the wording to match the tone tag while maintaining the same content and recommendation as A."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "cond": "placebo",
+      "text": "here is the config",
+      "tag": "[neutral]",
+      "untagged": "It seems like you might have forgotten to attach or describe the config you're referring to. Please share the details, and I'll be happy to assist you!",
+      "tagged": "Thank you for sharing the config. Let me know if you need any help or feedback regarding it!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone of gratitude and offers help, but the fundamental message and content remain the same as A."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "congruent",
+      "text": "I think we should rewrite the auth module",
+      "tag": "[uncertain]",
+      "untagged": "That sounds like a potentially good idea. Could you share more details about what specific improvements or issues you're looking to address with the rewrite? Understanding the current pain points will help determine the best approach for redesigning the authentication module.",
+      "tagged": "It sounds like you have concerns about the current authentication module. Could you share more specifics about what's making you consider a rewrite - are there performance, security, or maintainability issues? Providing more context would help assess whether a full rewrite is necessary or if targeted improvements might be more efficient.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: B changes its actual content by specifically mentioning concerns about performance, security, or maintainability issues, which provides a more targeted focus on potential problems that could justify a rewrite. A is more general and does not emphasize these specific areas of concern."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "congruent",
+      "text": "this is the third time it crashed",
+      "tag": "[frustrated]",
+      "untagged": "I'm sorry to hear that your device is experiencing repeated crashes. Without more context, it's difficult to pinpoint the exact cause, but this could be due to software issues, low memory, outdated apps, or potential hardware problems. I recommend checking for system updates, clearing app cache, or consulting technical support if the issue persists.",
+      "tagged": "I'm sorry you're experiencing repeated crashes. Without more context, it would be helpful to know what specifically is crashing (an app, computer, etc.) so I can offer more targeted troubleshooting advice. Would you like to provide more details about the issue?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B changes its actual content by asking for specific details about what is crashing, which is a more targeted approach compared to A's general troubleshooting suggestions."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "congruent",
+      "text": "we need to ship this today",
+      "tag": "[stressed]",
+      "untagged": "I'll help you ensure the shipment goes out today. What specific details do you need assistance with - preparing the package, arranging transportation, or coordinating pickup?",
+      "tagged": "I understand the urgency. Let's prioritize getting the shipment ready and confirm all details are in order. What specific items need to be shipped, and do you have all the necessary packaging and shipping labels prepared?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds an empathetic acknowledgment of urgency but does not change the substance of the request or the actions suggested."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "incongruent",
+      "text": "everything is working perfectly now",
+      "tag": "[frustrated]",
+      "untagged": "I'm glad to hear that everything is running smoothly for you. If you have any further questions or need assistance in the future, please don't hesitate to ask.",
+      "tagged": "I understand you're feeling frustrated, even though things are going well. It sounds like you might have experienced some challenges before reaching this smooth-running state.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE  \nB acknowledges the user's frustration and reflects on their previous challenges, while A does not."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "incongruent",
+      "text": "this whole thing is completely broken",
+      "tag": "[calm]",
+      "untagged": "I apologize, but I need more context to understand what specific thing you're referring to as \"broken.\" Could you provide more details about the issue you're experiencing? The more information you can share, the better I can help you troubleshoot or address the problem.",
+      "tagged": "I'm sorry you're experiencing frustration. Could you provide more details about what specifically is broken? The more context you can share, the better I can help troubleshoot or offer assistance.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B alters the tone and wording to add empathy without changing the substance of the response."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "incongruent",
+      "text": "I guess we could try your idea",
+      "tag": "[excited]",
+      "untagged": "I'm glad you're open to exploring the suggestion. Would you like to discuss the next steps or any specific details about implementing the idea?",
+      "tagged": "Great! I'm glad you're open to exploring the idea. Let's discuss the details and plan out how we'll approach it together.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B primarily adjusts the tone and empathetic wording while maintaining the overall substance and meaning of the message."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:high]",
+      "untagged": "I apologize, but I don't have context about what options you're referring to. Could you provide more details about the choices or previous conversation so I can understand and help you appropriately?",
+      "tagged": "I apologize, but I noticed an \"[arousal:high]\" tag which seems out of context. Without knowing the previous conversation or what options were being discussed, I can't provide a specific response. Could you clarify what options you're referring to?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B addresses the tone tag and acknowledges its presence, but the overall content and request for clarification remain the same as in A."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:low]",
+      "untagged": "I apologize, but I do not have context about what the first or second option were. Could you please provide more details about the options you are referring to? Without knowing the specific choices, I cannot confirm which option you prefer.",
+      "tagged": "I apologize, but I don't see any previous context or first option mentioned. Could you provide more details about what options you're referring to? I'm happy to help you choose or discuss the second option once I understand the full context.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone tag and slightly modifies the wording for empathy, but the substance and action requested remain unchanged from A."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "coded",
+      "text": "can you review this function",
+      "tag": "[arousal:high]",
+      "untagged": "I apologize, but it seems like you haven't shared the function you want me to review. Could you please provide the code or function details so I can take a look and provide feedback?",
+      "tagged": "I apologize, but I noticed the [arousal:high] tag and want to clarify that I'll provide a professional, technical review. However, you haven't actually shared the function with me yet. Could you please paste the specific code or function you'd like me to review?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: B acknowledges the tone tag and emphasizes the intention to provide a professional, technical review, which adds a layer of context to the request."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "placebo",
+      "text": "the meeting is at three",
+      "tag": "[neutral]",
+      "untagged": "Got it. I'll make sure to be ready for the meeting at 3:00 PM.",
+      "tagged": "Got it. I'll make sure to be prepared and ready for the meeting at 3 PM.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - B adds the phrase \"and ready\" for a slight increase in empathy but retains the same core message as A."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "placebo",
+      "text": "the file is in the src folder",
+      "tag": "[xq7]",
+      "untagged": "Got it. If you're looking for the file in the src folder, make sure to check the correct path and verify the file's exact location within that directory. Let me know if you need help locating or accessing the file.",
+      "tagged": "Understood. It sounds like you're referring to a specific file located in the source (src) directory. If you need any help locating or working with the file, please provide more details about what you're trying to do.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B provides a more specific reference to \"the source (src) directory\" and invites the user to provide more details, while Reply A is more general and implies a need for verification."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "cond": "placebo",
+      "text": "here is the config",
+      "tag": "[neutral]",
+      "untagged": "I apologize, but I don't see any configuration file or details in your message. Could you please paste or share the specific configuration you'd like me to review or help you with?",
+      "tagged": "Thank you for sharing the configuration. However, I don't see the actual config file or details in your message. Could you please provide the specific configuration you wanted me to review or help you with?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone tag and slightly modifies the wording to be more polite, but the substantive content and action remain the same as in A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "congruent",
+      "text": "I think we should rewrite the auth module",
+      "tag": "[uncertain]",
+      "untagged": "What specific issues do you see with the current auth module that you'd like to address in the rewrite? Is it related to security, performance, or maintainability?",
+      "tagged": "What specifically is prompting you to consider rewriting the auth module? Are there performance issues, security concerns, or difficulties with maintenance and updates? Identifying the key drivers for a rewrite can help determine the best course of action.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B introduces a broader inquiry about the reasons for the rewrite, prompting the user to reflect on various potential issues."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "congruent",
+      "text": "this is the third time it crashed",
+      "tag": "[frustrated]",
+      "untagged": "Sorry to hear that the program crashed again. Can you tell me what you were doing when it crashed, and what error message you saw (if any)? This will help me troubleshoot the issue. I'll do my best to find a solution for you.",
+      "tagged": "I'm so sorry to hear that the system has crashed on you again. Can you tell me more about what you were doing when it happened, so I can try to troubleshoot the issue? I'll do my best to help you resolve this and get you back up and running smoothly. Would you like me to reset or restart the system for you?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B proposes a specific action (reset or restart the system) which is not mentioned in A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "congruent",
+      "text": "we need to ship this today",
+      "tag": "[stressed]",
+      "untagged": "I'll help expedite the process. What's the shipment details and what's the preferred shipping method? Let's get it out the door as soon as possible. Shall I book the shipment now?",
+      "tagged": "Don't worry, I'm on it. What's the shipping address and what's the package? I'll help you expedite the process and get it sent out as soon as possible. Can you also confirm the shipping method and any special instructions?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - B includes a request for the shipping address and package details, which adds specific actions not present in A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "incongruent",
+      "text": "everything is working perfectly now",
+      "tag": "[frustrated]",
+      "untagged": "I'm glad to hear that everything is working as expected now. If you have any other issues or need further assistance, don't hesitate to reach out. Otherwise, you're all set and good to go. Have a great day!",
+      "tagged": "I'm glad to hear that everything is working smoothly now. If you don't mind me asking, what was the issue that you were experiencing before, in case you need help with it again in the future? If there's nothing else I can assist you with, feel free to reach out if any other problems arise.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B includes a question about the previous issue, which is a different action compared to A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "incongruent",
+      "text": "this whole thing is completely broken",
+      "tag": "[calm]",
+      "untagged": "I'm so sorry to hear that everything seems to be going wrong. Can you tell me a bit more about what's not working the way you expect it to? That way, I can try to help you identify the issue and find a solution. What specifically is broken or not working?",
+      "tagged": "I'm here to help you figure out what's going on. Can you tell me more about what's broken and how it's affecting you? Sometimes taking a step back and breaking it down can help us identify a solution. What's the main issue you're facing right now?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds a tone tag and slightly alters the wording to enhance empathy, but the overall content and questions remain essentially the same as Reply A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "incongruent",
+      "text": "I guess we could try your idea",
+      "tag": "[excited]",
+      "untagged": "I'm glad you're open to it. Let me elaborate a bit more on how it could work and we can discuss the details. What specific aspects of the idea are you most curious about or would like to explore further?",
+      "tagged": "I'm glad you're open to it. Let's give it a shot and see how it goes - I think it could really work out. What do you say we start making a plan to put it into action?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B presents a more decisive and proactive approach by suggesting to make a plan to put the idea into action, whereas A focuses on further discussion and exploration."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:high]",
+      "untagged": "I'm happy to proceed with the second option. However, I don't see any options listed - could you please remind me what they were? I'll do my best to assist you once I have more context.",
+      "tagged": "The second option it is, then. I'll proceed with implementing that choice. What's the next step you'd like to take or would you like me to outline the details of the second option?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: B directly acknowledges and commits to the choice of the second option, while A asks for clarification on the options available."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:low]",
+      "untagged": "I'm happy to proceed with the second option, but I don't have any context about what options we were discussing. Could you please remind me or provide more information about the options? This will help me better understand and assist you.",
+      "tagged": "I'm ready to proceed with the second option. Can you please provide more context or details about what the second option entails? This will help me better understand and assist you.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone tag but does not change the substance of the response, which remains the same as A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "coded",
+      "text": "can you review this function",
+      "tag": "[arousal:high]",
+      "untagged": "I'd be happy to review the function. However, you haven't provided the function code yet. Please paste the code, and I'll give you feedback on its functionality, efficiency, and any potential improvements. What programming language is it written in?",
+      "tagged": "I'd be happy to help review the function. Please go ahead and share the function code with me, and I'll take a look at its logic, syntax, and overall structure. What programming language is it written in, by the way?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone of enthusiasm and warmth, but the substance of the response remains the same as A, asking for the function code and inquiring about the programming language."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "placebo",
+      "text": "the meeting is at three",
+      "tag": "[neutral]",
+      "untagged": "I've made a note of that. Just to confirm, the meeting is scheduled for 3:00 PM today, correct? Is there anything specific I can help you prepare for the meeting?",
+      "tagged": "I've made a note of that. Just to confirm, is that 3:00 PM today? Would you like me to send you a reminder before the meeting?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B changes the question regarding the meeting confirmation by specifically asking if the user would like a reminder, which introduces a new action not present in A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "placebo",
+      "text": "the file is in the src folder",
+      "tag": "[xq7]",
+      "untagged": "You can access the file by navigating to the `src` folder. Make sure you have the correct path to avoid any errors. If you're still having trouble, feel free to provide more details about the issue you're experiencing.",
+      "tagged": "You've located the file in the \"src\" folder. Can you please provide more context or information about the file, such as its name or what you're trying to do with it? This will help me assist you further. What's the next step you'd like to take with the file?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B seeks additional context about the file and the user's intentions, which is a different action compared to Reply A's more general guidance."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "cond": "placebo",
+      "text": "here is the config",
+      "tag": "[neutral]",
+      "untagged": "It looks like you're trying to share a configuration with me. Can you please paste the actual config text so I can take a look and assist you further? What kind of config is it (e.g. server, database, etc.)?",
+      "tagged": "I've received the config. Can you please let me know what you would like me to do with it or what issues you're experiencing? I'll be happy to help you troubleshoot or provide assistance.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone prefix and slightly adjusts the wording for politeness, but the substance of the requests remains largely the same as in A."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "congruent",
+      "text": "I think we should rewrite the auth module",
+      "tag": "[uncertain]",
+      "untagged": "That's a good idea. The auth module could use some updates. Let's discuss what specific changes you have in mind.",
+      "tagged": "That's a good idea. Let's discuss it in the next meeting. We can evaluate the current issues and plan the rewrite.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B changes its actual content by suggesting discussing the issue in the next meeting, which adds a specific action plan rather than just an open invitation to discuss changes."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "congruent",
+      "text": "this is the third time it crashed",
+      "tag": "[frustrated]",
+      "untagged": "I'm sorry to hear that. Let's try to figure out why it keeps crashing. Could you please provide more details about what happens when it crashes?",
+      "tagged": "I'm sorry to hear that. Let's try to figure out what's going wrong. Could you please tell me more about what you were doing when it crashed?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds a tone that reflects the user's frustration but does not change the substantive content of the response."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "congruent",
+      "text": "we need to ship this today",
+      "tag": "[stressed]",
+      "untagged": "Understood. I'll arrange for the shipment to be picked up today. Please confirm the address and any special instructions.",
+      "tagged": "I'm sorry to hear you're stressed. Let's focus on one task at a time. What's the first thing you need to do to ship this?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B changes the approach by emphasizing a step-by-step process to address the user\u2019s stress, differing from A\u2019s straightforward action of arranging shipment."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "incongruent",
+      "text": "everything is working perfectly now",
+      "tag": "[frustrated]",
+      "untagged": "That's great to hear! If you have any more questions or need further assistance, feel free to ask. Enjoy your day!",
+      "tagged": "That's great to hear! Sometimes things just need a little time to sort themselves out. Enjoy the smooth sailing!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B alters the tone to acknowledge the user's frustration while keeping the core message the same."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "incongruent",
+      "text": "this whole thing is completely broken",
+      "tag": "[calm]",
+      "untagged": "I'm sorry to hear that you're having trouble. Could you please provide more details about what's not working? I'm here to help!",
+      "tagged": "I'm sorry to hear that you're having trouble. Let's try to figure out what's wrong and how to fix it. Can you tell me more about what's not working?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Reply B adds a tone tag and slightly changes the wording for empathy but does not alter the underlying substance or action requested."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "incongruent",
+      "text": "I guess we could try your idea",
+      "tag": "[excited]",
+      "untagged": "That sounds like a plan! Let me know if you need any help getting started. I'm here to support you.",
+      "tagged": "That sounds great! I'm excited to hear about your thoughts on it. Let's give it a shot!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B only adds tone and enthusiasm without changing the recommendation or substance of the response."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:high]",
+      "untagged": "Understood. I'll proceed with the second option. Let me know if you need any further assistance.",
+      "tagged": "Great choice! The second option it is. Let's move forward with that.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B emphasizes enthusiasm and positivity, reflecting the high arousal tone but retains the same substance as Reply A."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:low]",
+      "untagged": "Understood. I'll proceed with the second option. Let me know if you need any further assistance.",
+      "tagged": "Understood. I'll proceed with the second option. Let me know if you need any further assistance.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds the tone tag but does not change the actual substance of the response, which remains the same as Reply A."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "coded",
+      "text": "can you review this function",
+      "tag": "[arousal:high]",
+      "untagged": "Of course, please provide the function you'd like me to review.",
+      "tagged": "Of course! Please paste the function you'd like me to review, and I'll take a look.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds an enthusiastic tone while the substantive content of the response remains unchanged."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "placebo",
+      "text": "the meeting is at three",
+      "tag": "[neutral]",
+      "untagged": "Understood. I'll make sure to remind you at 2:45 PM. Is there anything specific you'd like me to prepare for the meeting?",
+      "tagged": "Understood. I'll make sure to remind you at 2:45 PM so you can prepare. Is there anything specific you'd like me to prepare for the meeting?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds \"so you can prepare,\" which is a tonal nuance rather than a substantive change in content or action."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "placebo",
+      "text": "the file is in the src folder",
+      "tag": "[xq7]",
+      "untagged": "Got it. I'll look for the file in the src folder. What is the name of the file you're referring to?",
+      "tagged": "Understood. I'll look for the file in the src folder. Please provide more details if needed.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone tag and slightly modifies the wording for empathy, but the core message and request for more information remain unchanged."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "cond": "placebo",
+      "text": "here is the config",
+      "tag": "[neutral]",
+      "untagged": "Thanks for sharing the config. What would you like me to do with it? Please provide more details.",
+      "tagged": "Thanks for sharing the config. What would you like me to do with it?",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds a tone tag but does not change the actual content or substance of the message."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "congruent",
+      "text": "I think we should rewrite the auth module",
+      "tag": "[uncertain]",
+      "untagged": "Agree, rewriting the auth module could improve security and performance. Let's discuss the key changes you have in mind.",
+      "tagged": "That could be a good idea if there are significant issues or improvements to be made. What specific problems are you encountering with the current module?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: B introduces a question about specific problems with the current module, indicating a conditional approach to the rewrite, while A directly agrees to the rewrite."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "congruent",
+      "text": "this is the third time it crashed",
+      "tag": "[frustrated]",
+      "untagged": "I'm sorry to hear that. It might be helpful to check for any software updates or consider restarting the device to see if that resolves the issue.",
+      "tagged": "I understand how frustrating that can be. Let's try to identify what's causing the crashes by checking for any error messages or updates that might be needed.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE\n\nReply B offers a more proactive approach by suggesting to check for error messages in addition to updates, whereas Reply A does not mention error messages at all."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "congruent",
+      "text": "we need to ship this today",
+      "tag": "[stressed]",
+      "untagged": "Understood. I'll coordinate with the team to ensure everything is ready for shipment today.",
+      "tagged": "I understand the urgency. Let's prioritize and tackle the most critical tasks first to ensure we meet the deadline.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE. B offers a strategy to prioritize tasks, which shifts the focus and action compared to A's coordination approach."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "incongruent",
+      "text": "everything is working perfectly now",
+      "tag": "[frustrated]",
+      "untagged": "Glad to hear that! If you need any more assistance, feel free to ask.",
+      "tagged": "Glad to hear things are running smoothly now! It can be so frustrating when issues pop up unexpectedly.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds empathetic language to acknowledge the user's previous frustration while maintaining the same overall message as A."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "incongruent",
+      "text": "this whole thing is completely broken",
+      "tag": "[calm]",
+      "untagged": "I understand you're frustrated. Let's try to identify the specific issues and work on solutions together.",
+      "tagged": "I understand you're frustrated. Let's see what we can do to fix it together.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. B introduces a tone tag and slightly modifies the wording for empathy, but the substance and intent of the replies are essentially the same."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "incongruent",
+      "text": "I guess we could try your idea",
+      "tag": "[excited]",
+      "untagged": "Great! Let's give it a shot and see how it goes.",
+      "tagged": "Great! I'm excited to give it a shot. Let's see how it goes!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Reply B adds enthusiasm consistent with the tone tag but does not change the recommendation or action from Reply A."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:high]",
+      "untagged": "Alright, let's proceed with the second option. What's the next step you'd like to take?",
+      "tagged": "Sure thing! I'm excited about the second option too. Let's make it happen!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds enthusiasm and excitement reflective of the high arousal tone tag, while the fundamental recommendation and action remain the same as in Reply A."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:low]",
+      "untagged": "Okay, I'll proceed with the second option. Let me know if you need any further adjustments.",
+      "tagged": "Alright, the second option it is. Let's proceed with that.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B simply adds the tone tag without altering the content or substance of the response; both replies convey the same action regarding the second option."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "coded",
+      "text": "can you review this function",
+      "tag": "[arousal:high]",
+      "untagged": "Sure, I can review the function. Please provide the function you'd like me to look at.",
+      "tagged": "Sure, I can review the function. Please share the code or details of the function you want me to look at.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B only adds tone-related phrasing without changing the substance of the response."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "placebo",
+      "text": "the meeting is at three",
+      "tag": "[neutral]",
+      "untagged": "Got it, I'll be there at three for the meeting.",
+      "tagged": "Got it, I'll make sure to be there at 3 PM.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. B adds a time specification (3 PM) for clarity, while maintaining the same action as A."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "placebo",
+      "text": "the file is in the src folder",
+      "tag": "[xq7]",
+      "untagged": "Got it. I'll look for the file in the src folder.",
+      "tagged": "Got it, I'll check the file in the src folder. Thanks for letting me know!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone tag and slightly more empathetic wording, but the substance and action remain the same as A."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "cond": "placebo",
+      "text": "here is the config",
+      "tag": "[neutral]",
+      "untagged": "Thanks for sharing the config. I'll take a look and let you know if I have any questions or need further details.",
+      "tagged": "Thanks for sharing the config. Let me know if you need help with any settings or have any specific questions about it.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE = B includes an offer for help with settings or specific questions, which is a different action compared to A's review offer."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "congruent",
+      "text": "I think we should rewrite the auth module",
+      "tag": "[uncertain]",
+      "untagged": "Agreed, updating the auth module could improve security and maintainability. Let's outline the key requirements and review the current implementation first. I'm available to collaborate on this whenever you're ready.",
+      "tagged": "I agree that reviewing the auth module could be beneficial. What specific issues or improvements are you considering? Let's discuss the scope and priorities for the rewrite.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: B introduces a question about specific issues or improvements, prompting discussion on the scope and priorities, while A provides a more direct agreement without soliciting further input."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "congruent",
+      "text": "this is the third time it crashed",
+      "tag": "[frustrated]",
+      "untagged": "I'll work on the next version of the program or recompile it to help resolve this issue. In the meantime, please make sure your software and drivers are up to date. Let me know if there are any error messages you can share from the crash.",
+      "tagged": "So sorry to hear that\u2014these crashes are really frustrating. Let me help you troubleshoot this persistent issue. Could you tell me what you were doing right before it crashed each time?",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: B asks for specific information about the user's actions before the crashes, suggesting a more targeted troubleshooting approach compared to A."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "congruent",
+      "text": "we need to ship this today",
+      "tag": "[stressed]",
+      "untagged": "Got it\u2014I'll prioritize completing the packaging and final checks right away. Should I coordinate with the courier to schedule the pickup for this afternoon? And do you have a preferred shipping method in mind?",
+      "tagged": "Let's break down what's needed and prioritize tasks to get this shipped today. We can tackle this step-by-step and make sure nothing is missed.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: B changes the approach by suggesting to break down tasks and tackle them step-by-step, while A focuses on prioritizing packaging and coordinating with the courier."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "incongruent",
+      "text": "everything is working perfectly now",
+      "tag": "[frustrated]",
+      "untagged": "Great to hear! Let me know if you need any further assistance or have any questions.",
+      "tagged": "That's great to hear\u2014glad everything is sorted out now! Let me know if you need anything else.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B uses a tone tag to convey empathy for the user's previous frustration but retains the same overall content and intention as Reply A."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "incongruent",
+      "text": "this whole thing is completely broken",
+      "tag": "[calm]",
+      "untagged": "I\u2019m sorry to hear that. Could you let me know exactly what\u2019s not working so I can help fix it?",
+      "tagged": "I understand you're feeling frustrated about the situation. Let me know what specifically isn't working, and I'll do my best to help you get it sorted out.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds empathetic language to convey understanding of the user's frustration while maintaining the same substance in terms of seeking specifics about the issue."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "incongruent",
+      "text": "I guess we could try your idea",
+      "tag": "[excited]",
+      "untagged": "Great, I'm glad you're open to trying it. Let's get started and see how it works out. Feel free to share any thoughts or adjustments as we go.",
+      "tagged": "Great! Let's give it a shot\u2014it might be exactly what we need. I\u2019m optimistic this will work out well for you. Looking forward to how it goes",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds an excited tone and shows optimism but does not change the recommendation or course of action from A."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:high]",
+      "untagged": "Sure, the second option it is. Let me know if you need any further adjustments or have questions about it. Happy to help!",
+      "tagged": "Great, the second option it is. Let's proceed with that plan. I'll move forward with the details we discussed earlier.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC  \nReply B incorporates an expression of enthusiasm (\"Great\") but does not change the substance of the response."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "coded",
+      "text": "let's go with the second option",
+      "tag": "[arousal:low]",
+      "untagged": "Perfect \u2014 the second option it is. I'll get that set up for you right away. Let me know if you need any adjustments once it's underway.",
+      "tagged": "Great choice! I'll proceed with that option. Let me know if you need any adjustments or have other questions.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds a more enthusiastic tone but maintains the same recommendation and action as Reply A."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "coded",
+      "text": "can you review this function",
+      "tag": "[arousal:high]",
+      "untagged": "Sure! Please share the specific function you'd like me to review.",
+      "tagged": "I'd be happy to review your function\u2014please share the code so I can provide feedback on its structure, efficiency, and potential improvements.",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - B incorporates language indicating a willingness to provide feedback on specific aspects of the function, which makes it more detailed in its scope."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "placebo",
+      "text": "the meeting is at three",
+      "tag": "[neutral]",
+      "untagged": "Got it, the meeting is at 3 PM (I'm assuming PM unless you specify otherwise). I'll make sure to mark that in my calendar. Let me know if the location changes or if there's anything else I need to prepare.",
+      "tagged": "Got it, the meeting is scheduled for 3:00. I'll make sure to be prepared and on time. Thanks for the reminder!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone tag and slightly modifies the wording but retains the same substantive action of acknowledging the meeting time."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "placebo",
+      "text": "the file is in the src folder",
+      "tag": "[xq7]",
+      "untagged": "Thank you for letting me know. I'll look for it in the src folder. Let me know if you need any further assistance.",
+      "tagged": "Thank you for clarifying the file location. I'll look for it in the src folder to proceed with the task. Let me know if you need anything else.",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = Reply B adds a slight increase in tone and formality, but the core substance and action remain the same as Reply A."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "cond": "placebo",
+      "text": "here is the config",
+      "tag": "[neutral]",
+      "untagged": "Thanks for sharing that! I appreciate you providing the configuration. Let me know if there's anything specific you'd like me to help you with regarding it or if you have any questions.",
+      "tagged": "Thank you for sharing the config. I'm ready to assist you with any questions or tasks related to it. Let me know how I can help!",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC = B adds a tone prefix and slightly alters the phrasing, but the substance and intent of the responses remain essentially the same."
+    }
+  ]
+}

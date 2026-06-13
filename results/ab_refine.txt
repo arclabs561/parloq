@@ -1,0 +1,15 @@
+Installed 5 packages in 3ms
+panel (6), texts 4, conditions ['noise', 'code', 'word']
+
+responses done in 34s
+judged in 5s
+
+condition  SUBSTANTIVE   COSMETIC   IGNORED  n
+noise             50%        50%        0%  24
+code              38%        62%        0%  24
+word              21%        79%        0%  24
+
+noise floor (subtract this): 50%
+code signal above floor: -12 pts
+word signal above floor: -29 pts
+saved -> results/ab_refine_2026-06-13.json

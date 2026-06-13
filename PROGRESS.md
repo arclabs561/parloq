@@ -79,3 +79,32 @@ decomposition below.
   A/B showed pay off but cheap features can't produce.
 - (c) Harden the tagger eval: level-normalization + naturalistic data (EMOVOME),
   and add the "informed" A/B condition (system prompt explains tags).
+
+### Refinement arc (harder evals) — METHODOLOGY ARTIFACT found + calibrated result
+
+The "make it harder" pushes uncovered that single-sample A/B judging is dominated
+by LLM sampling noise; the headline number swung wildly with measurement setup:
+
+| eval | noise control | result |
+|---|---|---|
+| soft (`ab_tag_response`) | none, lenient judge | 100% ADAPTED (inflated) |
+| hard (`ab_tag_response_hard`) | placebo tag, strict 3-way judge | placebo floor ~28%; coded tags BELOW it |
+| refine temp 0.7 (`ab_tag_refine`) | same-vs-same resample | noise floor 50%(!); code -12pts, word -29pts |
+| refine temp 0 | same-vs-same, deterministic | noise floor 12%; code +17pts, word +12pts |
+
+Lesson: ANY A/B here must control sampling noise (temp 0 responders OR same-vs-same
+subtraction). Without it you can "prove" 100% or "prove" zero from the same setup.
+
+CALIBRATED FINDING (temp 0, the clean causal measurement): arousal tags DO change
+response substance, modestly — code +17pts, word +12pts above a 12% floor, on
+NEUTRAL task sentences. Most non-substantive cases are COSMETIC tone-matching
+(67-75%). So the effect is real but modest for task-oriented dictation; the larger
+effects in the soft/hard evals came from affect-laden sentences where an emotion
+WORD carried semantic content, not from prosody per se.
+
+VERDICT (revised): the channel has real-but-modest value for task dictation
+(~1 in 6 cases substantively change + tone-matching in most others), NOT the
+100% slam-dunk. The build-or-not decision now rests on whether modest+cosmetic
+is worth the recorder-integration cost — a judgment call for the user, on solid
+evidence. Open: re-measure affect tags on neutral sentences at temp 0 to fully
+disentangle word-semantics from prosody-dimension; test on naturalistic data.

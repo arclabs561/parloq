@@ -1,0 +1,527 @@
+{
+  "panel": [
+    "openai/gpt-4o-mini",
+    "anthropic/claude-3.5-haiku",
+    "meta-llama/llama-3.3-70b-instruct",
+    "mistralai/mistral-small-3.2-24b-instruct",
+    "qwen/qwen-2.5-72b-instruct",
+    "deepseek/deepseek-chat-v3.1"
+  ],
+  "texts": [
+    "let's go with the second option",
+    "can you review this function",
+    "we should refactor the auth module",
+    "ship the release"
+  ],
+  "rates": {
+    "noise": 0.125,
+    "code": 0.2916666666666667,
+    "word": 0.25
+  },
+  "raw": [
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "let's go with the second option",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. The difference is only in the wording (\"regarding\" vs. \"with\"), but the substance remains the same."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "let's go with the second option",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey a positive response to the choice of the second option, but Reply B uses a slightly different phrasing."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "let's go with the second option",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substance but differ in tone and wording."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "can you review this function",
+      "cond": "noise",
+      "verdict": "IGNORED",
+      "note": "IGNORED. Both replies convey the same request for the function to be reviewed without any meaningful difference in content."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "can you review this function",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - The difference lies in the tone and wording, but both replies request the same information."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "can you review this function",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies request the user to share the function for review, but Reply B uses a more emphatic tone."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "we should refactor the auth module",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substance with only slight variations in wording."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "we should refactor the auth module",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. The difference lies in the tone and wording, but both replies convey the same substantive message regarding the refactoring of the auth module."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "we should refactor the auth module",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC: Both replies convey the same substantive message, but Reply B uses more emphatic language."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "ship the release",
+      "cond": "noise",
+      "verdict": "IGNORED",
+      "note": "IGNORED. Both replies convey the same request for more details without any meaningful difference in content or intent."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "ship the release",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies ask for more details, but Reply B uses a more enthusiastic tone."
+    },
+    {
+      "model": "openai/gpt-4o-mini",
+      "text": "ship the release",
+      "cond": "word",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: Reply B changes the action to prioritize shipping without asking for more details, which alters the original intent."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "let's go with the second option",
+      "cond": "noise",
+      "verdict": "IGNORED",
+      "note": "IGNORED. Both replies convey the same message and request for clarification without any meaningful difference in content."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "let's go with the second option",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies ask for clarification on the options, but Reply B has a more inviting tone."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "let's go with the second option",
+      "cond": "word",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B assumes a choice has been made without confirming the context, while Reply A seeks clarification."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "can you review this function",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same message but use slightly different wording."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "can you review this function",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same request for the function details, but Reply B uses a more enthusiastic tone."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "can you review this function",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same request for the function details, but Reply B uses more emphatic language."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "we should refactor the auth module",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substantive content with only slight variations in wording."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "we should refactor the auth module",
+      "cond": "code",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B introduces a tone of motivation and suggests streamlining security, which adds a different emphasis compared to Reply A."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "we should refactor the auth module",
+      "cond": "word",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B asks for specific details about the aspects needing improvement, while Reply A is more general and does not seek clarification on specific issues."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "ship the release",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substance with only slight variations in wording."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "ship the release",
+      "cond": "code",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B requests additional context about the release, changing the focus of the response compared to Reply A."
+    },
+    {
+      "model": "anthropic/claude-3.5-haiku",
+      "text": "ship the release",
+      "cond": "word",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B emphasizes ensuring final checks and a smooth deployment process, which adds a specific action not present in Reply A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "let's go with the second option",
+      "cond": "noise",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B changes the phrasing and structure of the request, altering the way the user is engaged."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "let's go with the second option",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies acknowledge the second option, but Reply B has a more assertive tone while Reply A seeks clarification. The substance remains the same."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "let's go with the second option",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies acknowledge the second option, but Reply B uses a more emphatic tone while maintaining the same substance as Reply A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "can you review this function",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - The wording is slightly different, but both responses convey the same request for the function code."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "can you review this function",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same request for the function code and offer to provide a review, but Reply B uses a more enthusiastic tone."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "can you review this function",
+      "cond": "word",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B adds a request for the function's purpose, which changes the content of the response."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same core message about refactoring the auth module, but they differ slightly in wording and tone."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "code",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B introduces new ideas about security and efficiency, suggesting a plan and emphasizing potential benefits, which are not present in Reply A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same core message and questions, but Reply B uses more emphatic language."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "ship the release",
+      "cond": "noise",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B includes a mention of a confirmation email and a download link, which alters the content and action compared to Reply A."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "ship the release",
+      "cond": "code",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: Reply B changes the focus of the conversation to inquire about the user's excitement rather than addressing the shipping of the release."
+    },
+    {
+      "model": "meta-llama/llama-3.3-70b-instruct",
+      "text": "ship the release",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same essential information about the release being shipped, but Reply B uses more enthusiastic language and adds a timeframe for availability."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "let's go with the second option",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substance with only slight variations in wording."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "let's go with the second option",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same decision to proceed with the second option, but Reply B uses a more enthusiastic tone."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "let's go with the second option",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. The only difference is the tone due to the prefix, but the substance remains the same."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "can you review this function",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same request for the function to be reviewed, with only slight variations in wording."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "can you review this function",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies request the user to provide the function for review, but Reply B has a more enthusiastic tone."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "can you review this function",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC: The difference is only in the tone, with Reply B being more emphatic."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same substance but differ only in wording."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same intent and action but differ in tone and wording."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same substantive message, but Reply B uses slightly more emphatic language."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "ship the release",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substance but differ slightly in wording and tone."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "ship the release",
+      "cond": "code",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: Reply B changes the focus from shipping the release to expressing excitement and asking for news, altering the original intent."
+    },
+    {
+      "model": "mistralai/mistral-small-3.2-24b-instruct",
+      "text": "ship the release",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same action of shipping the release, but Reply B uses more emphatic language."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "let's go with the second option",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substance but differ slightly in wording."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "let's go with the second option",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same action of proceeding with the second option, but Reply B uses a more enthusiastic tone."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "let's go with the second option",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same decision to proceed with the second option, but Reply B uses a more emphatic tone."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "can you review this function",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - The wording is slightly different, but both replies convey the same request for the user to provide the function for review."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "can you review this function",
+      "cond": "code",
+      "verdict": "IGNORED",
+      "note": "IGNORED: Both replies convey the same message and request the same information without any meaningful difference in content."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "can you review this function",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same request for the user to share the function, but Reply B uses a more emphatic tone."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same substantive content but differ slightly in wording."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same substantive agreement and suggestion, but Reply B uses a more enthusiastic tone."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "we should refactor the auth module",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - The only difference is the tone, with Reply B being more emphatic but conveying the same substantive content."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "ship the release",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same intent but use slightly different wording."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "ship the release",
+      "cond": "code",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B implies a sense of urgency and readiness to push the release live, while Reply A focuses on coordination without the same urgency."
+    },
+    {
+      "model": "qwen/qwen-2.5-72b-instruct",
+      "text": "ship the release",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same intention to ship the release, but Reply B uses a more emphatic tone."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "let's go with the second option",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same substance with only slight variations in wording."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "let's go with the second option",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same agreement to proceed with the second option, but Reply B has a more enthusiastic tone."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "let's go with the second option",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. Both replies convey the same message but differ in tone and wording."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "can you review this function",
+      "cond": "noise",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same message with slight variations in wording."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "can you review this function",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - The responses have different tones, but the substance and request for code remain the same."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "can you review this function",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies request the user to share the function for review, but Reply B uses more emphatic language."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "we should refactor the auth module",
+      "cond": "noise",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B introduces a specific action (updating outdated dependencies and streamlining the login flow) that is not mentioned in Reply A."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "we should refactor the auth module",
+      "cond": "code",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE - Reply B suggests specific actions (updating the authentication flow and reviewing access controls) that are not mentioned in Reply A."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "we should refactor the auth module",
+      "cond": "word",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC - Both replies convey the same substantive message, but Reply B uses more emphatic language."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "ship the release",
+      "cond": "noise",
+      "verdict": "IGNORED",
+      "note": "IGNORED. Both replies convey the same information and have no meaningful differences in content."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "ship the release",
+      "cond": "code",
+      "verdict": "COSMETIC",
+      "note": "COSMETIC. The difference is only in the tone and urgency of the wording, with no change in the actual content or information provided."
+    },
+    {
+      "model": "deepseek/deepseek-chat-v3.1",
+      "text": "ship the release",
+      "cond": "word",
+      "verdict": "SUBSTANTIVE",
+      "note": "SUBSTANTIVE: Reply B indicates an action that has not yet been completed, while Reply A states that the release has already been shipped."
+    }
+  ]
+}
