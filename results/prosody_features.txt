@@ -1,0 +1,27 @@
+Installed 30 packages in 89ms
+320 clips (40/emotion)
+  0/320
+  80/320
+  160/320
+  240/320
+features in 38s
+
+=== per-emotion feature means ===
+emotion      rms_mean     rms_std      f0_std    f0_range  pause_ratio
+angry          0.0269      0.0355     48.6977    154.8020      0.5815
+happy          0.0111      0.0144     40.4100    143.0157      0.5742
+surprised      0.0092      0.0120     41.8415    135.5320      0.5842
+fearful        0.0161      0.0210     33.5588    118.5089      0.5958
+disgust        0.0063      0.0084     34.2433    120.1282      0.5985
+neutral        0.0034      0.0044     43.1729    141.7353      0.5824
+calm           0.0031      0.0036     30.5429    107.5065      0.5515
+sad            0.0062      0.0078     29.7253    109.8568      0.5850
+
+=== arousal separability (AUC, high vs low arousal) ===
+  rms_mean     AUC=0.884
+  rms_std      AUC=0.893
+  f0_std       AUC=0.624
+  f0_range     AUC=0.602
+  pause_ratio  AUC=0.566
+
+AUC>=0.8 = this feature alone separates arousal; ~0.5 = no signal

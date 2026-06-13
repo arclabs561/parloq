@@ -1,0 +1,170 @@
+[
+  {
+    "audio": "/tmp/ravdess/Actor_11/03-01-05-02-02-01-11.wav",
+    "true_emotion": "angry",
+    "pred_tag": "ang",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[ang] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_22/03-01-04-01-01-01-22.wav",
+    "true_emotion": "sad",
+    "pred_tag": "ang",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[ang] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_12/03-01-05-02-02-01-12.wav",
+    "true_emotion": "angry",
+    "pred_tag": "ang",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[ang] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_02/03-01-02-01-01-02-02.wav",
+    "true_emotion": "calm",
+    "pred_tag": "neu",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[neu] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_08/03-01-03-01-01-02-08.wav",
+    "true_emotion": "happy",
+    "pred_tag": "ang",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[ang] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_15/03-01-03-02-02-02-15.wav",
+    "true_emotion": "happy",
+    "pred_tag": "ang",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[ang] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_14/03-01-05-01-01-02-14.wav",
+    "true_emotion": "angry",
+    "pred_tag": "ang",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[ang] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_12/03-01-03-02-02-01-12.wav",
+    "true_emotion": "happy",
+    "pred_tag": "ang",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[ang] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_23/03-01-02-02-02-01-23.wav",
+    "true_emotion": "calm",
+    "pred_tag": "neu",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[neu] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_24/03-01-04-01-01-02-24.wav",
+    "true_emotion": "sad",
+    "pred_tag": "neu",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[neu] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_09/03-01-04-01-02-01-09.wav",
+    "true_emotion": "sad",
+    "pred_tag": "neu",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[neu] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_14/03-01-04-01-01-01-14.wav",
+    "true_emotion": "sad",
+    "pred_tag": "ang",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[ang] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_11/03-01-02-01-02-01-11.wav",
+    "true_emotion": "calm",
+    "pred_tag": "neu",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[neu] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_17/03-01-04-01-01-02-17.wav",
+    "true_emotion": "sad",
+    "pred_tag": "hap",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[hap] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_07/03-01-02-01-02-02-07.wav",
+    "true_emotion": "calm",
+    "pred_tag": "ang",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[ang] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_15/03-01-03-01-01-01-15.wav",
+    "true_emotion": "happy",
+    "pred_tag": "neu",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[neu] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_04/03-01-05-02-02-01-04.wav",
+    "true_emotion": "angry",
+    "pred_tag": "ang",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[ang] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_09/03-01-01-01-01-01-09.wav",
+    "true_emotion": "neutral",
+    "pred_tag": "hap",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[hap] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_04/03-01-05-02-02-02-04.wav",
+    "true_emotion": "angry",
+    "pred_tag": "ang",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[ang] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_22/03-01-03-02-01-02-22.wav",
+    "true_emotion": "happy",
+    "pred_tag": "ang",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[ang] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_03/03-01-04-02-01-02-03.wav",
+    "true_emotion": "sad",
+    "pred_tag": "hap",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[hap] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_18/03-01-04-01-01-02-18.wav",
+    "true_emotion": "sad",
+    "pred_tag": "ang",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[ang] Kids are talking by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_23/03-01-04-02-02-01-23.wav",
+    "true_emotion": "sad",
+    "pred_tag": "neu",
+    "untagged": "Dogs are sitting by the door",
+    "tagged": "[neu] Dogs are sitting by the door"
+  },
+  {
+    "audio": "/tmp/ravdess/Actor_08/03-01-02-01-01-01-08.wav",
+    "true_emotion": "calm",
+    "pred_tag": "neu",
+    "untagged": "Kids are talking by the door",
+    "tagged": "[neu] Kids are talking by the door"
+  }
+]

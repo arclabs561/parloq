@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+*.zip
+/data/
+.venv/
+# large model caches live in ~/.cache/huggingface, not here
