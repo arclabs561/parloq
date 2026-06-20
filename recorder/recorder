@@ -685,9 +685,6 @@ header {
   align-self: center;
 }
 .marker.user-mark { color: var(--pill-rec); }
-.marker.user-mark .label-text::after {
-  content: " ★"; color: var(--pill-rec);
-}
 
 .empty {
   color: var(--fg-faint);
@@ -1563,6 +1560,10 @@ mark.find-hit.current {
       try { render(JSON.parse(e.data)); } catch (err) { console.error(err); }
     });
     evt.onerror = () => {
+      if (lastState && lastState.status === 'stopped') {
+        setConnState('stopped');
+        return;
+      }
       setConnState('reconnecting');
       // EventSource auto-reconnects, but if the server is fully gone the
       // browser keeps trying every 3s. Surface the disconnected state.
@@ -1688,6 +1689,106 @@ def start_server(state: TranscriptState, port: int) -> tuple[ReusableThreadingSe
     thread = threading.Thread(target=srv.serve_forever, daemon=True)
     thread.start()
     return srv, actual, thread
+
+
+def cmd_ui_fixture(rest: list[str]) -> int:
+    """Serve the live UI with deterministic transcript states for browser tests.
+
+    This is intentionally recorder-hosted rather than a separate mock server:
+    it exercises the same HTML, SSE endpoint, snapshot endpoint, and control
+    endpoints as a real recording without loading parakeet or touching a mic.
+    """
+    p = argparse.ArgumentParser(prog="recorder ui-fixture")
+    p.add_argument("--port", type=int, default=0,
+                   help="HTTP port (default: ephemeral)")
+    p.add_argument("--step", type=float, default=0.18,
+                   help="seconds between scripted updates (default 0.18)")
+    args = p.parse_args(rest)
+
+    started = datetime.now().astimezone()
+    meta = {
+        "name": "ui-fixture",
+        "started": started.strftime("%Y-%m-%d %H:%M:%S %Z"),
+        "model": "fixture",
+        "input": "fixture audio",
+        "audio_file": "ui-fixture.flac",
+        "md_path": "/tmp/parloq-ui-fixture.md",
+        "paths": {
+            "md": "/tmp/parloq-ui-fixture.md",
+            "txt": "/tmp/parloq-ui-fixture.txt",
+            "flac": "/tmp/parloq-ui-fixture.flac",
+            "log": "/tmp/parloq-ui-fixture.log",
+        },
+    }
+    state = TranscriptState(meta)
+    state.set_polish_status("idle", "fixture-polish")
+
+    try:
+        srv, port, _ = start_server(state, args.port)
+    except OSError as e:
+        print(f"ui fixture server failed: {e}", file=sys.stderr)
+        return 1
+
+    url = f"http://127.0.0.1:{port}/"
+    print(f"live   -> {url}", file=sys.stderr, flush=True)
+
+    def sleep_step(multiplier: float = 1.0) -> None:
+        time.sleep(max(0.01, args.step * multiplier))
+
+    def maybe_user_mark(t: float) -> None:
+        if state.mark_requested:
+            state.mark_requested = False
+            state.add_marker(t, f"[{hms(t)}] ★", user=True)
+
+    try:
+        state.set_status("starting")
+        state.set_draft("warming fixture state", 0.5, 0.5, peak_db=-48.0)
+        sleep_step()
+
+        state.set_status("recording")
+        state.set_draft("", 1.0, 1.0, peak_db=-34.0)
+        state.append_finalized(
+            "We need the recorder UI to show known transcript data clearly.",
+            1.2,
+        )
+        sleep_step()
+        maybe_user_mark(1.4)
+
+        state.append_finalized(
+            " The quality gate should catch unreadable states before they ship.",
+            4.8,
+        )
+        state.replace_polished_window(
+            0, 2,
+            "We need the recorder UI to show known transcript data clearly. "
+            "The quality gate should catch unreadable states before they ship.",
+            "We need the recorder UI to show known transcript data clearly. "
+            "The quality gate should catch unreadable states before they ship.",
+        )
+        state.set_draft("and screenshots should cover the live tail", 8.5, 8.5,
+                        peak_db=-18.0)
+        sleep_step()
+        maybe_user_mark(8.8)
+
+        state.add_marker(10.0, "[00:00:10]")
+        state.append_finalized(
+            " Markers, search, raw toggle, and the stop dialog all need coverage.",
+            12.0,
+        )
+        state.set_draft("", 14.0, 14.0, peak_db=-55.0)
+
+        while not state.stop_requested:
+            maybe_user_mark(state.snapshot()["audio_seconds"] or 14.0)
+            state.set_draft("", 14.0, 14.0, peak_db=-90.0)
+            time.sleep(0.05)
+
+        state.set_status("stopped")
+        state.set_draft("", 14.0, 14.0, peak_db=-120.0)
+        sleep_step(0.5)
+        return 0
+    finally:
+        srv.shutdown()
+        srv.server_close()
 
 
 # ---------- markdown writer ----------
@@ -2952,6 +3053,8 @@ def _dispatch_subcommand(verb: str, rest: list[str]) -> int:
         return cmd_diarize_cli(rest)
     if verb == "dictate":
         return cmd_dictate(rest)
+    if verb == "ui-fixture":
+        return cmd_ui_fixture(rest)
     print(f"unknown subcommand: {verb}", file=sys.stderr)
     return 2
 
@@ -3759,7 +3862,10 @@ def main() -> int:
     # Disambiguation: if the user wants a recording with one of these names,
     # they pass `record search` explicitly. Bare `recorder search`
     # always dispatches to subcommand.
-    SUBCOMMANDS = {"search", "polish", "redo", "summary", "diarize", "dictate"}
+    SUBCOMMANDS = {
+        "search", "polish", "redo", "summary", "diarize", "dictate",
+        "ui-fixture",
+    }
     argv = sys.argv[1:]
     if argv and argv[0] == "record" and len(argv) > 1:
         # explicit recording mode: drop the "record" verb
