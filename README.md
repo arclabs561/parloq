@@ -2,8 +2,8 @@
 
 ## Overview
 
-Local speech recording and transcription, with experiments for preserving the
-paralinguistic channel that ASR usually discards.
+Local speech recorder and dictation tool, with experiments that improve what
+the recorder can capture from speech.
 
 `recorder/` is the daily-driver tool: meeting capture, live transcription,
 offline re-pass, diarization, summaries, search, and push-to-talk dictation.
