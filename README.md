@@ -1,23 +1,23 @@
-# prosody
+# parloq
 
 ## Overview
 
-Experiments toward paralinguistic-aware dictation: tagging a speech transcript
-with how something was said (emphasis, hesitation, affect, breath/laughter), so
-a downstream LLM sees the prosodic channel that ASR normally discards. The
-motivating use case is dictation into Claude Code, where Superwhisper (closed,
-Whisper-family) strips exactly that channel. The modifiable vehicle is the
-user's own `recorder dictate` daemon (`~/Documents/dev/toolbox/recorder`); this
-repo is the experiment bench that decides whether the channel is worth wiring
-in before touching that daily driver.
+Local speech recording and transcription, with experiments for preserving the
+paralinguistic channel that ASR usually discards.
 
-This is a research bench, not a shipped tool. The cross-session decision record
-and phase plan live in harness memory:
+`recorder/` is the daily-driver tool: meeting capture, live transcription,
+offline re-pass, diarization, summaries, search, and push-to-talk dictation.
+`eval/`, `experiments/`, and `results/` are the evidence bench for deciding
+which speech/prosody signals should graduate into recorder.
+
+The cross-session decision record and phase plan live in harness memory:
 `~/.claude/projects/-Users-arc-Documents-dev/memory/paralinguistic-dictation-roadmap.md`.
 
 ## Layout
 
+- `recorder/` — local meeting recorder and dictation CLI.
 - `experiments/` — self-contained PEP 723 uv scripts (`uv run experiments/<x>.py`).
+- `eval/` — reusable evaluation scripts for prosody/tagging experiments.
 - `results/` — captured outputs (text logs, JSON pairs). Tracked.
 - `data/` — datasets (gitignored; scripts download reproducibly to `/tmp` or here).
 - `PROGRESS.md` — dated progress log.
