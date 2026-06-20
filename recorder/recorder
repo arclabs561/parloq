@@ -429,49 +429,45 @@ INDEX_HTML = r"""<!doctype html>
 <title>recorder · live</title>
 <style>
 :root {
-  /* Light: warm paper, dark ink. Avoid pure black/white (halation on screens). */
-  --bg: #f6f3eb;
-  --bg-elev: #fbf9f3;
-  --fg: #1f1d18;
-  --fg-mute: #6a665b;
-  /* fg-faint: bumped from #aaa597 (2.2:1 — fails WCAG AA on body text)
-     to #847e72 (4.5:1 on the warm-paper background). Still reads as
-     "secondary" but is legible for streaming draft text. */
-  --fg-faint: #847e72;
-  --rule: #e2dccd;
-  --rule-strong: #c9c2af;
-  --accent: #a14d00;
-  --accent-soft: rgba(161, 77, 0, 0.10);
-  --pill-rec: #b3261e;
-  --pill-stop: #6a665b;
-  --pill-start: #a14d00;
+  color-scheme: light dark;
+  --bg: #f4f6f3;
+  --bg-elev: #ffffff;
+  --bg-rail: #eef2ef;
+  --fg: #171a1c;
+  --fg-mute: #596369;
+  --fg-faint: #78858b;
+  --rule: #d9e0da;
+  --rule-strong: #b7c2bb;
+  --accent: #246a73;
+  --accent-soft: rgba(36, 106, 115, 0.10);
+  --pill-rec: #c23b35;
+  --pill-stop: #66706b;
+  --pill-start: #8d6a16;
   --btn-bg: #ffffff;
-  --btn-fg: #1f1d18;
-  --btn-hover: #efeadc;
-  --btn-danger: #b3261e;
-  --shadow: 0 1px 2px rgba(31, 29, 24, 0.04), 0 4px 14px rgba(31, 29, 24, 0.06);
+  --btn-fg: #171a1c;
+  --btn-hover: #e8eeea;
+  --btn-danger: #c23b35;
+  --shadow: 0 1px 2px rgba(23, 26, 28, 0.06), 0 8px 24px rgba(23, 26, 28, 0.08);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    /* Dark: not inverted. Slightly warm near-black, soft cream ink at ~88% brightness. */
-    --bg: #14130f;
-    --bg-elev: #1c1b16;
-    --fg: #e3dfd2;
-    --fg-mute: #8d877a;
-    /* fg-faint: bumped from #56524a (2.4:1 — fails AA) to #948d80
-       (4.6:1 on near-black). Streaming draft text is now legible. */
-    --fg-faint: #948d80;
-    --rule: #2a2823;
-    --rule-strong: #3d3a32;
-    --accent: #e0a35c;
-    --accent-soft: rgba(224, 163, 92, 0.12);
-    --pill-rec: #e85a4f;
-    --pill-stop: #8d877a;
-    --pill-start: #e0a35c;
-    --btn-bg: #1c1b16;
-    --btn-fg: #e3dfd2;
-    --btn-hover: #26241d;
-    --btn-danger: #e85a4f;
+    --bg: #101316;
+    --bg-elev: #171c20;
+    --bg-rail: #14191d;
+    --fg: #e2e7e9;
+    --fg-mute: #9aa5aa;
+    --fg-faint: #7d898f;
+    --rule: #263036;
+    --rule-strong: #3a474e;
+    --accent: #76c4cf;
+    --accent-soft: rgba(118, 196, 207, 0.14);
+    --pill-rec: #ff6b5f;
+    --pill-stop: #97a19d;
+    --pill-start: #d3ae54;
+    --btn-bg: #171c20;
+    --btn-fg: #e2e7e9;
+    --btn-hover: #20282d;
+    --btn-danger: #ff6b5f;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.3);
   }
 }
@@ -479,40 +475,51 @@ INDEX_HTML = r"""<!doctype html>
 html { font-optical-sizing: auto; hanging-punctuation: first last; }
 html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
 body {
-  font-family: 'Iowan Old Style', 'Charter', 'Source Serif Pro', 'Cambria',
-               Georgia, ui-serif, serif;
-  font-size: 19px;
-  line-height: 1.55;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', ui-sans-serif, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
   font-feature-settings: "kern", "liga", "onum";
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
-.ui { font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif; }
+.ui { font-family: inherit; }
 .frame {
-  max-width: 68ch;
+  width: min(1180px, calc(100vw - 48px));
   margin: 0 auto;
-  padding: 2.5rem 1.75rem 9rem;
+  padding: 1.25rem 0 7rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 21rem);
+  grid-template-areas:
+    "header header"
+    "warning warning"
+    "transcript rail";
+  gap: 1.5rem 2rem;
+  align-items: start;
 }
 
 /* ------- header ------- */
 header {
+  grid-area: header;
+  position: sticky;
+  top: 0;
+  z-index: 50;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 1rem 2rem;
+  gap: 0.85rem 1.5rem;
   align-items: start;
+  background: var(--bg);
   border-bottom: 1px solid var(--rule);
-  padding-bottom: 1.1rem;
-  margin-bottom: 2.25rem;
+  padding: 0.85rem 0 1rem;
 }
-.title-block { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; }
+.title-block { min-width: 0; }
 .name {
-  font-weight: 600; font-size: 17px; color: var(--fg);
-  letter-spacing: -0.005em;
+  font-weight: 650; font-size: 18px; color: var(--fg);
+  letter-spacing: 0;
   font-variant-numeric: tabular-nums;
 }
 .meta-row {
-  display: flex; gap: 1.25rem; margin-top: 0.35rem; flex-wrap: wrap;
+  display: flex; gap: 0.75rem 1.15rem; margin-top: 0.35rem; flex-wrap: wrap;
   font-size: 12.5px; color: var(--fg-mute);
 }
 .meta { white-space: nowrap; }
@@ -524,9 +531,8 @@ header {
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.32rem 0.85rem;
   border-radius: 999px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 11.5px; font-weight: 600;
-  letter-spacing: 0.07em; text-transform: uppercase;
+  letter-spacing: 0; text-transform: uppercase;
   background: var(--bg-elev); color: var(--pill-stop);
   border: 1px solid var(--rule-strong);
   font-variant-numeric: tabular-nums;
@@ -546,7 +552,6 @@ header {
   margin-top: 0.25rem;
 }
 .btn {
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px; font-weight: 500;
   padding: 0.4rem 0.85rem;
   border-radius: 7px;
@@ -585,7 +590,6 @@ header {
   border: 1px solid var(--rule-strong);
   padding: 0.5rem 0.85rem;
   border-radius: 7px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px;
   box-shadow: var(--shadow);
   opacity: 0; pointer-events: none;
@@ -596,30 +600,49 @@ header {
 
 /* ------- warning + paths ------- */
 .warning {
+  grid-area: warning;
   background: rgba(179, 38, 30, 0.07);
   border-left: 3px solid var(--pill-rec);
   padding: 0.75rem 1rem;
-  margin-bottom: 1.5rem;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px; color: var(--pill-rec);
   border-radius: 0 4px 4px 0;
+}
+.session-rail {
+  grid-area: rail;
+  position: sticky;
+  top: 6.75rem;
+  display: grid;
+  gap: 1rem;
 }
 .paths {
   font-family: ui-monospace, SF Mono, Menlo, monospace;
   font-size: 11.5px; color: var(--fg-faint);
-  margin-bottom: 2rem;
-  display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.75rem;
+  display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem;
   user-select: text;
+  background: var(--bg-rail);
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+  padding: 0.85rem 0.95rem;
 }
 .paths .label { color: var(--fg-faint); }
 .paths .val { color: var(--fg-mute); word-break: break-all; }
 
 /* ------- transcript ------- */
+.transcript {
+  grid-area: transcript;
+  min-width: 0;
+  max-width: 72ch;
+  padding-top: 0.35rem;
+  font-family: 'Iowan Old Style', 'Charter', 'Source Serif Pro', 'Cambria',
+               Georgia, ui-serif, serif;
+  font-size: 20px;
+  line-height: 1.58;
+}
 .transcript p {
   margin: 0 0 0.9em;
   text-wrap: pretty;
-  hyphens: auto;
-  -webkit-hyphens: auto;
+  hyphens: manual;
+  -webkit-hyphens: manual;
 }
 .transcript details.para {
   margin: 0 0 0.9em;
@@ -629,8 +652,8 @@ header {
   list-style: none;
   cursor: text;
   text-wrap: pretty;
-  hyphens: auto;
-  -webkit-hyphens: auto;
+  hyphens: manual;
+  -webkit-hyphens: manual;
 }
 .transcript details.para summary::-webkit-details-marker { display: none; }
 .transcript details.para[open] summary {
@@ -642,7 +665,7 @@ header {
   font-size: 14px;
   color: var(--fg-mute);
   font-style: italic;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', ui-sans-serif, sans-serif;
   font-feature-settings: normal;
   border-left: 2px solid var(--rule);
   padding-left: 0.85em;
@@ -668,9 +691,9 @@ header {
 .marker {
   display: flex; align-items: baseline; gap: 0.85em;
   margin: 2.5rem 0 1.4rem;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', ui-sans-serif, sans-serif;
   font-size: 11.5px; font-weight: 600;
-  letter-spacing: 0.08em; text-transform: uppercase;
+  letter-spacing: 0; text-transform: uppercase;
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
@@ -688,7 +711,7 @@ header {
 
 .empty {
   color: var(--fg-faint);
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', ui-sans-serif, sans-serif;
   font-size: 14px;
   font-style: italic;
 }
@@ -706,7 +729,6 @@ html { overflow-anchor: none; }
   background: var(--accent); color: var(--bg);
   padding: 0.55rem 1.15rem;
   border-radius: 999px;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 13px; font-weight: 600;
   border: none; cursor: pointer;
   box-shadow: var(--shadow);
@@ -728,9 +750,8 @@ html { overflow-anchor: none; }
    speed of ~160 wpm, the user is falling behind). Shown only when active. */
 .rate-warn {
   display: none; /* shown by JS when fast */
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 11.5px; color: var(--accent);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 .rate-warn.visible { display: inline-flex; }
 
@@ -749,7 +770,6 @@ html { overflow-anchor: none; }
   padding: 1.5rem;
   max-width: 28rem;
   box-shadow: var(--shadow);
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .modal h2 { margin: 0 0 0.5rem; font-size: 16px; font-weight: 600; }
 .modal p { margin: 0 0 1.25rem; font-size: 14px; color: var(--fg-mute); line-height: 1.5; }
@@ -772,7 +792,6 @@ html { overflow-anchor: none; }
 .conn {
   display: inline-flex; align-items: center; gap: 0.4em;
   font-size: 11.5px; color: var(--fg-mute);
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .conn .conn-dot {
   width: 6px; height: 6px; border-radius: 50%;
@@ -791,7 +810,7 @@ html { overflow-anchor: none; }
   box-shadow: var(--shadow);
   display: none; align-items: center; gap: 0.5rem;
   z-index: 90;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: 13px;
+  font-size: 13px;
 }
 .find-bar.visible { display: flex; }
 .find-bar input {
@@ -810,7 +829,7 @@ html { overflow-anchor: none; }
 }
 .find-bar .find-btn:hover { background: var(--btn-hover); color: var(--fg); }
 mark.find-hit {
-  background: rgba(224, 163, 92, 0.3); color: inherit;
+  background: rgba(36, 106, 115, 0.22); color: inherit;
   border-radius: 2px; padding: 0 1px;
 }
 mark.find-hit.current {
@@ -819,16 +838,15 @@ mark.find-hit.current {
 
 /* ------- TOC ------- */
 .toc {
-  margin: 0 0 2rem; padding: 0.85rem 1rem;
+  margin: 0; padding: 0.85rem 0.95rem;
   border: 1px solid var(--rule);
-  border-radius: 7px;
-  background: var(--bg-elev);
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  border-radius: 8px;
+  background: var(--bg-rail);
   font-size: 12.5px;
 }
 .toc summary {
   cursor: pointer; color: var(--fg-mute); font-weight: 600;
-  letter-spacing: 0.04em; text-transform: uppercase;
+  letter-spacing: 0; text-transform: uppercase;
   outline: none;
   list-style: none;
   display: flex; align-items: center; gap: 0.5em;
@@ -857,7 +875,6 @@ mark.find-hit.current {
   background: rgba(0, 0, 0, 0.55);
   display: none; align-items: center; justify-content: center;
   z-index: 110;
-  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
 }
 .help.visible { display: flex; }
 .help-card {
@@ -901,11 +918,23 @@ mark.find-hit.current {
   }
 }
 
-@media (max-width: 640px) {
-  .frame { padding: 1.5rem 1rem 9rem; }
-  body { font-size: 17px; }
-  header { grid-template-columns: 1fr; }
+@media (max-width: 900px) {
+  .frame {
+    width: min(100% - 32px, 72ch);
+    padding: 0.75rem 0 7rem;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "warning"
+      "transcript"
+      "rail";
+    gap: 1.15rem;
+  }
+  body { font-size: 16px; }
+  header { grid-template-columns: 1fr; padding-top: 0.75rem; }
   .pill { justify-self: start; }
+  .session-rail { position: static; }
+  .transcript { font-size: 18px; max-width: none; }
   .find-bar { right: 0.5rem; left: 0.5rem; top: 0.5rem; }
   .find-bar input { width: 100%; flex: 1; }
 }
@@ -960,12 +989,14 @@ mark.find-hit.current {
 
   <div class="warning" id="warning" hidden></div>
 
-  <div class="paths ui" id="paths"></div>
+  <aside class="session-rail ui" aria-label="session details">
+    <div class="paths ui" id="paths"></div>
 
-  <details class="toc ui" id="toc" hidden>
-    <summary>markers <span class="meta" id="toc-count" style="text-transform: none; letter-spacing: 0; font-weight: 400;"></span></summary>
-    <ol class="toc-list" id="toc-list"></ol>
-  </details>
+    <details class="toc ui" id="toc" hidden>
+      <summary>markers <span class="meta" id="toc-count" style="text-transform: none; font-weight: 400;"></span></summary>
+      <ol class="toc-list" id="toc-list"></ol>
+    </details>
+  </aside>
 
   <main class="transcript" id="transcript"
         role="log" aria-live="polite" aria-atomic="false"

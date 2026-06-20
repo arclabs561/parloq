@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import select
 import subprocess
 import sys
 import time
@@ -40,12 +41,14 @@ def start_fixture() -> tuple[subprocess.Popen[str], str]:
     logs: list[str] = []
     deadline = time.time() + 10
     while time.time() < deadline:
-        line = proc.stderr.readline()
-        if line:
-            logs.append(line)
-            match = re.search(r"live\s+->\s+(http://127\.0\.0\.1:\d+/)", line)
-            if match:
-                return proc, match.group(1)
+        ready, _, _ = select.select([proc.stderr], [], [], 0.1)
+        if ready:
+            line = proc.stderr.readline()
+            if line:
+                logs.append(line)
+                match = re.search(r"live\s+->\s+(http://127\.0\.0\.1:\d+/)", line)
+                if match:
+                    return proc, match.group(1)
         if proc.poll() is not None:
             break
     proc.kill()
@@ -78,6 +81,11 @@ def run(out_dir: Path) -> None:
             )
             expect(page.locator("#transcript")).to_contain_text("quality gate")
             page.screenshot(path=str(out_dir / "01-live.png"), full_page=True)
+
+            page.set_viewport_size({"width": 390, "height": 844})
+            expect(page.locator("#transcript")).to_contain_text("quality gate")
+            page.screenshot(path=str(out_dir / "01-mobile-live.png"), full_page=True)
+            page.set_viewport_size({"width": 1280, "height": 900})
 
             page.locator("#btn-find").click()
             page.get_by_label("find in transcript").fill("quality")
