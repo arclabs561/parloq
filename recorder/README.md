@@ -66,13 +66,31 @@ Diarization (speaker labels) runs by default on every recording. There is no len
 
 ```sh
 recorder dictate            # Enter to start, Enter again to stop; transcript to clipboard
+recorder dictate --daemon   # long-running daemon for global hotkey use
+recorder dictate trigger --paste  # toggle daemon recording and paste on stop
 recorder dictate --polish   # gemma4 cleanup before clipboard
 recorder dictate --save     # also keep .flac + .txt in ~/recordings/
 ```
 
 Flow: model warms once, then each Enter cycles record->transcribe->`pbcopy`. Paste with Cmd-V into any app. Idle RAM: ~600MB while the loop is running.
 
-For a global hotkey (SuperWhisper-style), bind `Fn` or `Opt+Space` in Karabiner-Elements / macOS Shortcuts to send `\n` to the dictate session's stdin. Native daemon-mode with system-wide hotkey is on the v1.1 roadmap.
+For a global hotkey (SuperWhisper/OpenWhisper-style), keep the daemon running:
+
+```sh
+recorder dictate --daemon --prosody
+```
+
+Then bind the hotkey in macOS Shortcuts / Karabiner-Elements to:
+
+```sh
+/Users/arc/Documents/dev/toolbox/bin/recorder dictate trigger --paste
+```
+
+The first press starts recording. The second press stops, transcribes with
+parakeet, copies the text, and pastes into the focused app. This machine already
+has a `Toggle Superwhisper Dictation` shortcut; repoint that shortcut at the
+trigger command above to replace the SuperWhisper app while keeping the same
+muscle memory.
 
 ## Subcommands (post-meeting tooling)
 
