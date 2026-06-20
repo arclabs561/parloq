@@ -204,3 +204,12 @@ Key finding from the polish eval: `recorder polish` hurt WER by 2-5pp on proper-
 ## Eval modes
 
 `evals/run_eval.py` supports raw WER sweeps plus three additional modes: hallucination detection (flags proper nouns and dates in the summary not present in the source), search-recall (injects distinctive phrases, queries the index, measures hit rate), and polish A/B (compares WER and entity preservation before/after `recorder polish`). See [evals/README.md](evals/README.md) for usage and findings.
+
+The live UI has a deterministic browser fixture:
+
+```sh
+uv run recorder/evals/test_ui_fixture.py
+```
+
+The fixture serves the real recorder HTML/SSE/control endpoints with known
+transcript states, then screenshots live, find, and stopped views.
