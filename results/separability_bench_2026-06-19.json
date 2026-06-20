@@ -1,0 +1,26 @@
+{
+  "dataset": "ravdess",
+  "n": 320,
+  "latency_ms_per_clip": 91.3,
+  "taggers": {
+    "energy_std": {
+      "arousal": 0.893
+    },
+    "energy_mean": {
+      "arousal": 0.884
+    },
+    "pitch_std": {
+      "arousal": 0.624
+    },
+    "pitch_range": {
+      "arousal": 0.602
+    },
+    "pause_ratio": {
+      "arousal": 0.566
+    },
+    "logreg_allfeats": {
+      "arousal": 0.845,
+      "valence": 0.662
+    }
+  }
+}

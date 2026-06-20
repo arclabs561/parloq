@@ -132,7 +132,8 @@ Real-use feel, not benchmark magnitude, is the right arbiter -> proceed to A
 
 ### A: MVP shipped — recorder `--prosody` (opt-in, off by default)
 
-`toolbox/recorder` commit 322b8a9. Adds `recorder dictate --prosody`: prefixes
+`parloq/recorder` commit 322b8a9 in its original toolbox history. Adds
+`recorder dictate --prosody`: prefixes
 [emphatic] when an utterance's RMS energy is z>0.8 above a per-session running
 baseline (last 20 utterances; baseline handles mic/level sensitivity). Applied
 AFTER polish (so it survives), tags-only (lexical text untouched), off unless
@@ -147,3 +148,24 @@ launchd plist), then dictate normally; emphatic utterances arrive prefixed
 [emphatic]. Real open question now is feel-in-use: does the tag help or annoy
 over a week. Not yet tested: end-to-end with a live mic (needs the daemon +
 osascript paste, can't automate here); the z>0.8 threshold is an untuned guess.
+
+## 2026-06-19
+
+Project boundary changed: `prosody` became `parloq`, an umbrella for the recorder
+daily driver plus the prosody/evaluation bench. Recorder moved from
+`toolbox/recorder` to `parloq/recorder`; `toolbox/bin/recorder` remains a
+compatibility link.
+
+Roadmap adjustment: keep the validation-first plan, but split future tags into
+lanes before adding more integrations:
+- emphasis/arousal: live path, cheap energy features, calibrate false positives
+  on real dictation before changing the default;
+- hesitation/uncertainty: pause/disfluency lane, evaluate separately;
+- nonverbal events: laugh/sigh/breath/cough lane, evaluate separately;
+- affect/valence: model lane only, not a live default until proven.
+
+Reran `eval/separability_bench.py` after restoring the missing RAVDESS data in
+`/tmp/ravdess`. Result file: `results/separability_bench_2026-06-19.json`.
+It matches the earlier finding: arousal remains separable from cheap energy
+features (`energy_std` AUC 0.893), while valence remains weak with cheap
+features (`logreg_allfeats` AUC 0.662).
