@@ -34,3 +34,9 @@ uv run experiments/ravdess_dim.py
 
 Datasets are public and auto-downloaded by the scripts (RAVDESS from Zenodo).
 Models pull from Hugging Face into `~/.cache/huggingface`.
+
+Before changing recorder behavior, run:
+
+```sh
+just check
+```
