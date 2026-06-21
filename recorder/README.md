@@ -92,6 +92,17 @@ has a `Toggle Superwhisper Dictation` shortcut; repoint that shortcut at the
 trigger command above to replace the SuperWhisper app while keeping the same
 muscle memory.
 
+Sanity-check the daemon before wiring the hotkey:
+
+```sh
+recorder dictate trigger --status
+```
+
+When the daemon is running, status prints the phase, device, model, prosody,
+polish, clipboard, save, and socket settings. Stop responses include audio,
+ASR, and total latency, which is the measurement to track while replacing the
+old hotkey path.
+
 ## Subcommands (post-meeting tooling)
 
 ```sh

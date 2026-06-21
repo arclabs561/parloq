@@ -3114,8 +3114,10 @@ def _dictate_trigger(rest: list[str]) -> int:
 
     if not DICTATE_SOCK.exists():
         print(
-            f"dictate daemon not running. start with:\n"
-            f"  recorder dictate --daemon",
+            "dictate daemon is not reachable.\n"
+            "start it with:\n"
+            "  recorder dictate --daemon --prosody\n"
+            f"socket: {DICTATE_SOCK}",
             file=sys.stderr,
         )
         return 1
@@ -3142,8 +3144,13 @@ def _dictate_trigger(rest: list[str]) -> int:
             print(out)
         return 0
     except (ConnectionRefusedError, FileNotFoundError):
-        print("dictate daemon socket not accepting; is it running?",
-              file=sys.stderr)
+        print(
+            "dictate daemon socket exists but is not accepting connections.\n"
+            "the daemon may have crashed; restart it with:\n"
+            "  recorder dictate --daemon --prosody\n"
+            f"socket: {DICTATE_SOCK}",
+            file=sys.stderr,
+        )
         return 1
     except Exception as e:
         print(f"trigger failed: {e}", file=sys.stderr)
@@ -3182,7 +3189,7 @@ def _dictate_daemon(args) -> int:
     `toggle` and `toggle:paste` commands over a unix socket. Each toggle
     flips between idle (waiting) and recording (capturing); the second
     toggle stops, transcribes, optionally polishes, copies to clipboard,
-    and (if `:paste`) types the result via osascript.
+    and (if `:paste`) sends Cmd-V to the focused app.
 
     Why a socket and not a signal: signals can't carry the `paste` flag
     cleanly, and a socket lets `trigger` get back a status message.
@@ -3258,14 +3265,36 @@ def _dictate_daemon(args) -> int:
             state["started_at"] = time.time()
             return "● recording"
 
+    def status_message() -> str:
+        with state_lock:
+            phase = state["phase"]
+            record_s = (
+                time.time() - state["started_at"]
+                if phase == "recording" else 0.0
+            )
+        parts = [
+            f"phase={phase}",
+            f"device={args.device}",
+            f"model={args.model}",
+            f"prosody={'on' if getattr(args, 'prosody', False) else 'off'}",
+            f"polish={'on' if args.polish else 'off'}",
+            f"clipboard={'off' if args.no_clipboard else 'on'}",
+            f"save={'on' if args.save else 'off'}",
+            f"socket={DICTATE_SOCK}",
+        ]
+        if phase == "recording":
+            parts.insert(1, f"elapsed={record_s:.1f}s")
+        return " ".join(parts)
+
     def stop_and_transcribe(paste: bool) -> str:
+        request_t0 = time.time()
         with state_lock:
             if state["phase"] != "recording":
                 return "not recording"
             ff = state["ffmpeg"]
             samples_buf = state["samples_buf"]
             stop_event = state["stop_event"]
-            elapsed = time.time() - state["started_at"]
+            record_s = time.time() - state["started_at"]
             stop_event.set()
             ff.send_signal(signal.SIGINT)
             try:
@@ -3284,7 +3313,9 @@ def _dictate_daemon(args) -> int:
         try:
             import soundfile as sf
             sf.write(str(tmp_wav), samples, SAMPLE_RATE)
+            asr_t0 = time.time()
             result = model.transcribe(str(tmp_wav))
+            asr_s = time.time() - asr_t0
         except Exception as e:
             return f"○ transcribe failed: {e}"
         finally:
@@ -3319,31 +3350,57 @@ def _dictate_daemon(args) -> int:
 
         if not args.no_clipboard:
             try:
-                subprocess.run(
+                clip = subprocess.run(
                     ["pbcopy"], input=text.encode("utf-8"),
-                    timeout=2, check=False,
+                    timeout=2, check=False, capture_output=True,
                 )
+                if clip.returncode != 0:
+                    return (
+                        f"✓ {len(text.split())} words "
+                        f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                        "clipboard failed"
+                    )
             except Exception:
-                pass
+                return (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                    "clipboard failed"
+                )
 
         if paste:
-            # Use AppleScript to keystroke the clipboard contents into the
-            # frontmost app's focused field. Quoted heredoc so we don't have
-            # to escape the literal text.
+            # Paste the clipboard via Cmd-V. Typing the clipboard contents
+            # through AppleScript is slower and can mangle punctuation.
             try:
-                subprocess.run(
+                paste_result = subprocess.run(
                     ["osascript", "-e",
-                     'tell application "System Events" to keystroke (the clipboard)'],
-                    timeout=10, check=False,
+                     'tell application "System Events" to keystroke "v" using command down'],
+                    timeout=10, check=False, capture_output=True, text=True,
                 )
+                if paste_result.returncode != 0:
+                    detail = paste_result.stderr.strip() or "osascript failed"
+                    return (
+                        f"✓ {len(text.split())} words "
+                        f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                        f"paste failed: {detail}"
+                    )
             except Exception as e:
-                return f"✓ {len(text.split())} words ({elapsed:.1f}s) — paste failed: {e}"
+                return (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                    f"paste failed: {e}"
+                )
 
         if args.save:
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
             (out_dir / f"dict-{ts}.txt").write_text(text + "\n", encoding="utf-8")
 
-        return f"✓ {len(text.split())} words ({elapsed:.1f}s){' → pasted' if paste else ''}"
+        total_s = time.time() - request_t0
+        paste_text = " pasted" if paste else ""
+        return (
+            f"✓ {len(text.split())} words "
+            f"(audio {record_s:.1f}s, asr {asr_s:.1f}s, total {total_s:.1f}s)"
+            f"{paste_text}"
+        )
 
     # Listen on the unix socket
     srv = _sock.socket(_sock.AF_UNIX, _sock.SOCK_STREAM)
@@ -3388,10 +3445,7 @@ def _dictate_daemon(args) -> int:
             cmd = cmd_bytes.decode("utf-8", errors="replace").strip()
 
             if cmd == "status":
-                with state_lock:
-                    phase = state["phase"]
-                    elapsed = time.time() - state["started_at"] if phase == "recording" else 0.0
-                msg = f"phase={phase}" + (f" elapsed={elapsed:.1f}s" if phase == "recording" else "")
+                msg = status_message()
             elif cmd in ("toggle", "toggle:paste"):
                 paste = (cmd == "toggle:paste")
                 with state_lock:
