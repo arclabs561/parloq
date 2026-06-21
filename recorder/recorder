@@ -3092,7 +3092,12 @@ def _dispatch_subcommand(verb: str, rest: list[str]) -> int:
 
 # ---------- dictate: push-to-talk -> paste into focused app ----------
 
+DICTATE_SOCK_ENV = "RECORDER_DICTATE_SOCK"
 DICTATE_SOCK = Path("/tmp") / f"recorder-dictate-{os.getuid()}.sock"
+
+
+def _dictate_sock() -> Path:
+    return Path(os.environ.get(DICTATE_SOCK_ENV, str(DICTATE_SOCK)))
 
 
 def _dictate_trigger(rest: list[str]) -> int:
@@ -3112,12 +3117,13 @@ def _dictate_trigger(rest: list[str]) -> int:
                    help="print current daemon state and exit")
     args = p.parse_args(rest)
 
-    if not DICTATE_SOCK.exists():
+    sock_path = _dictate_sock()
+    if not sock_path.exists():
         print(
             "dictate daemon is not reachable.\n"
             "start it with:\n"
             "  recorder dictate --daemon --prosody\n"
-            f"socket: {DICTATE_SOCK}",
+            f"socket: {sock_path}",
             file=sys.stderr,
         )
         return 1
@@ -3127,7 +3133,7 @@ def _dictate_trigger(rest: list[str]) -> int:
     try:
         s = _sock.socket(_sock.AF_UNIX, _sock.SOCK_STREAM)
         s.settimeout(2.0)
-        s.connect(str(DICTATE_SOCK))
+        s.connect(str(sock_path))
         s.sendall((cmd + "\n").encode("utf-8"))
         # Read until close. Daemon writes one line of status text.
         buf = b""
@@ -3148,7 +3154,7 @@ def _dictate_trigger(rest: list[str]) -> int:
             "dictate daemon socket exists but is not accepting connections.\n"
             "the daemon may have crashed; restart it with:\n"
             "  recorder dictate --daemon --prosody\n"
-            f"socket: {DICTATE_SOCK}",
+            f"socket: {sock_path}",
             file=sys.stderr,
         )
         return 1
@@ -3199,12 +3205,13 @@ def _dictate_daemon(args) -> int:
     import socket as _sock
     import threading
 
-    if DICTATE_SOCK.exists():
+    sock_path = _dictate_sock()
+    if sock_path.exists():
         # Stale socket from a crashed daemon? Try to claim it.
         try:
-            DICTATE_SOCK.unlink()
+            sock_path.unlink()
         except Exception:
-            print(f"socket {DICTATE_SOCK} exists and can't be removed",
+            print(f"socket {sock_path} exists and can't be removed",
                   file=sys.stderr)
             return 1
 
@@ -3280,7 +3287,7 @@ def _dictate_daemon(args) -> int:
             f"polish={'on' if args.polish else 'off'}",
             f"clipboard={'off' if args.no_clipboard else 'on'}",
             f"save={'on' if args.save else 'off'}",
-            f"socket={DICTATE_SOCK}",
+            f"socket={sock_path}",
         ]
         if phase == "recording":
             parts.insert(1, f"elapsed={record_s:.1f}s")
@@ -3404,22 +3411,22 @@ def _dictate_daemon(args) -> int:
 
     # Listen on the unix socket
     srv = _sock.socket(_sock.AF_UNIX, _sock.SOCK_STREAM)
-    srv.bind(str(DICTATE_SOCK))
-    DICTATE_SOCK.chmod(0o600)  # user-only
+    srv.bind(str(sock_path))
+    sock_path.chmod(0o600)  # user-only
     srv.listen(4)
 
     def cleanup(*_):
         try:
             srv.close()
         finally:
-            if DICTATE_SOCK.exists():
-                DICTATE_SOCK.unlink()
+            if sock_path.exists():
+                sock_path.unlink()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
 
-    print(f"daemon ready (socket: {DICTATE_SOCK})", file=sys.stderr)
+    print(f"daemon ready (socket: {sock_path})", file=sys.stderr)
     print(
         "trigger with:\n"
         "  recorder dictate trigger             # toggle, copy to clipboard\n"
