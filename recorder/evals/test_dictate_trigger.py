@@ -59,6 +59,7 @@ def serve_once(sock_path: Path, response: str, seen: list[str]) -> threading.Thr
                 conn.sendall((response + "\n").encode("utf-8"))
         finally:
             srv.close()
+            sock_path.unlink(missing_ok=True)
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
@@ -88,6 +89,16 @@ def main() -> int:
         assert out == "phase=idle prosody=on\n", out
         assert err == "", err
         assert seen == ["status"], seen
+
+        for args, want_cmd in [([], "toggle"), (["--paste"], "toggle:paste")]:
+            seen = []
+            thread = serve_once(sock_path, "ok", seen)
+            code, out, err = call_trigger(rec, args)
+            thread.join(timeout=2)
+            assert code == 0, (args, code)
+            assert out == "ok\n", (args, out)
+            assert err == "", (args, err)
+            assert seen == [want_cmd], (args, seen)
 
     print("PASS: dictate trigger status uses isolated socket")
     return 0
