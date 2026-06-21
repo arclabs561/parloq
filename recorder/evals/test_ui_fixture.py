@@ -80,6 +80,10 @@ def run(out_dir: Path) -> None:
                 "known transcript data"
             )
             expect(page.locator("#transcript")).to_contain_text("quality gate")
+            expect(page.locator("#btn-toggle-raw")).to_be_visible()
+            expect(page.locator("#btn-toggle-raw")).to_have_attribute(
+                "aria-pressed", "false"
+            )
             page.screenshot(path=str(out_dir / "01-live.png"), full_page=True)
 
             page.set_viewport_size({"width": 390, "height": 844})
@@ -87,10 +91,22 @@ def run(out_dir: Path) -> None:
             page.screenshot(path=str(out_dir / "01-mobile-live.png"), full_page=True)
             page.set_viewport_size({"width": 1280, "height": 900})
 
+            page.locator("#btn-toggle-raw").click()
+            expect(page.locator("#btn-toggle-raw")).to_have_attribute(
+                "aria-pressed", "true"
+            )
+            expect(page.locator("#btn-toggle-raw")).to_contain_text("polished")
+            expect(page.locator("#transcript")).to_contain_text("quality gate")
+            page.screenshot(path=str(out_dir / "02-raw.png"), full_page=True)
+            page.locator("#btn-toggle-raw").click()
+            expect(page.locator("#btn-toggle-raw")).to_have_attribute(
+                "aria-pressed", "false"
+            )
+
             page.locator("#btn-find").click()
             page.get_by_label("find in transcript").fill("quality")
             expect(page.locator("mark.find-hit.current")).to_have_text("quality")
-            page.screenshot(path=str(out_dir / "02-find.png"), full_page=True)
+            page.screenshot(path=str(out_dir / "03-find.png"), full_page=True)
 
             page.keyboard.press("Escape")
             page.locator("#btn-mark").click()
@@ -105,7 +121,7 @@ def run(out_dir: Path) -> None:
             expect(page.locator("#status-text")).to_have_text("stopped")
             page.wait_for_timeout(1800)
             expect(page.locator("#conn-text")).to_have_text("stopped")
-            page.screenshot(path=str(out_dir / "03-stopped.png"), full_page=True)
+            page.screenshot(path=str(out_dir / "04-stopped.png"), full_page=True)
             browser.close()
     finally:
         stop_fixture(proc)
