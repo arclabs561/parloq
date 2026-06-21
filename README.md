@@ -10,7 +10,9 @@ offline re-pass, diarization, summaries, search, and push-to-talk dictation.
 `eval/`, `experiments/`, and `results/` are the evidence bench for deciding
 which speech/prosody signals should graduate into recorder.
 
-The cross-session decision record and phase plan live in harness memory:
+The current phase plan lives in
+[`docs/design/parloq-recorder-roadmap.md`](docs/design/parloq-recorder-roadmap.md).
+The older cross-session decision record remains in harness memory:
 `~/.claude/projects/-Users-arc-Documents-dev/memory/paralinguistic-dictation-roadmap.md`.
 
 ## Layout
