@@ -1,0 +1,21 @@
+# recorder eval results -- 2026-06-21
+
+WER: jiwer, lowercase+no-punct normalization. Lower is better.
+DER: pyannote.metrics, collar=0.25s, overlap counted. Lower is better.
+Offline gain: live WER minus offline WER. Positive means offline is better.
+
+## Results
+
+| Clip | Duration | Live WER | Offline WER | Offline gain | DER | Notes |
+|------|----------|----------|-------------|--------------|-----|-------|
+| L1-clean | 14s |       - |     0.0% |       - |       - |  |
+
+## Known alignment pitfalls
+
+- Contractions: 'it\'s' vs 'its' are treated as different words by jiwer.
+- Number formatting: '1913' vs 'nineteen thirteen' inflates WER by ~2 words.
+- ASR may omit filler words ('um', 'uh'); reference transcripts may include them.
+- LibriSpeech refs are all-caps; normalization lowercases both sides.
+- DER collar (0.25s) is generous; pyannote default is 0s. NIST benchmark uses 0.25s.
+
+## Clips missing ground truth
