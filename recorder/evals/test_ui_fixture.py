@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.11"
-# dependencies = ["playwright"]
+# dependencies = ["numpy", "playwright"]
 # ///
 """Browser e2e for recorder's live UI using the deterministic ui-fixture.
 
@@ -30,7 +30,7 @@ RECORDER = ROOT / "recorder" / "recorder"
 
 def start_fixture() -> tuple[subprocess.Popen[str], str]:
     proc = subprocess.Popen(
-        [str(RECORDER), "ui-fixture", "--port", "0", "--step", "0.05"],
+        [sys.executable, str(RECORDER), "ui-fixture", "--port", "0", "--step", "0.05"],
         cwd=str(ROOT),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
