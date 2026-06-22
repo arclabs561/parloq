@@ -12,3 +12,10 @@ check:
     uv run recorder/evals/test_search_cli.py
     uv run eval/test_emphasis_tag.py
     uv run recorder/evals/test_ui_fixture.py
+
+recorder-corpus target="librispeech":
+    data/corpora/recorder/scripts/sync.sh {{target}}
+
+recorder-eval-smoke output="test-results/recorder-eval-smoke.md":
+    mkdir -p test-results
+    uv run recorder/evals/run_eval.py --skip-live --clip L1-clean --output {{output}}

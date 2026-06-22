@@ -13,9 +13,13 @@ diarization threshold changes.
 ```bash
 # 1. fetch the public ASR smoke corpus into data/corpora/recorder/
 data/corpora/recorder/scripts/sync.sh librispeech
+# or:
+just recorder-corpus
 
 # 2. run the default real-audio eval (skip live mode for a faster first pass)
 uv run recorder/evals/run_eval.py --skip-live
+# quick one-clip smoke into test-results/:
+just recorder-eval-smoke
 
 # 3. run both modes (takes ~20 min for full corpus)
 uv run recorder/evals/run_eval.py
