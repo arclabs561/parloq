@@ -42,4 +42,5 @@ jobs:
           uv run recorder/evals/test_render_md.py
           uv run recorder/evals/test_search_cli.py
           uv run eval/test_emphasis_tag.py
+          uv run --with playwright python -m playwright install chromium
           uv run recorder/evals/test_ui_fixture.py
