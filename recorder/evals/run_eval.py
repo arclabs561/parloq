@@ -651,11 +651,17 @@ def write_report(results: list[EvalResult], output_path: Path) -> None:
         "- DER collar (0.25s) is generous; pyannote default is 0s. NIST benchmark uses 0.25s.",
         "",
         "## Clips missing ground truth",
-        "",
     ]
-    for r in results:
-        if r.live_wer is None and r.offline_wer is None and r.der is None and not r.errors:
-            lines.append(f"- {r.clip_id}: no reference transcript or RTTM available")
+    missing = [
+        r.clip_id
+        for r in results
+        if r.live_wer is None and r.offline_wer is None and r.der is None and not r.errors
+    ]
+    if missing:
+        lines.append("")
+        lines.extend(f"- {clip_id}: no reference transcript or RTTM available" for clip_id in missing)
+    else:
+        lines.append("- none")
 
     output_path.write_text("\n".join(lines) + "\n")
     print(f"Report written: {output_path}")

@@ -1,6 +1,6 @@
 # Progress log
 
-Decision record + phase plan: `~/.claude/projects/-Users-arc-Documents-dev/memory/paralinguistic-dictation-roadmap.md`
+Decision record + phase plan: `docs/design/parloq-recorder-roadmap.md`.
 
 ## 2026-06-13
 
@@ -9,7 +9,7 @@ paralinguistic channel and can an LLM use it. Grounded in research (CP-Bench,
 NVSpeech, Qwen3-Omni, Parakeet) and recorder/anno/engram code.
 
 Done:
-- Roadmap written (harness memory). Validation-first: prove the channel changes
+- Roadmap written. Validation-first: prove the channel changes
   Claude's responses before editing the `recorder dictate` daily driver.
 - Phase-1 latency/mechanism gate PASSED via `experiments/ser_probe.py`:
   `superb/wav2vec2-base-superb-er` runs on-device, 66ms/clip. Latency fine.
@@ -32,7 +32,7 @@ Done:
   the wrong test for hesitation). -> `results/prosody_features.txt`.
 
 Verdict: the "emphasis/intensity" axis is recoverable from raw energy with NO
-model and no fragile dep — the robust foundation. Caveats: (1) arousal only,
+model and no fragile dep: a stable foundation. Caveats: (1) arousal only,
 energy can't tell angry from happy (no valence); (2) absolute RMS is mic/level
 sensitive, real dictation needs per-utterance normalization.
 

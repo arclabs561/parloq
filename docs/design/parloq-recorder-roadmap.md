@@ -8,7 +8,6 @@ grounded-in:
   - recorder/evals/README.md
   - recorder/evals/eval-design.md
   - recorder/evals/results-diarization-der.md
-  - ~/.claude/projects/-Users-arc-Documents-dev/memory/paralinguistic-dictation-roadmap.md
 review-trigger: revisit after one week of recorder replacing SuperWhisper, or after any ASR/diarization model swap
 ---
 
@@ -63,7 +62,7 @@ Every phase must preserve the desktop CLI recorder path:
 
 ### 1. Desktop Dictation Replacement
 
-Consumer: the user's Meta-Space dictation flow into Codex and other text fields.
+Consumer: desktop dictation into text fields.
 
 This is first because it is the actual replacement for SuperWhisper. The goal is
 not a native app yet. The goal is a reliable daemon, hotkey trigger, paste path,
@@ -71,7 +70,7 @@ and observable state.
 
 Gate:
 
-- Existing Meta-Space muscle memory invokes `recorder dictate trigger --paste`.
+- Existing hotkey muscle memory invokes `recorder dictate trigger --paste`.
 - Warm p50 and p95 stop-to-paste latency are measured on 20 short dictations.
 - Five real Codex prompts are dictated without manual transcript cleanup.
 - Failure states are visible: daemon absent, mic permission denied, empty audio,
@@ -185,7 +184,7 @@ permission surface area.
 
 Do:
 
-- Repoint Meta-Space to `recorder dictate trigger --paste`.
+- Repoint the desktop hotkey to `recorder dictate trigger --paste`.
 - Add a daemon status check and clearer trigger errors.
 - Measure warm stop-to-paste latency and transcript quality on real short
   dictations.
@@ -254,7 +253,7 @@ fix cleanly.
 
 Options:
 
-- Shortcuts repoint: fastest, keeps existing Meta-Space muscle memory.
+- Shortcuts repoint: fastest, keeps existing hotkey muscle memory.
 - Karabiner/launchd wrapper: better automation, more config surface.
 - Swift menu bar app: best platform fit, highest packaging cost.
 

@@ -2,8 +2,7 @@
 
 ## Overview
 
-Local speech recorder and dictation tool, with experiments that improve what
-the recorder can capture from speech.
+Local speech recorder and dictation tool.
 
 `recorder/` is the daily-driver tool: meeting capture, live transcription,
 offline re-pass, diarization, summaries, search, and push-to-talk dictation.
@@ -12,8 +11,6 @@ which speech/prosody signals should graduate into recorder.
 
 The current phase plan lives in
 [`docs/design/parloq-recorder-roadmap.md`](docs/design/parloq-recorder-roadmap.md).
-The older cross-session decision record remains in harness memory:
-`~/.claude/projects/-Users-arc-Documents-dev/memory/paralinguistic-dictation-roadmap.md`.
 
 ## Layout
 
