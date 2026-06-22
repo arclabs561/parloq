@@ -1,0 +1,9 @@
+
+Diarization DER vs ground truth: ami-corpus.toml
+  threshold: default
+
+  clip             true detected      DER
+  ---------------- ---- -------- --------
+  AMI-IS1009a         4       19    70.0%
+
+  mean DER: 70.0%  (n=1, lower is better)
