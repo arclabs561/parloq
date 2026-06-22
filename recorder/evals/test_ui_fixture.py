@@ -14,6 +14,7 @@ live, find, and stopped states.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import select
 import subprocess
@@ -36,10 +37,11 @@ def start_fixture() -> tuple[subprocess.Popen[str], str]:
         stderr=subprocess.PIPE,
         text=True,
         bufsize=1,
+        env={**os.environ, "PYTHONUNBUFFERED": "1"},
     )
     assert proc.stderr is not None
     logs: list[str] = []
-    deadline = time.time() + 10
+    deadline = time.time() + 30
     while time.time() < deadline:
         ready, _, _ = select.select([proc.stderr], [], [], 0.1)
         if ready:
@@ -51,8 +53,15 @@ def start_fixture() -> tuple[subprocess.Popen[str], str]:
                     return proc, match.group(1)
         if proc.poll() is not None:
             break
-    proc.kill()
-    raise RuntimeError("fixture did not start:\n" + "".join(logs))
+    if proc.poll() is None:
+        proc.kill()
+    stdout, stderr = proc.communicate(timeout=1)
+    raise RuntimeError(
+        "fixture did not start:\n"
+        + "".join(logs)
+        + stderr
+        + ("\nstdout:\n" + stdout if stdout else "")
+    )
 
 
 def stop_fixture(proc: subprocess.Popen[str]) -> None:
