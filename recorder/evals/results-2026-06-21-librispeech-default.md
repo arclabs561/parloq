@@ -20,3 +20,4 @@ Offline gain: live WER minus offline WER. Positive means offline is better.
 - DER collar (0.25s) is generous; pyannote default is 0s. NIST benchmark uses 0.25s.
 
 ## Clips missing ground truth
+- none

@@ -3168,8 +3168,8 @@ def _emphasis_tag(samples, hist: list) -> str:
     per-session running baseline (so it survives mic/level differences).
 
     Returns "[emphatic] " when this utterance's RMS energy is well above the
-    recent baseline (z > 0.8), else "". Grounded in ~/Documents/dev/parloq:
-    RMS energy separates high vs low vocal arousal on RAVDESS (AUC ~0.89), and
+    recent baseline (z > 0.8), else "". Grounded in repo evals: RMS energy
+    separates high vs low vocal arousal on RAVDESS (AUC ~0.89), and
     a cross-model A/B shows arousal tags shift LLM responses modestly above a
     noise floor (high run-to-run variance). Experimental; opt-in via --prosody.
 
@@ -3511,8 +3511,7 @@ def cmd_dictate(rest: list[str]) -> int:
                    help="save the audio + transcript to ~/recordings/dict-<ts>")
     p.add_argument("--prosody", action="store_true",
                    help="EXPERIMENTAL: prefix [emphatic] when an utterance's vocal "
-                        "energy is well above the session baseline (see "
-                        "~/Documents/dev/parloq)")
+                        "energy is well above the session baseline")
     p.add_argument("--daemon", action="store_true",
                    help="run as a long-running daemon listening on a unix socket; "
                         "trigger record cycles via `recorder dictate trigger`")

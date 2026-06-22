@@ -1,12 +1,12 @@
 Installed 59 packages in 714ms
 loading model (~1.2GB first time)...
 Traceback (most recent call last):
-  File "/Users/arc/Documents/dev/prosody/experiments/ravdess_dim.py", line 48, in <module>
+  File "experiments/ravdess_dim.py", line 48, in <module>
     model = EmotionModel.from_pretrained(MODEL).eval()
             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^
-  File "/Users/arc/.cache/uv/environments-v2/ravdess-dim-12f0a44765810515/lib/python3.13/site-packages/transformers/modeling_utils.py", line 4328, in from_pretrained
+  File "<uv-cache>/site-packages/transformers/modeling_utils.py", line 4328, in from_pretrained
     loading_info = cls._finalize_model_loading(model, load_config, loading_info)
-  File "/Users/arc/.cache/uv/environments-v2/ravdess-dim-12f0a44765810515/lib/python3.13/site-packages/transformers/modeling_utils.py", line 4484, in _finalize_model_loading
+  File "<uv-cache>/site-packages/transformers/modeling_utils.py", line 4484, in _finalize_model_loading
     model._move_missing_keys_from_meta_to_device(
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
         loading_info.missing_and_mismatched(),
@@ -16,10 +16,10 @@ Traceback (most recent call last):
         ^^^^^^^^^^^^^^^^^^^^^^^^^
     )
     ^
-  File "/Users/arc/.cache/uv/environments-v2/ravdess-dim-12f0a44765810515/lib/python3.13/site-packages/transformers/modeling_utils.py", line 4774, in _move_missing_keys_from_meta_to_device
+  File "<uv-cache>/site-packages/transformers/modeling_utils.py", line 4774, in _move_missing_keys_from_meta_to_device
     for key in missing_keys - self.all_tied_weights_keys.keys():
                               ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/Users/arc/.cache/uv/environments-v2/ravdess-dim-12f0a44765810515/lib/python3.13/site-packages/torch/nn/modules/module.py", line 1967, in __getattr__
+  File "<uv-cache>/site-packages/torch/nn/modules/module.py", line 1967, in __getattr__
     raise AttributeError(
         f"'{type(self).__name__}' object has no attribute '{name}'"
     )
