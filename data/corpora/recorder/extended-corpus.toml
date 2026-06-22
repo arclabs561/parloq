@@ -1,0 +1,75 @@
+# Extended recorder eval corpus. Public/generated entries are synced by
+# `scripts/sync.sh extended-generated`. Manual entries are documented here but
+# stay commented until their payloads are imported under this directory.
+
+[[clips]]
+id = "short-5s"
+path = "extended/short-dictation/ls_1272_0000_5s.flac"
+duration_s = 5.0
+speakers = 1
+ref_transcript = "extended/short-dictation/ls_1272_0000.txt"
+ref_rttm = ""
+notes = "5-second dictation; LibriSpeech 1272-128104-0000 trimmed"
+
+[[clips]]
+id = "short-15s"
+path = "extended/short-dictation/ls_1272_0000_15s.flac"
+duration_s = 15.0
+speakers = 1
+ref_transcript = "extended/short-dictation/ls_1272_0000.txt"
+ref_rttm = ""
+notes = "15-second dictation; same source"
+
+[[clips]]
+id = "short-30s"
+path = "extended/short-dictation/ls_1272_0000_30s.flac"
+duration_s = 30.0
+speakers = 1
+ref_transcript = "extended/short-dictation/ls_1272_0000.txt"
+ref_rttm = ""
+notes = "30-second dictation; same source"
+
+[[clips]]
+id = "noise-snr20"
+path = "extended/demand/cafe_snr20db.flac"
+duration_s = 14.0
+speakers = 1
+ref_transcript = "extended/demand/ls_1272_0000.txt"
+ref_rttm = ""
+notes = "synthetic pink-noise mix SNR=20 dB"
+
+[[clips]]
+id = "noise-snr10"
+path = "extended/demand/cafe_snr10db.flac"
+duration_s = 14.0
+speakers = 1
+ref_transcript = "extended/demand/ls_1272_0000.txt"
+ref_rttm = ""
+notes = "synthetic pink-noise mix SNR=10 dB"
+
+[[clips]]
+id = "noise-snr5"
+path = "extended/demand/cafe_snr5db.flac"
+duration_s = 14.0
+speakers = 1
+ref_transcript = "extended/demand/ls_1272_0000.txt"
+ref_rttm = ""
+notes = "synthetic pink-noise mix SNR=5 dB"
+
+[[clips]]
+id = "zoom-opus32k"
+path = "extended/zoom-sim/ls_1272_0000_opus32k.flac"
+duration_s = 14.0
+speakers = 1
+ref_transcript = "extended/zoom-sim/ls_1272_0000.txt"
+ref_rttm = ""
+notes = "Opus 32 kbps VoIP re-encode"
+
+[[clips]]
+id = "librivox-long"
+path = "extended/librivox-long/sherlock_01_full.flac"
+duration_s = 3600.0
+speakers = 1
+ref_transcript = ""
+ref_rttm = ""
+notes = "optional LibriVox Sherlock Holmes chapter; no aligned ground truth; sync target is explicit because Archive.org can return 503"

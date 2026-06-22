@@ -56,8 +56,8 @@ labels are unreliable and presenting them with a caveat.
 ## How to reproduce
 
 ```sh
-bash evals/fetch_ami.sh          # one-time: download 3 AMI meetings + RTTM
-uv run evals/run_eval.py --mode diarize-der --corpus evals/ami-corpus.toml
+data/corpora/recorder/scripts/sync.sh ami
+uv run recorder/evals/run_eval.py --mode diarize-der --corpus data/corpora/recorder/ami-corpus.toml
 # sweep a threshold:
-uv run evals/run_eval.py --mode diarize-der --corpus evals/ami-corpus.toml --threshold 0.85
+uv run recorder/evals/run_eval.py --mode diarize-der --corpus data/corpora/recorder/ami-corpus.toml --threshold 0.85
 ```

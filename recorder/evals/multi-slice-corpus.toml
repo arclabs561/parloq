@@ -5,32 +5,32 @@
 
 [[clips]]
 id = "M1-00-02"
-path = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+path = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 duration_s = 120.0
 speakers = 5
-ref_transcript = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+ref_transcript = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 notes = "first 2 min — opening + V5 environment discussion"
 
 [[clips]]
 id = "M1-05-07"
-path = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+path = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 duration_s = 120.0
 speakers = 5
-ref_transcript = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+ref_transcript = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 notes = "5-7 min — supplier onboarding migration"
 
 [[clips]]
 id = "M1-10-12"
-path = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+path = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 duration_s = 120.0
 speakers = 5
-ref_transcript = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+ref_transcript = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 notes = "10-12 min — Snowflake / data plane discussion"
 
 [[clips]]
 id = "M1-15-17"
-path = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+path = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 duration_s = 120.0
 speakers = 5
-ref_transcript = "~/recordings/test-corpus/REDACTED_PRIVATE_RECORDING"
+ref_transcript = "../../data/corpora/recorder/REDACTED_PRIVATE_RECORDING"
 notes = "15-17 min — risks / RAID log / closing"

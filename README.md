@@ -21,7 +21,8 @@ The older cross-session decision record remains in harness memory:
 - `experiments/` — self-contained PEP 723 uv scripts (`uv run experiments/<x>.py`).
 - `eval/` — reusable evaluation scripts for prosody/tagging experiments.
 - `results/` — captured outputs (text logs, JSON pairs). Tracked.
-- `data/` — datasets (gitignored; scripts download reproducibly to `/tmp` or here).
+- `data/` — repo-local corpus roots. Large payloads are gitignored; manifests
+  and sync scripts are tracked.
 - `PROGRESS.md` — dated progress log.
 
 ## Running
@@ -32,8 +33,10 @@ Each script declares its own deps and runs standalone:
 uv run experiments/ravdess_dim.py
 ```
 
-Datasets are public and auto-downloaded by the scripts (RAVDESS from Zenodo).
-Models pull from Hugging Face into `~/.cache/huggingface`.
+Prosody experiment scripts fetch their public datasets as needed. Recorder eval
+corpora are synced into `data/corpora/recorder/`; run
+`data/corpora/recorder/scripts/sync.sh --help` for the available downloads and
+private imports. Models pull from Hugging Face into `~/.cache/huggingface`.
 
 Before changing recorder behavior, run:
 

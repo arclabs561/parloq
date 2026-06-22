@@ -1,0 +1,20 @@
+# Default recorder eval corpus. Public, repo-local, and recreated by:
+#   data/corpora/recorder/scripts/sync.sh librispeech
+
+[[clips]]
+id = "L1-clean"
+path = "librispeech/1272-128104-0000.flac"
+duration_s = 14.0
+speakers = 1
+ref_transcript = "librispeech/1272-128104.trans.txt"
+ref_rttm = ""
+notes = "LibriSpeech dev-clean utterance, clean male baseline"
+
+[[clips]]
+id = "L2-clean"
+path = "librispeech/1272-128104-0001.flac"
+duration_s = 9.0
+speakers = 1
+ref_transcript = "librispeech/1272-128104.trans.txt"
+ref_rttm = ""
+notes = "LibriSpeech dev-clean utterance, second clean baseline"

@@ -11,23 +11,35 @@ diarization threshold changes.
 ## Quick start
 
 ```bash
-# 1. fetch corpus (automated clips only; see setup.sh for manual steps)
-bash ~/recordings/test-corpus/setup.sh
+# 1. fetch the public ASR smoke corpus into data/corpora/recorder/
+data/corpora/recorder/scripts/sync.sh librispeech
 
-# 2. run eval (skip live mode for a faster first pass)
-uv run evals/run_eval.py --skip-live
+# 2. run the default real-audio eval (skip live mode for a faster first pass)
+uv run recorder/evals/run_eval.py --skip-live
 
 # 3. run both modes (takes ~20 min for full corpus)
-uv run evals/run_eval.py
+uv run recorder/evals/run_eval.py
 
 # 4. run a single clip
-uv run evals/run_eval.py --clip L1
+uv run recorder/evals/run_eval.py --clip L1-clean
 
 # 5. print A/B polish and hallucination check designs
-uv run evals/run_eval.py --design-only
+uv run recorder/evals/run_eval.py --design-only
 ```
 
-Output is written to `evals/results-YYYY-MM-DD.md`.
+Output is written to `recorder/evals/results-YYYY-MM-DD.md`.
+
+Corpus payloads live under `data/corpora/recorder/`, not under
+`~/recordings`. Large audio and downloaded archives are ignored by git;
+manifests and sync scripts are tracked. Public smoke, generated stress, and AMI
+corpora can be downloaded by the sync script. The optional LibriVox long-form
+clip has an explicit sync target because Archive.org can return transient 503
+responses. Private meeting corpora must be imported explicitly:
+
+```bash
+PARLOQ_PRIVATE_RECORDINGS_DIR=/path/to/source \
+  data/corpora/recorder/scripts/sync.sh private-meetings
+```
 
 ## Dependencies
 
@@ -124,13 +136,14 @@ as a review list, not a pass/fail gate.
 
 ## Adding clips
 
-Add an entry to `corpus.toml` (create it if absent, mirroring the Python dict shape
-in `run_eval.py`). Fields: `id`, `path` (relative to corpus dir), `duration_s`,
-`speakers`, `ref_transcript` (optional), `ref_rttm` (optional), `notes`.
+Add entries to the TOML manifests in `data/corpora/recorder/`. Fields: `id`,
+`path` (relative to the manifest's directory), `duration_s`, `speakers`,
+`ref_transcript` (optional), `ref_rttm` (optional), `notes`.
 
 ## Known limits
 
-- No silence/noise-robustness test (no clip with background noise or music)
+- The generated noise tests use pink noise unless a manually sourced noise
+  corpus is imported.
 - No non-English test (parakeet is EN-only; not tested)
 - No domain-specific vocabulary test beyond Spoken Wikipedia and Sherlock Holmes
 - DER does not separate confusion from missed speech in the table; use pyannote

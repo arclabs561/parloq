@@ -62,10 +62,10 @@ log = logging.getLogger("eval")
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[2]
 EVALS_DIR = Path(__file__).resolve().parent
-CORPUS_DIR = Path.home() / "recordings" / "test-corpus"
-CORPUS_TOML = EVALS_DIR / "corpus.toml"
+CORPUS_DIR = REPO_ROOT / "data" / "corpora" / "recorder"
+CORPUS_TOML = CORPUS_DIR / "corpus.toml"
 
 # ---------------------------------------------------------------------------
 # Data model
@@ -203,9 +203,9 @@ def load_corpus(clip_filter: Optional[str] = None,
         (or CORPUS_DIR by default).
     Each entry's `path` MAY be absolute (used by ad-hoc evals).
     """
-    base = corpus_dir or CORPUS_DIR
+    base = (corpus_dir or CORPUS_DIR).expanduser().resolve()
     raw: list[dict] = []
-    toml_path = corpus_toml or CORPUS_TOML
+    toml_path = (corpus_toml or CORPUS_TOML).expanduser().resolve()
     if toml_path.exists():
         with open(toml_path, "rb") as f:
             data = tomllib.load(f)
@@ -220,7 +220,7 @@ def load_corpus(clip_filter: Optional[str] = None,
         x = Path(p).expanduser()
         if x.is_absolute():
             return x
-        return base / x
+        return (base / x).resolve()
 
     clips = []
     for entry in raw:
@@ -1190,7 +1190,10 @@ def cmd_polish_ab(source_path: Path, ref_path: Optional[Path] = None) -> int:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="recorder eval harness")
-    parser.add_argument("--corpus", default=None, help="corpus directory (default: ~/recordings/test-corpus)")
+    parser.add_argument(
+        "--corpus", default=None,
+        help="corpus directory or TOML (default: data/corpora/recorder/corpus.toml)",
+    )
     parser.add_argument("--clip", default=None, help="run only this clip ID (e.g. L1)")
     parser.add_argument("--skip-live", action="store_true", help="skip streaming mode (faster)")
     parser.add_argument("--design-only", action="store_true",
@@ -1317,7 +1320,8 @@ def main() -> None:
     if args.mode == "diarize-der":
         if not args.corpus:
             log.error("--mode diarize-der requires --corpus <toml> "
-                      "(clips need ref_rttm), e.g. evals/ami-corpus.toml")
+                      "(clips need ref_rttm), e.g. "
+                      "data/corpora/recorder/ami-corpus.toml")
             sys.exit(2)
         sys.exit(cmd_diarize_der(
             Path(args.corpus).expanduser(),
@@ -1328,7 +1332,7 @@ def main() -> None:
     corpus_toml: Optional[Path] = None
     corpus_dir = CORPUS_DIR
     if args.corpus:
-        p = Path(args.corpus).expanduser()
+        p = Path(args.corpus).expanduser().resolve()
         if p.is_file():
             corpus_toml = p
             corpus_dir = p.parent
@@ -1343,7 +1347,11 @@ def main() -> None:
     clips = load_corpus(clip_filter=args.clip,
                         corpus_toml=corpus_toml, corpus_dir=corpus_dir)
     if not clips:
-        print(f"No clips found in {corpus_dir}. Run setup.sh first.", file=sys.stderr)
+        print(
+            f"No clips found in {corpus_dir}. "
+            "Run data/corpora/recorder/scripts/sync.sh first.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     # Filter to clips whose audio file exists; warn about missing ones
@@ -1362,7 +1370,11 @@ def main() -> None:
             print(f"  SKIP {clip.id}: audio not found at {clip.path}", file=sys.stderr)
 
     if not runnable:
-        print("No audio files found. Run setup.sh and complete manual downloads.", file=sys.stderr)
+        print(
+            "No audio files found. Run data/corpora/recorder/scripts/sync.sh "
+            "and complete any private/manual imports.",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     print(f"Running eval on {len(runnable)} clip(s) ...")
