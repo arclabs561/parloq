@@ -11,32 +11,32 @@
 # single-device recorder captures), downconverted to 16kHz mono FLAC to match
 # the recorder pipeline. All three meetings have 4 speakers.
 #
-# Fetch: see evals/fetch_ami.sh (downloads 3 meetings + RTTM, ~40MB).
-# Run:   uv run evals/run_eval.py --corpus evals/ami-corpus.toml --skip-live
+# Fetch: data/corpora/recorder/scripts/sync.sh ami
+# Run:   uv run recorder/evals/run_eval.py --corpus data/corpora/recorder/ami-corpus.toml --skip-live
 
 [[clips]]
 id = "AMI-ES2002a"
-path = "~/recordings/test-corpus/ami/audio/ES2002a.flac"
+path = "../../data/corpora/recorder/ami/audio/ES2002a.flac"
 duration_s = 1272.6
 speakers = 4
 ref_transcript = ""
-ref_rttm = "~/recordings/test-corpus/ami/rttm/ES2002a.rttm"
+ref_rttm = "../../data/corpora/recorder/ami/rttm/ES2002a.rttm"
 notes = "AMI ES2002a, 4-speaker product-design meeting (~21min)"
 
 [[clips]]
 id = "AMI-ES2004a"
-path = "~/recordings/test-corpus/ami/audio/ES2004a.flac"
+path = "../../data/corpora/recorder/ami/audio/ES2004a.flac"
 duration_s = 1049.4
 speakers = 4
 ref_transcript = ""
-ref_rttm = "~/recordings/test-corpus/ami/rttm/ES2004a.rttm"
+ref_rttm = "../../data/corpora/recorder/ami/rttm/ES2004a.rttm"
 notes = "AMI ES2004a, 4-speaker meeting (~17min)"
 
 [[clips]]
 id = "AMI-IS1009a"
-path = "~/recordings/test-corpus/ami/audio/IS1009a.flac"
+path = "../../data/corpora/recorder/ami/audio/IS1009a.flac"
 duration_s = 838.8
 speakers = 4
 ref_transcript = ""
-ref_rttm = "~/recordings/test-corpus/ami/rttm/IS1009a.rttm"
+ref_rttm = "../../data/corpora/recorder/ami/rttm/IS1009a.rttm"
 notes = "AMI IS1009a, 4-speaker project meeting (~14min)"

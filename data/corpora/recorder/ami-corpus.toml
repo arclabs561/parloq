@@ -1,0 +1,29 @@
+# AMI meeting corpus, diarization DER ground truth.
+# Sync with: data/corpora/recorder/scripts/sync.sh ami
+
+[[clips]]
+id = "AMI-ES2002a"
+path = "ami/audio/ES2002a.flac"
+duration_s = 1272.6
+speakers = 4
+ref_transcript = ""
+ref_rttm = "ami/rttm/ES2002a.rttm"
+notes = "AMI ES2002a, 4-speaker product-design meeting"
+
+[[clips]]
+id = "AMI-ES2004a"
+path = "ami/audio/ES2004a.flac"
+duration_s = 1049.4
+speakers = 4
+ref_transcript = ""
+ref_rttm = "ami/rttm/ES2004a.rttm"
+notes = "AMI ES2004a, 4-speaker meeting"
+
+[[clips]]
+id = "AMI-IS1009a"
+path = "ami/audio/IS1009a.flac"
+duration_s = 838.8
+speakers = 4
+ref_transcript = ""
+ref_rttm = "ami/rttm/IS1009a.rttm"
+notes = "AMI IS1009a, 4-speaker project meeting"

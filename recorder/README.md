@@ -218,21 +218,23 @@ To run your own sweep after a real meeting:
 
 ```sh
 # 1. Freeze the offline pass as reference
-cp ~/recordings/<name>.offline.txt ~/recordings/<name>.offline-frozen.txt
-# 2. Add the clip to evals/meeting-corpus.toml
-# 3. Sweep depths
+cp ~/recordings/<name>.offline.txt /tmp/<name>.offline-frozen.txt
+# 2. Import the audio and frozen reference into data/corpora/recorder/
+#    or add them directly under a private corpus directory there.
+# 3. Add the clip to data/corpora/recorder/meeting-corpus.toml
+# 4. Sweep depths
 for d in 1 4 8 12; do
-  MEETING_STREAM_DEPTH=$d evals/run_eval.py --label "d$d" \
-    --corpus evals/meeting-corpus.toml --clip <id>
+  MEETING_STREAM_DEPTH=$d uv run recorder/evals/run_eval.py --label "d$d" \
+    --corpus data/corpora/recorder/meeting-corpus.toml --clip <id>
 done
-# 4. Read evals/sweep-YYYY-MM-DD.md
+# 5. Read recorder/evals/sweep-YYYY-MM-DD.md
 ```
 
 Key finding from the polish eval: `recorder polish` hurt WER by 2-5pp on proper-noun-heavy clips even after prompt tightening (90% entity preservation, up from 70%). Review polished output before sharing transcripts that include names, numbers, or dates.
 
 ## Eval modes
 
-`evals/run_eval.py` supports raw WER sweeps plus three additional modes: hallucination detection (flags proper nouns and dates in the summary not present in the source), search-recall (injects distinctive phrases, queries the index, measures hit rate), and polish A/B (compares WER and entity preservation before/after `recorder polish`). See [evals/README.md](evals/README.md) for usage and findings.
+`recorder/evals/run_eval.py` supports raw WER sweeps plus additional modes: hallucination detection (flags proper nouns and dates in the summary not present in the source), search-recall (injects distinctive phrases, queries the index, measures hit rate), diarization DER, and polish A/B (compares WER and entity preservation before/after `recorder polish`). Corpora live under `data/corpora/recorder/`. See [evals/README.md](evals/README.md) for usage and findings.
 
 The live UI has a deterministic browser fixture:
 

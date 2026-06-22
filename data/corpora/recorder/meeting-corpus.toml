@@ -1,0 +1,24 @@
+# Private meeting eval corpus. Sync with:
+#   PARLOQ_PRIVATE_RECORDINGS_DIR=/path/to/source scripts/sync.sh private-meetings
+#
+# `ref_transcript` is a frozen offline parakeet output, not human-labeled.
+# Report WER from this corpus as self-consistency unless a human reference is
+# added later.
+
+[[clips]]
+id = "M1-2min"
+path = "meeting-trimmed/m1_2min.flac"
+duration_s = 120.0
+speakers = 5
+ref_transcript = "meeting-trimmed/m1_2min.offline-frozen.txt"
+ref_rttm = ""
+notes = "real meeting first 2min; ref=offline parakeet, frozen; import required"
+
+[[clips]]
+id = "M1-full"
+path = "private/20260506-163338.flac"
+duration_s = 1190.0
+speakers = 5
+ref_transcript = "private/20260506-163338.offline-frozen.txt"
+ref_rttm = ""
+notes = "full real meeting; WER-only frozen ref; import required"

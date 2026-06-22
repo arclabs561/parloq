@@ -7,19 +7,19 @@
 
 [[clips]]
 id = "M1-2min"
-path = "~/recordings/test-corpus/meeting-trimmed/m1_2min.flac"
+path = "../../data/corpora/recorder/meeting-trimmed/m1_2min.flac"
 duration_s = 120.0
 speakers = 5
-ref_transcript = "~/recordings/test-corpus/meeting-trimmed/m1_2min.offline-frozen.txt"
+ref_transcript = "../../data/corpora/recorder/meeting-trimmed/m1_2min.offline-frozen.txt"
 ref_rttm = ""
 notes = "real meeting first 2min; ref=offline parakeet, frozen; ~395 words"
 
 [[clips]]
 id = "M1-full"
-path = "~/recordings/20260506-163338.flac"
+path = "../../data/corpora/recorder/private/20260506-163338.flac"
 duration_s = 1190.0
 speakers = 5
-ref_transcript = "~/recordings/20260506-163338.offline-frozen.txt"
+ref_transcript = "../../data/corpora/recorder/private/20260506-163338.offline-frozen.txt"
 # ref_rttm intentionally empty: this clip has no human-labeled speaker
 # reference. It previously pointed at the pipeline's own .diarized.json
 # output, which makes DER circular (the diarizer scored against itself reads

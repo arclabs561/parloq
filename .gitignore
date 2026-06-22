@@ -1,7 +1,16 @@
 __pycache__/
 *.pyc
 *.zip
-/data/
+/data/*
+!/data/corpora/
+/data/corpora/*
+!/data/corpora/README.md
+!/data/corpora/recorder/
+/data/corpora/recorder/*
+!/data/corpora/recorder/README.md
+!/data/corpora/recorder/*.toml
+!/data/corpora/recorder/scripts/
+!/data/corpora/recorder/scripts/**
 .venv/
 test-results/
 # large model caches live in ~/.cache/huggingface, not here
