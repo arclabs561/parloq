@@ -240,4 +240,6 @@ uv run recorder/evals/test_ui_fixture.py
 ```
 
 The fixture serves the real recorder HTML/SSE/control endpoints with known
-transcript states, then screenshots live, find, and stopped views.
+transcript states, then screenshots live, mobile, raw-toggle, find, and stopped
+views. It also writes `test-results/ui-fixture/manifest.json` with the expected
+artifact list and viewport metadata.
