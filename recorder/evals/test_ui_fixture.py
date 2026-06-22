@@ -14,11 +14,10 @@ live, find, and stopped states.
 from __future__ import annotations
 
 import argparse
-import os
 import re
-import select
-import subprocess
+import runpy
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -29,49 +28,105 @@ ROOT = Path(__file__).resolve().parents[2]
 RECORDER = ROOT / "recorder" / "recorder"
 
 
-def start_fixture() -> tuple[subprocess.Popen[str], str]:
-    proc = subprocess.Popen(
-        [sys.executable, str(RECORDER), "ui-fixture", "--port", "0", "--step", "0.05"],
-        cwd=str(ROOT),
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        bufsize=1,
-        env={**os.environ, "PYTHONUNBUFFERED": "1"},
-    )
-    assert proc.stderr is not None
-    logs: list[str] = []
-    deadline = time.time() + 30
-    while time.time() < deadline:
-        ready, _, _ = select.select([proc.stderr], [], [], 0.1)
-        if ready:
-            line = proc.stderr.readline()
-            if line:
-                logs.append(line)
-                match = re.search(r"live\s+->\s+(http://127\.0\.0\.1:\d+/)", line)
-                if match:
-                    return proc, match.group(1)
-        if proc.poll() is not None:
-            break
-    if proc.poll() is None:
-        proc.kill()
-    stdout, stderr = proc.communicate(timeout=1)
-    raise RuntimeError(
-        "fixture did not start:\n"
-        + "".join(logs)
-        + stderr
-        + ("\nstdout:\n" + stdout if stdout else "")
-    )
+class Fixture:
+    def __init__(self, server, thread, state):
+        self.server = server
+        self.thread = thread
+        self.state = state
 
 
-def stop_fixture(proc: subprocess.Popen[str]) -> None:
-    if proc.poll() is not None:
-        return
-    proc.terminate()
-    try:
-        proc.wait(timeout=2)
-    except subprocess.TimeoutExpired:
-        proc.kill()
+def start_fixture() -> tuple[Fixture, str]:
+    recorder = runpy.run_path(str(RECORDER), run_name="parloq_recorder_fixture")
+    transcript_state = recorder["TranscriptState"]
+    start_server = recorder["start_server"]
+    hms = recorder["hms"]
+
+    started = recorder["datetime"].now().astimezone()
+    state = transcript_state(
+        {
+            "name": "ui-fixture",
+            "started": started.strftime("%Y-%m-%d %H:%M:%S %Z"),
+            "model": "fixture",
+            "input": "fixture audio",
+            "audio_file": "ui-fixture.flac",
+            "md_path": "/tmp/parloq-ui-fixture.md",
+            "paths": {
+                "md": "/tmp/parloq-ui-fixture.md",
+                "txt": "/tmp/parloq-ui-fixture.txt",
+                "flac": "/tmp/parloq-ui-fixture.flac",
+                "log": "/tmp/parloq-ui-fixture.log",
+            },
+        }
+    )
+    state.set_polish_status("idle", "fixture-polish")
+    server, port, _ = start_server(state, 0)
+
+    def sleep_step(multiplier: float = 1.0) -> None:
+        time.sleep(max(0.01, 0.05 * multiplier))
+
+    def maybe_user_mark(t: float) -> None:
+        if state.mark_requested:
+            state.mark_requested = False
+            state.add_marker(t, f"[{hms(t)}] ★", user=True)
+
+    def drive_state() -> None:
+        state.set_status("starting")
+        state.set_draft("warming fixture state", 0.5, 0.5, peak_db=-48.0)
+        sleep_step()
+
+        state.set_status("recording")
+        state.set_draft("", 1.0, 1.0, peak_db=-34.0)
+        state.append_finalized(
+            "We need the recorder UI to show known transcript data clearly.",
+            1.2,
+        )
+        sleep_step()
+        maybe_user_mark(1.4)
+
+        state.append_finalized(
+            " The quality gate should catch unreadable states before they ship.",
+            4.8,
+        )
+        state.replace_polished_window(
+            0,
+            2,
+            "We need the recorder UI to show known transcript data clearly. "
+            "The quality gate should catch unreadable states before they ship.",
+            "We need the recorder UI to show known transcript data clearly. "
+            "The quality gate should catch unreadable states before they ship.",
+        )
+        state.set_draft(
+            "and screenshots should cover the live tail", 8.5, 8.5, peak_db=-18.0
+        )
+        sleep_step()
+        maybe_user_mark(8.8)
+
+        state.add_marker(10.0, "[00:00:10]")
+        state.append_finalized(
+            " Markers, search, raw toggle, and the stop dialog all need coverage.",
+            12.0,
+        )
+        state.set_draft("", 14.0, 14.0, peak_db=-55.0)
+
+        while not state.stop_requested:
+            maybe_user_mark(state.snapshot()["audio_seconds"] or 14.0)
+            state.set_draft("", 14.0, 14.0, peak_db=-90.0)
+            time.sleep(0.05)
+
+        state.set_status("stopped")
+        state.set_draft("", 14.0, 14.0, peak_db=-120.0)
+        sleep_step(0.5)
+
+    thread = threading.Thread(target=drive_state, daemon=True)
+    thread.start()
+    return Fixture(server, thread, state), f"http://127.0.0.1:{port}/"
+
+
+def stop_fixture(fixture: Fixture) -> None:
+    fixture.state.stop_requested = True
+    fixture.thread.join(timeout=2)
+    fixture.server.shutdown()
+    fixture.server.server_close()
 
 
 def run(out_dir: Path) -> None:
