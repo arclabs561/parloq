@@ -15,7 +15,8 @@ Run: uv run eval/test_emphasis_tag.py
 import importlib.machinery, importlib.util, pathlib
 import numpy as np
 
-RECORDER = pathlib.Path.home()/"Documents"/"dev"/"parloq"/"recorder"/"recorder"
+REPO = pathlib.Path(__file__).resolve().parents[1]
+RECORDER = REPO / "recorder" / "recorder"
 
 def load():
     loader = importlib.machinery.SourceFileLoader("rec", str(RECORDER))
