@@ -14,6 +14,7 @@ live, find, and stopped states.
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import runpy
 import sys
@@ -26,6 +27,19 @@ from playwright.sync_api import expect, sync_playwright
 
 ROOT = Path(__file__).resolve().parents[2]
 RECORDER = ROOT / "recorder" / "recorder"
+
+
+SCREENSHOTS = [
+    "01-live.png",
+    "01-mobile-live.png",
+    "02-raw.png",
+    "03-find.png",
+    "04-stopped.png",
+]
+LEGACY_SCREENSHOTS = [
+    "02-find.png",
+    "03-stopped.png",
+]
 
 
 class Fixture:
@@ -131,6 +145,24 @@ def stop_fixture(fixture: Fixture) -> None:
 
 def run(out_dir: Path) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
+    for name in SCREENSHOTS + LEGACY_SCREENSHOTS:
+        path = out_dir / name
+        if path.exists():
+            path.unlink()
+    captures: list[dict[str, object]] = []
+
+    def capture(page, filename: str, state: str) -> None:
+        path = out_dir / filename
+        page.screenshot(path=str(path), full_page=True)
+        captures.append(
+            {
+                "file": filename,
+                "state": state,
+                "viewport": page.viewport_size,
+                "bytes": path.stat().st_size,
+            }
+        )
+
     proc, url = start_fixture()
     try:
         with sync_playwright() as p:
@@ -148,11 +180,11 @@ def run(out_dir: Path) -> None:
             expect(page.locator("#btn-toggle-raw")).to_have_attribute(
                 "aria-pressed", "false"
             )
-            page.screenshot(path=str(out_dir / "01-live.png"), full_page=True)
+            capture(page, "01-live.png", "live desktop")
 
             page.set_viewport_size({"width": 390, "height": 844})
             expect(page.locator("#transcript")).to_contain_text("quality gate")
-            page.screenshot(path=str(out_dir / "01-mobile-live.png"), full_page=True)
+            capture(page, "01-mobile-live.png", "live mobile")
             page.set_viewport_size({"width": 1280, "height": 900})
 
             page.locator("#btn-toggle-raw").click()
@@ -161,7 +193,7 @@ def run(out_dir: Path) -> None:
             )
             expect(page.locator("#btn-toggle-raw")).to_contain_text("polished")
             expect(page.locator("#transcript")).to_contain_text("quality gate")
-            page.screenshot(path=str(out_dir / "02-raw.png"), full_page=True)
+            capture(page, "02-raw.png", "raw transcript toggle")
             page.locator("#btn-toggle-raw").click()
             expect(page.locator("#btn-toggle-raw")).to_have_attribute(
                 "aria-pressed", "false"
@@ -170,7 +202,7 @@ def run(out_dir: Path) -> None:
             page.locator("#btn-find").click()
             page.get_by_label("find in transcript").fill("quality")
             expect(page.locator("mark.find-hit.current")).to_have_text("quality")
-            page.screenshot(path=str(out_dir / "03-find.png"), full_page=True)
+            capture(page, "03-find.png", "find interaction")
 
             page.keyboard.press("Escape")
             page.locator("#btn-mark").click()
@@ -185,10 +217,14 @@ def run(out_dir: Path) -> None:
             expect(page.locator("#status-text")).to_have_text("stopped")
             page.wait_for_timeout(1800)
             expect(page.locator("#conn-text")).to_have_text("stopped")
-            page.screenshot(path=str(out_dir / "04-stopped.png"), full_page=True)
+            capture(page, "04-stopped.png", "stopped state")
             browser.close()
     finally:
         stop_fixture(proc)
+    (out_dir / "manifest.json").write_text(
+        json.dumps({"captures": captures}, indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 def main() -> int:
