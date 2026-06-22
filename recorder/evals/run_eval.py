@@ -613,10 +613,27 @@ def format_pct(v: Optional[float], width: int = 7) -> str:
     return f"{v * 100:>{width}.1f}%"
 
 
-def write_report(results: list[EvalResult], output_path: Path) -> None:
+def write_report(
+    results: list[EvalResult],
+    output_path: Path,
+    *,
+    corpus_toml: Optional[Path] = None,
+    clip_filter: Optional[str] = None,
+    skip_live: bool = False,
+) -> None:
     today = datetime.date.today().isoformat()
+    corpus_label = str(corpus_toml or CORPUS_TOML)
     lines = [
         f"# recorder eval results -- {today}",
+        "",
+        "## Run",
+        "",
+        f"- corpus: `{corpus_label}`",
+        f"- clips: `{clip_filter}`" if clip_filter else "- clips: all runnable",
+        f"- live pass: {'skipped' if skip_live else 'enabled'}",
+        f"- parakeet model: `{os.environ.get('PARAKEET_MODEL', 'mlx-community/parakeet-tdt-0.6b-v3')}`",
+        f"- stream depth: `{os.environ.get('MEETING_STREAM_DEPTH', '8')}`",
+        f"- context size: `{os.environ.get('MEETING_CONTEXT_SIZE', '256')}`",
         "",
         "WER: jiwer, lowercase+no-punct normalization. Lower is better.",
         "DER: pyannote.metrics, collar=0.25s, overlap counted. Lower is better.",
@@ -1476,7 +1493,13 @@ def main() -> None:
         log.info("appended %d row(s) to %s", len(results), sweep_path)
     else:
         output_path = Path(args.output) if args.output else (EVALS_DIR / f"results-{today}.md")
-        write_report(results, output_path)
+        write_report(
+            results,
+            output_path,
+            corpus_toml=corpus_toml or CORPUS_TOML,
+            clip_filter=args.clip,
+            skip_live=args.skip_live,
+        )
 
 
 if __name__ == "__main__":

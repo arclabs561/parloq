@@ -37,9 +37,15 @@ def main() -> int:
                 )
             ],
             output,
+            corpus_toml=Path("data/corpora/recorder/corpus.toml"),
+            clip_filter="clean",
+            skip_live=True,
         )
         text = output.read_text(encoding="utf-8")
 
+    assert "- corpus: `data/corpora/recorder/corpus.toml`" in text
+    assert "- clips: `clean`" in text
+    assert "- live pass: skipped" in text
     assert text.endswith("- none\n"), repr(text[-40:])
     assert not text.endswith("\n\n"), repr(text[-40:])
     print("PASS: eval report formatting is explicit and diff-check clean")
