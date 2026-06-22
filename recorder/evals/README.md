@@ -27,7 +27,9 @@ uv run recorder/evals/run_eval.py --clip L1-clean
 uv run recorder/evals/run_eval.py --design-only
 ```
 
-Output is written to `recorder/evals/results-YYYY-MM-DD.md`.
+Output is written to `recorder/evals/results-YYYY-MM-DD.md`. Each report records
+the corpus, clip filter, live-pass setting, and ASR environment knobs used for
+that run.
 
 Corpus payloads live under `data/corpora/recorder/`, not under
 `~/recordings`. Large audio and downloaded archives are ignored by git;
