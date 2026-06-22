@@ -18,7 +18,6 @@ import os
 import socket
 import tempfile
 import threading
-import time
 from pathlib import Path
 
 
@@ -42,11 +41,14 @@ def call_trigger(rec, args: list[str]) -> tuple[int, str, str]:
 
 
 def serve_once(sock_path: Path, response: str, seen: list[str]) -> threading.Thread:
+    ready = threading.Event()
+
     def run() -> None:
         srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             srv.bind(str(sock_path))
             srv.listen(1)
+            ready.set()
             conn, _ = srv.accept()
             with conn:
                 data = b""
@@ -63,9 +65,7 @@ def serve_once(sock_path: Path, response: str, seen: list[str]) -> threading.Thr
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
-    deadline = time.time() + 2
-    while not sock_path.exists() and time.time() < deadline:
-        time.sleep(0.01)
+    assert ready.wait(timeout=2), "socket server did not start"
     return thread
 
 
