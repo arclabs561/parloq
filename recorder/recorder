@@ -3163,6 +3163,57 @@ def _dictate_trigger(rest: list[str]) -> int:
         return 2
 
 
+def _load_vocab(path=None) -> "list[tuple[str, str]]":
+    """Load deterministic dictation corrections from a vocab file.
+
+    Format: one `wrong = right` pair per line; blank lines and `#` comments are
+    skipped. Returns ordered (wrong, right) pairs. The default path is
+    ~/recordings/.vocab.txt (override with --vocab or $DICTATE_VOCAB); a missing
+    file is a no-op rather than an error, mirroring the polish glossary. This is
+    the non-LLM correction path: it runs whether or not --polish is set, so a
+    daily user's proper nouns and identifiers are fixed deterministically.
+    """
+    p = (Path(path) if path else Path(os.environ.get(
+        "DICTATE_VOCAB", str(Path.home() / "recordings" / ".vocab.txt"))))
+    p = p.expanduser()
+    if not p.exists():
+        return []
+    pairs: list = []
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        wrong, right = line.split("=", 1)
+        wrong, right = wrong.strip(), right.strip()
+        if wrong:
+            pairs.append((wrong, right))
+    return pairs
+
+
+def _apply_vocab(text: str, pairs) -> str:
+    """Apply deterministic whole-word, case-insensitive replacements.
+
+    Each pair replaces standalone occurrences of `wrong` with `right`. When the
+    matched token was capitalized (sentence start) and the replacement is
+    lowercase, the replacement is capitalized so the correction doesn't drop a
+    sentence-initial capital. No effect when pairs is empty.
+    """
+    if not pairs or not text:
+        return text
+    import re
+    for wrong, right in pairs:
+        pat = re.compile(r"\b" + re.escape(wrong) + r"\b", re.IGNORECASE)
+
+        def _sub(m, right=right):
+            tok = m.group(0)
+            if tok[:1].isupper() and right[:1].islower():
+                return right[:1].upper() + right[1:]
+            return right
+
+        text = pat.sub(_sub, text)
+    return text
+
+
 def _emphasis_tag(samples, hist: list) -> str:
     """Energy-based emphasis tag for one dictation utterance, calibrated to a
     per-session running baseline (so it survives mic/level differences).
@@ -3219,6 +3270,10 @@ def _dictate_daemon(args) -> int:
     import mlx.core as mx
     from parakeet_mlx import from_pretrained
     model = from_pretrained(args.model)
+
+    vocab = _load_vocab(args.vocab)
+    if vocab:
+        print(f"vocab: {len(vocab)} corrections", file=sys.stderr)
 
     out_dir = Path(os.environ.get(
         "MEETING_DIR", str(Path.home() / "recordings")))
@@ -3349,6 +3404,11 @@ def _dictate_daemon(args) -> int:
                         text = polished
             except Exception:
                 pass
+
+        # Deterministic vocab corrections (proper nouns, identifiers). Runs
+        # after polish so the LLM can't undo a known-correct spelling, and
+        # before the prosody tag so it never rewrites the bracket marker.
+        text = _apply_vocab(text, vocab)
 
         # Prosody (opt-in): prepend an emphasis tag AFTER polish, so the polish
         # model can't strip it. Tags-only: the lexical transcript is untouched.
@@ -3509,6 +3569,10 @@ def cmd_dictate(rest: list[str]) -> int:
                    default=os.environ.get("MEETING_POLISH_MODEL", "gemma4:e2b"))
     p.add_argument("--save", action="store_true",
                    help="save the audio + transcript to ~/recordings/dict-<ts>")
+    p.add_argument("--vocab", default=None,
+                   help="path to a dictation vocab file (`wrong = right` per "
+                        "line) applied deterministically after transcribe; "
+                        "defaults to ~/recordings/.vocab.txt if present")
     p.add_argument("--prosody", action="store_true",
                    help="EXPERIMENTAL: prefix [emphatic] when an utterance's vocal "
                         "energy is well above the session baseline")
@@ -3524,6 +3588,9 @@ def cmd_dictate(rest: list[str]) -> int:
     import mlx.core as mx
     from parakeet_mlx import from_pretrained
     model = from_pretrained(args.model)
+    vocab = _load_vocab(args.vocab)
+    if vocab:
+        print(f"vocab: {len(vocab)} corrections", file=sys.stderr)
     print("ready. press Enter to start, Enter again to stop.", file=sys.stderr)
 
     out_dir = Path(os.environ.get(
@@ -3622,6 +3689,9 @@ def cmd_dictate(rest: list[str]) -> int:
                         text = polished
             except Exception:
                 pass  # best-effort
+
+        # Deterministic vocab corrections (see _apply_vocab); runs after polish.
+        text = _apply_vocab(text, vocab)
 
         # Copy to clipboard via pbcopy (macOS).
         if not args.no_clipboard and text:
