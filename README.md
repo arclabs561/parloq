@@ -6,7 +6,7 @@ Local speech recorder and dictation tool.
 
 `recorder/` is the daily-driver tool: meeting capture, live transcription,
 offline re-pass, diarization, summaries, search, and push-to-talk dictation.
-`eval/`, `experiments/`, and `results/` are the evidence bench for deciding
+`prosody-bench/`, `experiments/`, and `results/` are the evidence bench for deciding
 which speech/prosody signals should graduate into recorder.
 
 The current phase plan lives in
@@ -16,7 +16,7 @@ The current phase plan lives in
 
 - `recorder/` — local meeting recorder and dictation CLI.
 - `experiments/` — self-contained PEP 723 uv scripts (`uv run experiments/<x>.py`).
-- `eval/` — reusable evaluation scripts for prosody/tagging experiments.
+- `prosody-bench/` — reusable evaluation scripts for prosody/tagging experiments.
 - `results/` — captured outputs (text logs, JSON pairs). Tracked.
 - `data/` — repo-local corpus roots. Large payloads are gitignored; manifests
   and sync scripts are tracked.

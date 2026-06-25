@@ -16,7 +16,7 @@ review-trigger: revisit after one week of recorder replacing SuperWhisper, or af
 ## Current Position
 
 `recorder` is the product surface. It must stay useful as a local desktop
-dictation and meeting-capture tool while `eval/`, `experiments/`, and
+dictation and meeting-capture tool while `prosody-bench/`, `experiments/`, and
 `results/` provide evidence for what graduates into the daily path.
 
 What is already done:

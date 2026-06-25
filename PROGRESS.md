@@ -41,11 +41,11 @@ Open fork (user to steer):
   (deferred, and the categorical one failed).
 ### Evals built (reusable, not one-off)
 
-- `eval/separability_bench.py` — tagger x dataset -> per-dimension AUC + latency.
+- `prosody-bench/separability_bench.py` — tagger x dataset -> per-dimension AUC + latency.
   Pluggable tagger registry. Confirms: energy_std AUC 0.893 (arousal), valence
   0.66 even with logreg over all features. `energy_std` alone beats 5-feature
   logreg (0.845) -> one feature, not a model.
-- `eval/ab_tag_response.py` — cross-model A/B via OpenRouter (6-model panel).
+- `prosody-bench/ab_tag_response.py` — cross-model A/B via OpenRouter (6-model panel).
   Does an inline prosody tag change the reply? NAIVE (no tag explanation).
 
 ### A/B RESULT (the go/no-go): downstream WORKS
@@ -139,7 +139,7 @@ baseline (last 20 utterances; baseline handles mic/level sensitivity). Applied
 AFTER polish (so it survives), tags-only (lexical text untouched), off unless
 --prosody is passed (existing behavior unchanged).
 
-Verified: `eval/test_emphasis_tag.py` loads the REAL function and asserts it
+Verified: `prosody-bench/test_emphasis_tag.py` loads the REAL function and asserts it
 tags a loud utterance, stays silent on quiet ones, and skips sub-0.5s clips
 without polluting the baseline. py_compile clean.
 
@@ -164,7 +164,7 @@ lanes before adding more integrations:
 - nonverbal events: laugh/sigh/breath/cough lane, evaluate separately;
 - affect/valence: model lane only, not a live default until proven.
 
-Reran `eval/separability_bench.py` after restoring the missing RAVDESS data in
+Reran `prosody-bench/separability_bench.py` after restoring the missing RAVDESS data in
 `/tmp/ravdess`. Result file: `results/separability_bench_2026-06-19.json`.
 It matches the earlier finding: arousal remains separable from cheap energy
 features (`energy_std` AUC 0.893), while valence remains weak with cheap

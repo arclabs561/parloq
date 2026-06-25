@@ -14,7 +14,7 @@ affect. If arousal_* ~ affect_word, the producible arousal tag is competitive
 (MVP justified). If affect_word >> arousal_*, the value is emotion-word
 semantics the cheap tagger can't make.
 
-Env: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY). Run: uv run eval/ab_disentangle.py
+Env: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY). Run: uv run prosody-bench/ab_disentangle.py
 """
 import os, json, time, pathlib, datetime, collections
 from concurrent.futures import ThreadPoolExecutor
@@ -75,7 +75,6 @@ def main():
     print(f"responses done in {time.perf_counter()-t0:.0f}s")
 
     # judge: noise (A vs A2) + each tag (A vs tag)
-    conds=["noise"]+list(TAGS)
     pairs=[]
     for m in panel:
         for si in range(len(SENTENCES)):

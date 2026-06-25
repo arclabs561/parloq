@@ -16,7 +16,7 @@ is the easy case. This attacks that result four ways:
   - PLACEBO: [neutral]/junk tags on neutral text. Control: SUBSTANTIVE here
     should be ~0; if not, the judge is over-firing and the whole eval is suspect.
 
-Env: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY). Run: uv run eval/ab_tag_response_hard.py
+Env: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY). Run: uv run prosody-bench/ab_tag_response_hard.py
 (Self-contained per uv-script convention; shares the small call() shape with
 ab_tag_response.py by design, not via a lib until a 3rd consumer appears.)
 """

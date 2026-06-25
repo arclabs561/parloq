@@ -17,7 +17,7 @@ it. Two questions this resolves:
     meaning? If yes, the fix for the MVP is "emit words, not codes."
 
 Same texts across conditions so the only variable is the tag form.
-Env: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY). Run: uv run eval/ab_tag_refine.py
+Env: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY). Run: uv run prosody-bench/ab_tag_refine.py
 """
 import os, json, time, pathlib, datetime, collections
 from concurrent.futures import ThreadPoolExecutor
