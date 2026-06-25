@@ -3375,7 +3375,7 @@ def _dictate_daemon(args) -> int:
                 "-f", "avfoundation", "-i", args.device,
                 "-ac", "1", "-ar", str(SAMPLE_RATE),
                 "-c:a", "flac", "-flush_packets", "1",
-                "-y", "/tmp/_dictate_daemon.flac",
+                "-y", f"/tmp/_dictate_daemon_{os.getpid()}.flac",
                 "-ac", "1", "-ar", str(SAMPLE_RATE),
                 "-f", "f32le", "-c:a", "pcm_f32le",
                 "pipe:1",
