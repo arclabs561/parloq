@@ -20,29 +20,17 @@ jobs:
         with:
           enable-cache: false
 
+      - name: Install just
+        uses: extractions/setup-just@v2
+
+      # The UI fixture test drives a headless browser; the chromium binary isn't
+      # in the test's uv env, so install it into the shared playwright cache
+      # first. Everything else is run by `just check`.
+      - name: Install Playwright Chromium
+        run: uv run --with playwright python -m playwright install chromium
+
+      # Single source of truth: CI runs the same recipe as local `just check`,
+      # so the two can't drift (this file previously inlined a copy and broke on
+      # a path rename it didn't know about).
       - name: Check
-        run: |
-          PYTHONPYCACHEPREFIX=/tmp/parloq-pycache python3 -m py_compile \
-            recorder/recorder \
-            recorder/evals/run_eval.py \
-            recorder/evals/test_ui_fixture.py \
-            recorder/evals/test_device_resolution.py \
-            recorder/evals/test_dictate_trigger.py \
-            recorder/evals/test_eval_corpus_paths.py \
-            recorder/evals/test_eval_report_format.py \
-            recorder/evals/test_fragment_join.py \
-            recorder/evals/test_polish_edits.py \
-            recorder/evals/test_render_md.py \
-            recorder/evals/test_search_cli.py \
-            eval/test_emphasis_tag.py
-          python3 recorder/evals/test_device_resolution.py
-          uv run recorder/evals/test_dictate_trigger.py
-          uv run recorder/evals/test_eval_corpus_paths.py
-          uv run recorder/evals/test_eval_report_format.py
-          python3 recorder/evals/test_fragment_join.py
-          uv run recorder/evals/test_polish_edits.py
-          uv run recorder/evals/test_render_md.py
-          uv run recorder/evals/test_search_cli.py
-          uv run eval/test_emphasis_tag.py
-          uv run --with playwright python -m playwright install chromium
-          uv run recorder/evals/test_ui_fixture.py
+        run: just check
