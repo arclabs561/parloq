@@ -3254,6 +3254,39 @@ def _secure_input_active() -> bool:
         return False
 
 
+# Short system sounds used as start/stop cues. The hotkey user can't see the
+# daemon's terminal, so an audible "recording started" / "ready" prevents the
+# "am I recording into the void?" confusion that dominates dictation-tool issues.
+_CHIME_START = "/System/Library/Sounds/Tink.aiff"
+_CHIME_STOP = "/System/Library/Sounds/Pop.aiff"
+
+
+def _play_sound(path: str) -> None:
+    """Play a short sound without blocking (best-effort feedback)."""
+    try:
+        subprocess.Popen(["afplay", path],
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
+
+
+def _warmup_model(model) -> None:
+    """One silent transcribe to pay the MLX compile cost up front, so the first
+    real dictation isn't seconds slower than the rest. Best-effort: on failure
+    the first utterance just pays the cost as it did before.
+    """
+    try:
+        import soundfile as sf
+        tmp = Path("/tmp") / f"_dictate_warmup_{os.getpid()}.wav"
+        sf.write(str(tmp), np.zeros(SAMPLE_RATE, dtype=np.float32), SAMPLE_RATE)
+        try:
+            model.transcribe(str(tmp))
+        finally:
+            tmp.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+
 def _emphasis_tag(samples, hist: list) -> str:
     """Energy-based emphasis tag for one dictation utterance, calibrated to a
     per-session running baseline (so it survives mic/level differences).
@@ -3309,6 +3342,7 @@ def _dictate_daemon(args) -> int:
     print(f"loading {args.model} ...", file=sys.stderr, flush=True)
     from parakeet_mlx import from_pretrained
     model = from_pretrained(args.model)
+    _warmup_model(model)  # pay the MLX compile cost now, not on first dictation
 
     vocab = _load_vocab(args.vocab)
     if vocab:
@@ -3364,6 +3398,8 @@ def _dictate_daemon(args) -> int:
             state["stop_event"] = stop_event
             state["drain_thread"] = t
             state["started_at"] = time.time()
+            if not args.no_chime:
+                _play_sound(_CHIME_START)
             return "● recording"
 
     def status_message() -> str:
@@ -3379,6 +3415,7 @@ def _dictate_daemon(args) -> int:
             f"model={args.model}",
             f"prosody={'on' if getattr(args, 'prosody', False) else 'off'}",
             f"polish={'on' if args.polish else 'off'}",
+            f"chime={'off' if args.no_chime else 'on'}",
             f"clipboard={'off' if args.no_clipboard else 'on'}",
             f"save={'on' if args.save else 'off'}",
             f"socket={sock_path}",
@@ -3511,6 +3548,9 @@ def _dictate_daemon(args) -> int:
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
             (out_dir / f"dict-{ts}.txt").write_text(text + "\n", encoding="utf-8")
 
+        if not args.no_chime:
+            _play_sound(_CHIME_STOP)
+
         total_s = time.time() - request_t0
         paste_text = " pasted" if paste else ""
         return (
@@ -3629,6 +3669,9 @@ def cmd_dictate(rest: list[str]) -> int:
     p.add_argument("--daemon", action="store_true",
                    help="run as a long-running daemon listening on a unix socket; "
                         "trigger record cycles via `recorder dictate trigger`")
+    p.add_argument("--no-chime", action="store_true",
+                   help="suppress the start/stop sounds the daemon plays so a "
+                        "hotkey user gets audible record/ready feedback")
     args = p.parse_args(rest)
 
     if args.daemon:
@@ -3637,6 +3680,7 @@ def cmd_dictate(rest: list[str]) -> int:
     print(f"loading {args.model} ...", file=sys.stderr, flush=True)
     from parakeet_mlx import from_pretrained
     model = from_pretrained(args.model)
+    _warmup_model(model)  # pay the MLX compile cost now, not on first dictation
     vocab = _load_vocab(args.vocab)
     if vocab:
         print(f"vocab: {len(vocab)} corrections", file=sys.stderr)

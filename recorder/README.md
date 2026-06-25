@@ -140,7 +140,12 @@ recorder dictate trigger --paste
 ```
 
 The first press starts recording. The second press stops, transcribes with
-parakeet, copies the text, and pastes into the focused app.
+parakeet, copies the text, and pastes into the focused app. The daemon plays a
+short sound on record-start and another when the transcript is ready, so a
+hotkey user gets feedback without watching the terminal (silence it with
+`--no-chime`). On startup it also runs one silent transcribe to pay the model's
+compile cost up front, so the first real dictation isn't seconds slower than the
+rest.
 
 Sanity-check the daemon before wiring the hotkey:
 
@@ -149,7 +154,7 @@ recorder dictate trigger --status
 ```
 
 When the daemon is running, status prints the phase, device, model, prosody,
-polish, clipboard, save, and socket settings. Stop responses include audio,
+polish, chime, clipboard, save, and socket settings. Stop responses include audio,
 ASR, and total latency, which is the measurement to track while replacing the
 old hotkey path.
 
