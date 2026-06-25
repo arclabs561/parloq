@@ -3634,6 +3634,12 @@ def _dictate_daemon(args) -> int:
         if args.save:
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
             (out_dir / f"dict-{ts}.txt").write_text(text + "\n", encoding="utf-8")
+            # Archive the crash-backup FLAC alongside the text, so a daemon
+            # dictation can be re-passed/eval'd later like the interactive path.
+            flac_tmp = Path(f"/tmp/_dictate_daemon_{os.getpid()}.flac")
+            if flac_tmp.exists():
+                import shutil
+                shutil.copy(flac_tmp, out_dir / f"dict-{ts}.flac")
 
         if not args.no_chime:
             _play_sound(_CHIME_STOP)
