@@ -1141,6 +1141,20 @@ def cmd_diarize_der(corpus_toml: Path, clip_filter: Optional[str] = None,
     return 0
 
 
+def _run_polish(source_path: Path, out_path: Path) -> Optional[str]:
+    """Run `recorder polish` once and return the polished body with its header
+    comment stripped, or None on failure."""
+    r = subprocess.run(
+        ["recorder", "polish", str(source_path), "-o", str(out_path)],
+        capture_output=True, text=True, timeout=600,
+    )
+    if r.returncode != 0 or not out_path.exists():
+        log.error("polish failed rc=%d stderr=%s", r.returncode, r.stderr[-200:])
+        return None
+    body = out_path.read_text(encoding="utf-8")
+    return re.sub(r"^<!--.*?-->\n+", "", body, flags=re.DOTALL)
+
+
 def cmd_polish_ab(source_path: Path, ref_path: Optional[Path] = None) -> int:
     """Run gemma4 polish on `source_path` and compare WER vs the reference
     (the source itself if no ref). Reports:
@@ -1160,16 +1174,9 @@ def cmd_polish_ab(source_path: Path, ref_path: Optional[Path] = None) -> int:
 
     log.info("running `recorder polish %s` ...", source_path.name)
     out_path = source_path.with_suffix(".polish-ab.md")
-    r = subprocess.run(
-        ["recorder", "polish", str(source_path), "-o", str(out_path)],
-        capture_output=True, text=True, timeout=600,
-    )
-    if r.returncode != 0 or not out_path.exists():
-        log.error("polish failed rc=%d stderr=%s", r.returncode, r.stderr[-200:])
+    polished_body = _run_polish(source_path, out_path)
+    if polished_body is None:
         return 1
-    polished_body = out_path.read_text(encoding="utf-8")
-    # Strip the polish header comment
-    polished_body = re.sub(r"^<!--.*?-->\n+", "", polished_body, flags=re.DOTALL)
 
     print(f"\nPolish A/B: {source_path.name}")
     print(f"  raw words:      {len(raw_body.split())}")
@@ -1179,6 +1186,15 @@ def cmd_polish_ab(source_path: Path, ref_path: Optional[Path] = None) -> int:
         ref_text = ref_path.read_text(encoding="utf-8")
         wer_raw = compute_wer(raw_body, ref_text)
         wer_pol = compute_wer(polished_body, ref_text)
+        # Noise floor: polish is a stochastic LLM pass, so re-running it on the
+        # same input lands on a different WER. A raw->polished delta smaller than
+        # this run-to-run swing is indistinguishable from the model's own
+        # variance, not evidence that polish helped or hurt. n=2 is a rough
+        # single-pair floor; widen by averaging more runs if a decision rides
+        # on it.
+        out_path2 = source_path.with_suffix(".polish-ab2.md")
+        polished2 = _run_polish(source_path, out_path2)
+        wer_pol2 = compute_wer(polished2, ref_text) if polished2 else None
         if wer_raw is not None and wer_pol is not None:
             delta = (wer_raw - wer_pol) * 100
             sign = "+" if delta >= 0 else ""
@@ -1186,6 +1202,14 @@ def cmd_polish_ab(source_path: Path, ref_path: Optional[Path] = None) -> int:
             print(f"  WER polished:   {wer_pol * 100:.1f}%")
             print(f"  delta:          {sign}{delta:.1f}pp "
                   f"(positive = polish helped)")
+            if wer_pol2 is not None:
+                floor = abs(wer_pol - wer_pol2) * 100
+                verdict = ("WITHIN NOISE — treat as no change"
+                           if abs(delta) <= floor else "above noise floor")
+                print(f"  noise floor:    {floor:.1f}pp "
+                      f"(polish run-to-run, n=2) -> {verdict}")
+            else:
+                print("  noise floor:    n/a (second polish run failed)")
         else:
             print("  WER: could not compute")
 
