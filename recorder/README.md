@@ -127,13 +127,26 @@ corrected, and vocab works with or without `--polish`.
 
 On the paste path (`trigger --paste`), the daemon restores whatever text was on your clipboard after pasting, rather than leaving the dictation there. If macOS Secure Event Input is active (a focused password field, Terminal secure keyboard entry, or a password manager), synthetic Cmd-V is blocked by the OS; the daemon detects this and reports `paste blocked: secure input active` with the text left on the clipboard to paste manually.
 
-For a global hotkey, keep the daemon running:
+For a global hotkey, keep the daemon running. The simplest way is to install it
+as a launchd agent so it starts at login and restarts if it dies:
+
+```sh
+recorder dictate install-agent              # run the daemon at login
+recorder dictate install-agent --polish --vocab ~/my.vocab.txt  # with flags
+recorder dictate uninstall-agent            # remove it
+```
+
+`install-agent` writes `~/Library/LaunchAgents/parloq.dictate.plist`, loads it
+with launchctl, and logs to `~/Library/Logs/parloq-dictate.log`. Any extra flags
+are passed straight through to `dictate --daemon`. The plist sets an explicit
+PATH that includes Homebrew, because launchd's minimal PATH would otherwise hide
+ffmpeg. To run the daemon by hand instead (e.g. while testing):
 
 ```sh
 recorder dictate --daemon --prosody
 ```
 
-Then bind the hotkey in macOS Shortcuts / Karabiner-Elements to:
+Either way, bind the hotkey in macOS Shortcuts / Karabiner-Elements to:
 
 ```sh
 recorder dictate trigger --paste
