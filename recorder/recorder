@@ -3814,11 +3814,11 @@ def cmd_dictate(rest: list[str]) -> int:
         ]
         ff = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                               stderr=subprocess.DEVNULL)
-        print("● recording (press Enter to stop)", file=sys.stderr)
         samples_buf = bytearray()
         # Drain ffmpeg in a thread; on Enter, SIGINT it.
         import threading
         stop_event = threading.Event()
+        rec_start = time.time()
 
         def drain():
             while not stop_event.is_set():
@@ -3828,6 +3828,20 @@ def cmd_dictate(rest: list[str]) -> int:
                 samples_buf.extend(chunk)
         t = threading.Thread(target=drain, daemon=True)
         t.start()
+
+        # Live status line: one in-place line with elapsed time, so the user can
+        # see capture is happening (the "recording into the void" problem). The
+        # toggle stays Enter; true press-and-hold isn't reliable in a terminal
+        # (see docs/design/dictation-tui.md).
+        def status_line():
+            while not stop_event.is_set():
+                el = time.time() - rec_start
+                sys.stderr.write(f"\r● recording {el:5.1f}s · Enter to stop ")
+                sys.stderr.flush()
+                stop_event.wait(0.2)
+            sys.stderr.write("\r" + " " * 40 + "\r")
+            sys.stderr.flush()
+        threading.Thread(target=status_line, daemon=True).start()
         try:
             input()
         except (EOFError, KeyboardInterrupt):
