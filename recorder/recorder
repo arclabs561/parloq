@@ -3314,6 +3314,93 @@ def _emphasis_tag(samples, hist: list) -> str:
     return tag
 
 
+def _dictate_agent_label() -> str:
+    return "parloq.dictate"
+
+
+def _dictate_agent_plist_path() -> Path:
+    return (Path.home() / "Library" / "LaunchAgents"
+            / f"{_dictate_agent_label()}.plist")
+
+
+def _render_agent_plist(recorder_path: str, daemon_args: list,
+                        log_path: str) -> str:
+    """Render the launchd agent plist for the dictation daemon.
+
+    launchd starts agents with a minimal PATH, so ffmpeg (usually under
+    Homebrew) would not resolve; set PATH explicitly to cover Apple-Silicon and
+    Intel Homebrew prefixes plus the system dirs. RunAtLoad starts the daemon at
+    login, KeepAlive restarts it if it dies, and ProcessType=Interactive gives
+    it the GUI-session access its paste path (osascript Cmd-V) needs. Built with
+    plistlib so the XML is always well-formed.
+    """
+    import plistlib
+    d = {
+        "Label": _dictate_agent_label(),
+        "ProgramArguments": [recorder_path, "dictate", "--daemon", *daemon_args],
+        "RunAtLoad": True,
+        "KeepAlive": True,
+        "ProcessType": "Interactive",
+        "EnvironmentVariables": {
+            "PATH": "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:"
+                    "/usr/sbin:/sbin",
+        },
+        "StandardOutPath": log_path,
+        "StandardErrorPath": log_path,
+    }
+    return plistlib.dumps(d).decode("utf-8")
+
+
+def _dictate_install_agent(rest: list) -> int:
+    """Write a launchd agent that runs the dictation daemon at login and load
+    it. Extra args are passed through to `recorder dictate --daemon ...` (e.g.
+    `install-agent --polish --vocab ~/my.vocab.txt`)."""
+    import shutil
+    recorder_path = os.path.realpath(sys.argv[0])
+    if not os.path.exists(recorder_path):
+        recorder_path = shutil.which("recorder") or recorder_path
+    label = _dictate_agent_label()
+    plist_path = _dictate_agent_plist_path()
+    log_path = str(Path.home() / "Library" / "Logs" / "parloq-dictate.log")
+    plist_path.parent.mkdir(parents=True, exist_ok=True)
+    Path(log_path).parent.mkdir(parents=True, exist_ok=True)
+    plist_path.write_text(
+        _render_agent_plist(recorder_path, rest, log_path), encoding="utf-8")
+    print(f"wrote {plist_path}", file=sys.stderr)
+
+    uid = os.getuid()
+    # Bootout any prior instance (ignored if not loaded), then bootstrap.
+    subprocess.run(["launchctl", "bootout", f"gui/{uid}/{label}"],
+                   capture_output=True)
+    r = subprocess.run(
+        ["launchctl", "bootstrap", f"gui/{uid}", str(plist_path)],
+        capture_output=True, text=True)
+    if r.returncode != 0:
+        print(f"launchctl bootstrap failed: {r.stderr.strip()}", file=sys.stderr)
+        print(f"load it manually: launchctl bootstrap gui/{uid} {plist_path}",
+              file=sys.stderr)
+        return 1
+    print(f"loaded {label}; the daemon runs at login. logs -> {log_path}",
+          file=sys.stderr)
+    print("bind a hotkey to: recorder dictate trigger --paste", file=sys.stderr)
+    return 0
+
+
+def _dictate_uninstall_agent(rest: list) -> int:
+    """Unload the launchd agent and remove its plist."""
+    label = _dictate_agent_label()
+    plist_path = _dictate_agent_plist_path()
+    uid = os.getuid()
+    subprocess.run(["launchctl", "bootout", f"gui/{uid}/{label}"],
+                   capture_output=True)
+    if plist_path.exists():
+        plist_path.unlink()
+        print(f"removed {plist_path}", file=sys.stderr)
+    else:
+        print(f"no agent plist at {plist_path}", file=sys.stderr)
+    return 0
+
+
 def _dictate_daemon(args) -> int:
     """Run as a long-running daemon. Loads parakeet once, then services
     `toggle` and `toggle:paste` commands over a unix socket. Each toggle
@@ -3633,19 +3720,26 @@ def _dictate_daemon(args) -> int:
 def cmd_dictate(rest: list[str]) -> int:
     """Push-to-talk dictation.
 
-    Three modes:
+    Modes:
       recorder dictate                    # interactive (Enter toggles)
       recorder dictate --daemon           # long-running, listens on unix socket
       recorder dictate trigger [--paste]  # send start/stop to a running daemon
+      recorder dictate install-agent      # run the daemon at login (launchd)
+      recorder dictate uninstall-agent    # remove the launchd agent
 
     For SuperWhisper-class global-hotkey UX:
-      1. Run `recorder dictate --daemon` (e.g. via launchd plist, see README)
+      1. `recorder dictate install-agent` (runs the daemon at login; pass extra
+         daemon flags through, e.g. install-agent --polish --vocab ~/v.txt)
       2. Bind a hotkey in macOS Shortcuts.app to run `recorder dictate trigger --paste`
       3. Press hotkey → records → press again → transcribes → pastes into focused app
     """
     # Sub-verb: `dictate trigger ...` is a thin client.
     if rest and rest[0] == "trigger":
         return _dictate_trigger(rest[1:])
+    if rest and rest[0] == "install-agent":
+        return _dictate_install_agent(rest[1:])
+    if rest and rest[0] == "uninstall-agent":
+        return _dictate_uninstall_agent(rest[1:])
 
     p = argparse.ArgumentParser(prog="recorder dictate")
     p.add_argument("--device", default=os.environ.get("MEETING_DEVICE", ":0"))
