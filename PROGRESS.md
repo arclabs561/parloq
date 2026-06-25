@@ -169,3 +169,51 @@ Reran `prosody-bench/separability_bench.py` after restoring the missing RAVDESS 
 It matches the earlier finding: arousal remains separable from cheap energy
 features (`energy_std` AUC 0.893), while valence remains weak with cheap
 features (`logreg_allfeats` AUC 0.662).
+
+## 2026-06-22 — 2026-06-25
+
+Shifted from the prosody bench to hardening the recorder daily driver, after a
+research/scrutinize/useful pass concluded the durable assets are the local
+recorder and the eval methodology, not the prosody-tag pipeline (native audio
+LLMs still under-use prosody, so the tag idea isn't dead, but acted-RAVDESS
+inflates its validity; naturalistic validation on MSP-Podcast is the open,
+license-gated gate). The prosody tag is frozen, not extended.
+
+Repo hygiene:
+- Removed the orphaned `recorder/evals/*.toml` corpus duplicates left by the
+  data/corpora move; canonical root is `data/corpora/recorder/`.
+- `results/README.md` documents each eval artifact, the label-validity ceiling
+  (RAVDESS is acted; decoded correctly but a weak proxy), and the open gate.
+- Renamed `eval/` -> `prosody-bench/` to stop the collision with
+  `recorder/evals/`.
+- Added a ruff `--select F` gate to `just check`; fixed 13 findings.
+- CI now runs `just check` instead of an inlined copy that drifted on the rename
+  (single source of truth).
+
+Dictation features (all in `recorder/recorder`, gated into `just check` where
+unit-testable):
+- Deterministic vocab corrections (`--vocab`, default `~/recordings/.vocab.txt`),
+  applied after polish, before the prosody tag. `test_vocab.py`.
+- Paste path made non-destructive: clipboard snapshot/restore around Cmd-V, plus
+  Secure Event Input detection (Carbon `IsSecureEventInputEnabled` via ctypes)
+  so a password-field paste reports `paste blocked` instead of vanishing.
+- Daemon warmup transcribe (kills first-use MLX compile latency) and start/stop
+  chime (`--no-chime`).
+- `recorder dictate install-agent` / `uninstall-agent`: launchd agent for the
+  daemon at login, plist rendered via plistlib with an explicit Homebrew PATH
+  (launchd's minimal PATH hides ffmpeg). `test_agent_plist.py`.
+- Daemon `--save` now archives its FLAC like the interactive path.
+- Interactive mode has a live elapsed-time status line (the TUI decision in
+  `docs/design/dictation-tui.md`: the interactive mode IS the TUI; global-hotkey
+  hold-to-talk is an explicit non-goal until system-wide need appears).
+- Fixed `--no-clipboard --paste` pasting the stale clipboard (found by an
+  adversarial review of the session diff).
+
+Eval methodology: `cmd_polish_ab` now reports a polish run-to-run noise floor
+and flags deltas within it as "treat as no change".
+
+Examples: `examples/dictation.vocab.txt` + README as a copy-paste starting point.
+
+Not runtime-tested (no mic / MLX / launchctl in CI): the daemon paste path, the
+launchd load, and the interactive status line. Compile + lint + adversarial
+review clean; the launchctl/eval/FLAC paths were verified correct by the review.
