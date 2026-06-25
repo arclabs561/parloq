@@ -50,7 +50,6 @@ import os
 import queue
 import re
 import signal
-import socket
 import socketserver
 import subprocess
 import sys
@@ -1838,7 +1837,7 @@ def md_header(meta: dict) -> str:
         f"# {meta['name']}",
         "",
         f"_Started {meta['started']}. Live transcript below; this file is",
-        f"rewritten on every chunk. Reference it from Claude Code with",
+        "rewritten on every chunk. Reference it from Claude Code with",
         f"`@{meta['md_path']}` to chat about it mid-meeting._",
         "",
         "## Transcript",
@@ -2803,7 +2802,7 @@ class StreamingPolisher:
                 return
             try:
                 self._do_polish_pass()
-            except Exception as e:
+            except Exception:
                 # Polish failures are non-fatal; log to state warning.
                 self.state.set_polish_status("idle")
                 # don't spam the warning; record only changes in failure shape
@@ -3308,7 +3307,6 @@ def _dictate_daemon(args) -> int:
             return 1
 
     print(f"loading {args.model} ...", file=sys.stderr, flush=True)
-    import mlx.core as mx
     from parakeet_mlx import from_pretrained
     model = from_pretrained(args.model)
 
@@ -3637,7 +3635,6 @@ def cmd_dictate(rest: list[str]) -> int:
         return _dictate_daemon(args)
 
     print(f"loading {args.model} ...", file=sys.stderr, flush=True)
-    import mlx.core as mx
     from parakeet_mlx import from_pretrained
     model = from_pretrained(args.model)
     vocab = _load_vocab(args.vocab)
@@ -3814,7 +3811,7 @@ def _search_db_path() -> Path:
     return base / ".index.sqlite"
 
 
-def _search_open() -> "sqlite3.Connection":
+def _search_open() -> "sqlite3.Connection":  # noqa: F821 (lazy import below)
     import sqlite3
     db = sqlite3.connect(str(_search_db_path()))
     db.execute("""

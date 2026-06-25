@@ -10,7 +10,7 @@ clip, and runs within the dictate latency budget. Does NOT touch recorder.
 Label *accuracy* is out of scope here (needs real emotive clips, phase 3);
 this proves the mechanism + latency only.
 """
-import subprocess, sys, time, pathlib
+import subprocess, time, pathlib
 
 MODEL = "superb/wav2vec2-base-superb-er"  # Apache-2.0, categorical (neu/hap/ang/sad)
 CLIP = pathlib.Path("/tmp/ser_probe_clip.wav")

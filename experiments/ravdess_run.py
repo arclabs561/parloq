@@ -10,7 +10,7 @@ on the 4 classes the model (superb/wav2vec2-base-superb-er: neu/hap/ang/sad)
 and RAVDESS share, and emits tagged-vs-untagged transcript pairs for the A/B.
 RAVDESS statements are fixed text, so the 'transcript' is known (no ASR).
 """
-import io, json, time, zipfile, urllib.request, pathlib, collections
+import json, time, zipfile, urllib.request, pathlib, collections
 import numpy as np, librosa
 
 ZIP_URL = "https://zenodo.org/records/1188976/files/Audio_Speech_Actors_01-24.zip?download=1"
