@@ -97,7 +97,7 @@ def main() -> int:
         for f in failures:
             print("  " + f)
         return 1
-    print(f"PASS: fragment join (9 cases)")
+    print("PASS: fragment join (9 cases)")
     return 0
 
 

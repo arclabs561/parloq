@@ -974,7 +974,7 @@ def cmd_search_recall() -> int:
                       phrase, expected_owner, r.stdout[:200])
 
     recall = hits / len(sampled) if sampled else 0
-    print(f"\nSearch recall eval:")
+    print("\nSearch recall eval:")
     print(f"  recordings:   {len(md_files)}")
     print(f"  queries:      {len(sampled)}")
     print(f"  hits:         {hits}")
@@ -1005,7 +1005,6 @@ def cmd_diarize_stability(flac_path: Path, runs: int = 2,
     out_dir = flac_path.parent
     name = flac_path.stem
     json_path = out_dir / f"{name}.diarized.json"
-    md_path = out_dir / f"{name}.diarized.md"
 
     results: list[dict] = []
     for i in range(runs):
