@@ -69,10 +69,23 @@ recorder dictate            # Enter to start, Enter again to stop; transcript to
 recorder dictate --daemon   # long-running daemon for global hotkey use
 recorder dictate trigger --paste  # toggle daemon recording and paste on stop
 recorder dictate --polish   # gemma4 cleanup before clipboard
+recorder dictate --vocab ~/my.vocab.txt  # deterministic corrections
 recorder dictate --save     # also keep .flac + .txt in ~/recordings/
 ```
 
 Flow: model warms once, then each Enter cycles record->transcribe->`pbcopy`. Paste with Cmd-V into any app. Idle RAM: ~600MB while the loop is running.
+
+A vocab file fixes recurring mistranscriptions deterministically (no LLM). One `wrong = right` per line (`#` comments and blanks skipped); matching is whole-word and case-insensitive, and a sentence-initial capital is preserved:
+
+```
+clod code = Claude Code
+next js = Next.js
+cuber netties = Kubernetes
+```
+
+It defaults to `~/recordings/.vocab.txt` if present (override with `--vocab` or `$DICTATE_VOCAB`), runs after `--polish` so the LLM can't undo a known-correct spelling, and works whether or not polish is on.
+
+On the paste path (`trigger --paste`), the daemon restores whatever text was on your clipboard after pasting, rather than leaving the dictation there. If macOS Secure Event Input is active (a focused password field, Terminal secure keyboard entry, or a password manager), synthetic Cmd-V is blocked by the OS; the daemon detects this and reports `paste blocked: secure input active` with the text left on the clipboard to paste manually.
 
 For a global hotkey, keep the daemon running:
 
