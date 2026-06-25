@@ -10,7 +10,7 @@ energy-baseline behavior: quiet utterances seed the baseline (no tag), an
 utterance well above baseline gets [emphatic], quiet returns clean, and a
 sub-0.5s clip is skipped without polluting the baseline.
 
-Run: uv run eval/test_emphasis_tag.py
+Run: uv run prosody-bench/test_emphasis_tag.py
 """
 import importlib.machinery, importlib.util, pathlib
 import numpy as np

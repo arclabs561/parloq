@@ -13,7 +13,7 @@ over a labeled dataset. Add a tagger to TAGGERS to benchmark it.
 AUC >= 0.8 = separates; ~0.5 = no signal. The expected theme: cheap signal
 features separate AROUSAL but not VALENCE (valence needs a learned model).
 
-Run: uv run eval/separability_bench.py
+Run: uv run prosody-bench/separability_bench.py
 """
 import json, time, pathlib, collections, datetime, urllib.request, zipfile
 import numpy as np, librosa

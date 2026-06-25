@@ -16,7 +16,7 @@ Across many models = does the effect generalize, and which models take the
 "lexical shortcut" (CP-Bench) of ignoring the tone channel.
 
 Env: EVAL_OPENROUTER_API_KEY (or OPENROUTER_API_KEY).
-Run: uv run eval/ab_tag_response.py
+Run: uv run prosody-bench/ab_tag_response.py
 """
 import os, json, time, pathlib, datetime, collections
 from concurrent.futures import ThreadPoolExecutor
