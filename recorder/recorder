@@ -3582,7 +3582,11 @@ def _dictate_daemon(args) -> int:
         # restore it afterward (only needed on the paste path).
         prev_clip = _clipboard_get() if paste else None
 
-        if not args.no_clipboard:
+        # Paste works by Cmd-V, so the transcript must be on the clipboard to
+        # paste it: set it whenever pasting even under --no-clipboard. The
+        # restore below puts the user's prior clipboard back afterward, so
+        # --no-clipboard still keeps the dictation off the persistent clipboard.
+        if paste or not args.no_clipboard:
             if not _clipboard_set(text):
                 return (
                     f"✓ {len(text.split())} words "
@@ -3841,7 +3845,8 @@ def cmd_dictate(rest: list[str]) -> int:
                 stop_event.wait(0.2)
             sys.stderr.write("\r" + " " * 40 + "\r")
             sys.stderr.flush()
-        threading.Thread(target=status_line, daemon=True).start()
+        status_thread = threading.Thread(target=status_line, daemon=True)
+        status_thread.start()
         try:
             input()
         except (EOFError, KeyboardInterrupt):
@@ -3850,6 +3855,7 @@ def cmd_dictate(rest: list[str]) -> int:
             ff.wait(timeout=3)
             return 0
         stop_event.set()
+        status_thread.join(timeout=0.5)  # let it clear the line before printing
         ff.send_signal(signal.SIGINT)
         try:
             ff.wait(timeout=3)
