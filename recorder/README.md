@@ -75,15 +75,55 @@ recorder dictate --save     # also keep .flac + .txt in ~/recordings/
 
 Flow: model warms once, then each Enter cycles record->transcribe->`pbcopy`. Paste with Cmd-V into any app. Idle RAM: ~600MB while the loop is running.
 
-A vocab file fixes recurring mistranscriptions deterministically (no LLM). One `wrong = right` per line (`#` comments and blanks skipped); matching is whole-word and case-insensitive, and a sentence-initial capital is preserved:
+### Vocab file: deterministic corrections
+
+Speech models mishear the same domain terms the same way every time: a name, a
+product, an identifier, an acronym they were never trained on. "Kubernetes"
+comes out "cuber netties", "Next.js" comes out "next js", your colleague's name
+comes out wrong on every recording. A vocab file is a personal find-and-replace
+list that fixes those known mistakes after each transcription, before the text
+reaches your clipboard. It is deterministic (a literal text substitution, no
+model involved), so the same input always produces the same output.
+
+The format is one `wrong = right` rule per line. The left side is what the
+recognizer tends to produce; the right side is what you want instead. Blank
+lines and lines starting with `#` are ignored, so you can comment and group:
 
 ```
-clod code = Claude Code
-next js = Next.js
+# product names the recognizer doesn't know
+clod code   = Claude Code
+next js     = Next.js
 cuber netties = Kubernetes
+
+# people
+jano        = Janowski
 ```
 
-It defaults to `~/recordings/.vocab.txt` if present (override with `--vocab` or `$DICTATE_VOCAB`), runs after `--polish` so the LLM can't undo a known-correct spelling, and works whether or not polish is on.
+Matching rules, in plain terms:
+
+- **Whole-word only.** A rule for `react` rewrites the standalone word "react"
+  but leaves "reactor" and "reactive" untouched, so corrections don't bleed into
+  longer words.
+- **Case-insensitive.** `kubernetes = Kubernetes` catches "kubernetes",
+  "Kubernetes", and "KUBERNETES" alike.
+- **Sentence-initial capital is kept.** If a rule's replacement is lowercase but
+  the matched word started a sentence (was capitalized), the replacement is
+  capitalized too, so "React is fast" with `react = preact` becomes "Preact is
+  fast", not "preact is fast".
+- **Phrases are allowed.** The left side can be several words ("clod code"); it
+  is matched as a whole phrase.
+- **First `=` splits the line**, so a replacement can itself contain `=`.
+- Rules apply top to bottom, so order matters if two rules could touch the same
+  text.
+
+Where it comes from: by default the daemon reads `~/recordings/.vocab.txt` if
+that file exists (a missing file is simply a no-op). Point it elsewhere with
+`--vocab /path/to/file` or the `$DICTATE_VOCAB` environment variable.
+
+Vocab vs `--polish`: polish is an LLM cleanup pass (grammar, filler removal) and
+is fuzzy; vocab is an exact, predictable substitution. They compose: vocab runs
+*after* polish, so the model can't reintroduce a spelling you've already
+corrected, and vocab works with or without `--polish`.
 
 On the paste path (`trigger --paste`), the daemon restores whatever text was on your clipboard after pasting, rather than leaving the dictation there. If macOS Secure Event Input is active (a focused password field, Terminal secure keyboard entry, or a password manager), synthetic Cmd-V is blocked by the OS; the daemon detects this and reports `paste blocked: secure input active` with the text left on the clipboard to paste manually.
 
