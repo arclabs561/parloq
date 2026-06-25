@@ -1,0 +1,21 @@
+# Starter dictation vocab for `recorder dictate`.
+#
+# Format: one `wrong = right` per line. Matching is whole-word and
+# case-insensitive; a sentence-initial capital is preserved. Blank lines and
+# lines starting with `#` are ignored. Edit these to match the terms YOUR
+# recognizer mishears; the entries below are only illustrative.
+#
+# Use it automatically:   cp examples/dictation.vocab.txt ~/recordings/.vocab.txt
+# Or point at it:         recorder dictate --vocab examples/dictation.vocab.txt
+
+# tools and products the recognizer doesn't know
+clod code   = Claude Code
+next js     = Next.js
+type script = TypeScript
+cuber netties = Kubernetes
+post gres   = Postgres
+parloq      = parloq
+
+# words the recognizer tends to split or join
+git hub     = GitHub
+java script = JavaScript
