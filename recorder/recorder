@@ -3214,6 +3214,47 @@ def _apply_vocab(text: str, pairs) -> str:
     return text
 
 
+def _clipboard_get():
+    """Current text clipboard via pbpaste, or None if empty/unavailable.
+
+    Used to snapshot the user's clipboard before a dictation paste so it can be
+    restored afterward. Text-only: non-text clipboard payloads (images, files)
+    are not preserved, matching what mature dictation tools do.
+    """
+    try:
+        r = subprocess.run(["pbpaste"], timeout=2, capture_output=True)
+        return r.stdout.decode("utf-8") if r.returncode == 0 else None
+    except Exception:
+        return None
+
+
+def _clipboard_set(text: str) -> bool:
+    try:
+        r = subprocess.run(["pbcopy"], input=text.encode("utf-8"),
+                           timeout=2, capture_output=True)
+        return r.returncode == 0
+    except Exception:
+        return False
+
+
+def _secure_input_active() -> bool:
+    """Best-effort check for macOS Secure Event Input.
+
+    When a password field, Terminal's secure keyboard entry, or a password
+    manager holds secure input, synthetic Cmd-V is silently swallowed and the
+    dictated text vanishes. Query Carbon's IsSecureEventInputEnabled() via
+    ctypes (no extra deps); if the symbol can't be resolved, return False and
+    let the paste proceed (treat unknown as not-blocked rather than block).
+    """
+    try:
+        import ctypes
+        carbon = ctypes.CDLL(
+            "/System/Library/Frameworks/Carbon.framework/Carbon")
+        return bool(carbon.IsSecureEventInputEnabled())
+    except Exception:
+        return False
+
+
 def _emphasis_tag(samples, hist: list) -> str:
     """Energy-based emphasis tag for one dictation utterance, calibrated to a
     per-session running baseline (so it survives mic/level differences).
@@ -3415,19 +3456,12 @@ def _dictate_daemon(args) -> int:
         if getattr(args, "prosody", False):
             text = _emphasis_tag(samples, state["energy_hist"]) + text
 
+        # Snapshot the user's clipboard before we overwrite it, so a paste can
+        # restore it afterward (only needed on the paste path).
+        prev_clip = _clipboard_get() if paste else None
+
         if not args.no_clipboard:
-            try:
-                clip = subprocess.run(
-                    ["pbcopy"], input=text.encode("utf-8"),
-                    timeout=2, check=False, capture_output=True,
-                )
-                if clip.returncode != 0:
-                    return (
-                        f"✓ {len(text.split())} words "
-                        f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
-                        "clipboard failed"
-                    )
-            except Exception:
+            if not _clipboard_set(text):
                 return (
                     f"✓ {len(text.split())} words "
                     f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
@@ -3435,6 +3469,16 @@ def _dictate_daemon(args) -> int:
                 )
 
         if paste:
+            # Secure Event Input (password fields, Terminal secure entry, a
+            # password manager) silently swallows synthetic Cmd-V. Detect it and
+            # surface a clear status instead of dropping the text into the void;
+            # the text is on the clipboard, so the user can paste manually.
+            if _secure_input_active():
+                return (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                    "paste blocked: secure input active (text on clipboard)"
+                )
             # Paste the clipboard via Cmd-V. Typing the clipboard contents
             # through AppleScript is slower and can mangle punctuation.
             try:
@@ -3456,6 +3500,14 @@ def _dictate_daemon(args) -> int:
                     f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
                     f"paste failed: {e}"
                 )
+            # Restore the user's prior clipboard after the paste lands. The delay
+            # is load-bearing: paste is async, so the target reads the pasteboard
+            # after the keystroke arrives; restoring too early makes it read the
+            # restored (wrong) data. Only on success, so a failed paste leaves
+            # the dictated text on the clipboard as a manual-paste fallback.
+            if prev_clip is not None:
+                time.sleep(0.15)
+                _clipboard_set(prev_clip)
 
         if args.save:
             ts = datetime.now().strftime("%Y%m%d-%H%M%S")
