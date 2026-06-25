@@ -15,6 +15,7 @@ The current phase plan lives in
 ## Layout
 
 - `recorder/` — local meeting recorder and dictation CLI.
+- `examples/` — sample files for the dictation features (a starter vocab file).
 - `experiments/` — self-contained PEP 723 uv scripts (`uv run experiments/<x>.py`).
 - `prosody-bench/` — reusable evaluation scripts for prosody/tagging experiments.
 - `results/` — captured outputs (text logs, JSON pairs). Tracked.
