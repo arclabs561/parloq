@@ -9,9 +9,6 @@ offline re-pass, diarization, summaries, search, and push-to-talk dictation.
 `prosody-bench/`, `experiments/`, and `results/` are the evidence bench for deciding
 which speech/prosody signals should graduate into recorder.
 
-The current phase plan lives in
-[`docs/design/parloq-recorder-roadmap.md`](docs/design/parloq-recorder-roadmap.md).
-
 ## Layout
 
 - `recorder/` — local meeting recorder and dictation CLI.
