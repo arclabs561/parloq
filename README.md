@@ -11,14 +11,14 @@ which speech/prosody signals should graduate into recorder.
 
 ## Layout
 
-- `recorder/` — local meeting recorder and dictation CLI.
-- `examples/` — sample files for the dictation features (a starter vocab file).
-- `experiments/` — self-contained PEP 723 uv scripts (`uv run experiments/<x>.py`).
-- `prosody-bench/` — reusable evaluation scripts for prosody/tagging experiments.
-- `results/` — captured outputs (text logs, JSON pairs). Tracked.
-- `data/` — repo-local corpus roots. Large payloads are gitignored; manifests
+- `recorder/`: local meeting recorder and dictation CLI.
+- `examples/`: sample files for the dictation features (a starter vocab file).
+- `experiments/`: self-contained PEP 723 uv scripts (`uv run experiments/<x>.py`).
+- `prosody-bench/`: reusable evaluation scripts for prosody/tagging experiments.
+- `results/`: captured outputs (text logs, JSON pairs). Tracked.
+- `data/`: repo-local corpus roots. Large payloads are gitignored; manifests
   and sync scripts are tracked.
-- `PROGRESS.md` — dated progress log.
+- `PROGRESS.md`: dated progress log.
 
 ## Running
 
