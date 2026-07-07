@@ -1,7 +1,5 @@
 # parloq
 
-## Overview
-
 Local speech recorder and dictation tool.
 
 `recorder/` is the daily-driver tool: meeting capture, live transcription,
