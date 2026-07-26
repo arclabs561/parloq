@@ -29,9 +29,9 @@ recorder dictate install-agent
 open ~/Applications/Parloq.app
 ```
 
-The first launch asks for Accessibility access. If macOS does not display the
-prompt, use the menu item **Request Accessibility Permission**, then enable
-Parloq under System Settings > Privacy & Security > Accessibility.
+The app does not open a permission prompt at launch. When you are ready, use
+the menu item **Request Accessibility Permission**, then enable Parloq under
+System Settings > Privacy & Security > Accessibility.
 
 Use **Launch at Login** in the menu after the app is installed. The daemon is
 managed separately by its existing `parloq.dictate` launchd agent, so either
