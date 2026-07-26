@@ -1,5 +1,13 @@
+import AppKit
 import Carbon.HIToolbox
+import CoreGraphics
 import Foundation
+import os
+
+private let hotKeyLogger = Logger(
+    subsystem: "net.attobop.parloq.menu",
+    category: "hotkey"
+)
 
 private final class HotKeyActionBox: @unchecked Sendable {
     let action: @MainActor @Sendable () -> Void
@@ -37,6 +45,7 @@ final class GlobalHotKey {
                 let box = Unmanaged<HotKeyActionBox>
                     .fromOpaque(context)
                     .takeUnretainedValue()
+                hotKeyLogger.debug("Received ⌃⌥Space")
                 box.invoke()
                 return noErr
             },
@@ -49,7 +58,10 @@ final class GlobalHotKey {
             throw NSError(
                 domain: NSOSStatusErrorDomain,
                 code: Int(handlerStatus),
-                userInfo: [NSLocalizedDescriptionKey: "Could not install hotkey handler"]
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Could not install hotkey handler (OSStatus \(handlerStatus))",
+                ]
             )
         }
 
@@ -72,9 +84,13 @@ final class GlobalHotKey {
             throw NSError(
                 domain: NSOSStatusErrorDomain,
                 code: Int(registerStatus),
-                userInfo: [NSLocalizedDescriptionKey: "Could not register ⌃⌥Space"]
+                userInfo: [
+                    NSLocalizedDescriptionKey:
+                        "Could not register ⌃⌥Space (OSStatus \(registerStatus))",
+                ]
             )
         }
+        hotKeyLogger.info("Registered ⌃⌥Space")
     }
 
     deinit {
@@ -89,4 +105,50 @@ final class GlobalHotKey {
     private func fourCharacterCode(_ value: String) -> FourCharCode {
         value.utf8.reduce(0) { ($0 << 8) + FourCharCode($1) }
     }
+
+    @MainActor
+    static func runSelfCheck(timeout: TimeInterval = 1) throws -> Bool {
+        let state = HotKeyCheckState()
+        let hotKey = try GlobalHotKey {
+            state.received = true
+            NSApp.stop(nil)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+            postShortcut()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
+            NSApp.stop(nil)
+        }
+        NSApp.run()
+        withExtendedLifetime(hotKey) {}
+        return state.received
+    }
+
+    @MainActor
+    private static func postShortcut() {
+        guard let source = CGEventSource(stateID: .hidSystemState),
+              let keyDown = CGEvent(
+                  keyboardEventSource: source,
+                  virtualKey: CGKeyCode(kVK_Space),
+                  keyDown: true
+              ),
+              let keyUp = CGEvent(
+                  keyboardEventSource: source,
+                  virtualKey: CGKeyCode(kVK_Space),
+                  keyDown: false
+              )
+        else {
+            return
+        }
+        keyDown.flags = [.maskControl, .maskAlternate]
+        keyUp.flags = [.maskControl, .maskAlternate]
+        keyDown.post(tap: .cghidEventTap)
+        keyUp.post(tap: .cghidEventTap)
+    }
+}
+
+@MainActor
+private final class HotKeyCheckState {
+    var received = false
 }

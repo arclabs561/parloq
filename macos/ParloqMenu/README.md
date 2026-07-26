@@ -58,3 +58,9 @@ Check the installed app's Accessibility state without opening a window:
 ```sh
 /Applications/Parloq.app/Contents/MacOS/ParloqMenu --check-accessibility
 ```
+
+With Parloq quit, verify that macOS delivers its global shortcut end to end:
+
+```sh
+/Applications/Parloq.app/Contents/MacOS/ParloqMenu --check-hotkey
+```

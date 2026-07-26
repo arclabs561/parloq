@@ -32,8 +32,8 @@ macos-app:
     cp macos/ParloqMenu/.build/release/ParloqMenu macos/ParloqMenu/.build/Parloq.app/Contents/MacOS/ParloqMenu
     cp macos/ParloqMenu/Resources/AppIcon.icns macos/ParloqMenu/.build/Parloq.app/Contents/Resources/AppIcon.icns
     cp macos/ParloqMenu/Resources/Info.plist macos/ParloqMenu/.build/Parloq.app/Contents/Info.plist
-    xattr -cr macos/ParloqMenu/.build/Parloq.app
     xattr -d com.apple.FinderInfo macos/ParloqMenu/.build/Parloq.app 2>/dev/null || true
+    xattr -d 'com.apple.fileprovider.fpfs#P' macos/ParloqMenu/.build/Parloq.app 2>/dev/null || true
     codesign --force --sign "${PARLOQ_CODESIGN_IDENTITY:-stela-dev}" --identifier net.attobop.parloq.menu macos/ParloqMenu/.build/Parloq.app
     codesign --verify --deep --strict macos/ParloqMenu/.build/Parloq.app
 
