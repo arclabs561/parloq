@@ -52,3 +52,9 @@ just check
 
 Set `RECORDER_DICTATE_SOCK` for an isolated daemon socket. The production
 default is `/tmp/recorder-dictate-$UID.sock`.
+
+Check the installed app's Accessibility state without opening a window:
+
+```sh
+/Applications/Parloq.app/Contents/MacOS/ParloqMenu --check-accessibility
+```
