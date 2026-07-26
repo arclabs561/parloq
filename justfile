@@ -17,6 +17,7 @@ check:
     uv run recorder/evals/test_vocab.py
     uv run recorder/evals/test_agent_plist.py
     uv run recorder/evals/test_ui_fixture.py
+    swift test --package-path macos/ParloqMenu
 
 recorder-corpus target="librispeech":
     data/corpora/recorder/scripts/sync.sh {{target}}
@@ -24,3 +25,18 @@ recorder-corpus target="librispeech":
 recorder-eval-smoke output="test-results/recorder-eval-smoke.md":
     mkdir -p test-results
     uv run recorder/evals/run_eval.py --skip-live --clip L1-clean --output {{output}}
+
+macos-app:
+    swift build -c release --package-path macos/ParloqMenu
+    mkdir -p macos/ParloqMenu/.build/Parloq.app/Contents/MacOS macos/ParloqMenu/.build/Parloq.app/Contents/Resources
+    cp macos/ParloqMenu/.build/release/ParloqMenu macos/ParloqMenu/.build/Parloq.app/Contents/MacOS/ParloqMenu
+    cp macos/ParloqMenu/Resources/AppIcon.icns macos/ParloqMenu/.build/Parloq.app/Contents/Resources/AppIcon.icns
+    cp macos/ParloqMenu/Resources/Info.plist macos/ParloqMenu/.build/Parloq.app/Contents/Info.plist
+    xattr -cr macos/ParloqMenu/.build/Parloq.app
+    codesign --force --sign "${PARLOQ_CODESIGN_IDENTITY:-stela-dev}" --identifier net.attobop.parloq.menu macos/ParloqMenu/.build/Parloq.app
+    codesign --verify --deep --strict macos/ParloqMenu/.build/Parloq.app
+
+install-macos-app: macos-app
+    mkdir -p "$HOME/Applications"
+    ditto macos/ParloqMenu/.build/Parloq.app "$HOME/Applications/Parloq.app"
+    codesign --verify --deep --strict "$HOME/Applications/Parloq.app"

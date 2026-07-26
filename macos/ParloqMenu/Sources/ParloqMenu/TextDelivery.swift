@@ -1,0 +1,397 @@
+import AppKit
+import ApplicationServices
+import Carbon.HIToolbox
+import ParloqMenuCore
+
+enum DeliveryError: LocalizedError {
+    case accessibilityNotTrusted
+    case noEditableTarget
+    case ownershipLost
+    case secureInput
+    case keyboardEventFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .accessibilityNotTrusted:
+            return "Accessibility permission is required"
+        case .noEditableTarget:
+            return "The focused control does not expose editable text"
+        case .ownershipLost:
+            return "Text or focus changed; final transcript copied"
+        case .secureInput:
+            return "Secure input is active; final transcript copied"
+        case .keyboardEventFailed:
+            return "macOS could not create a text event"
+        }
+    }
+}
+
+final class TextDeliverySession {
+    private enum Target {
+        case accessibility(OwnedTextRange)
+        case keyboard(FocusedTextTarget)
+        case unavailable
+    }
+
+    private let target: Target
+    private var planner: DeliveryPlanner
+    private(set) var lastTranscript = ""
+    private(set) var warning: String?
+
+    init() {
+        if !AXIsProcessTrusted() {
+            target = .unavailable
+            planner = DeliveryPlanner(strategy: .disabled)
+        } else if let ownedRange = OwnedTextRange.capture() {
+            target = .accessibility(ownedRange)
+            planner = DeliveryPlanner(strategy: .rangeReplacement)
+        } else if let focusedTarget = FocusedTextTarget.capture() {
+            target = .keyboard(focusedTarget)
+            planner = DeliveryPlanner(strategy: .finalizedAppend)
+        } else {
+            target = .unavailable
+            planner = DeliveryPlanner(strategy: .disabled)
+        }
+    }
+
+    func deliver(event: DictateEvent) {
+        guard event.type == .transcript || event.type == .final else {
+            return
+        }
+        let text = event.text ?? ""
+        let finalized = event.finalizedText ?? ""
+        let isFinal = event.type == .final
+        if isFinal, text.isEmpty {
+            return
+        }
+        if isFinal {
+            lastTranscript = text
+        }
+
+        let action = planner.plan(
+            text: text,
+            finalizedText: finalized,
+            isFinal: isFinal
+        )
+        do {
+            try perform(action)
+        } catch {
+            warning = error.localizedDescription
+            planner.disableReplacement()
+            if isFinal, !text.isEmpty {
+                copyToPasteboard(text)
+            }
+        }
+    }
+
+    private func perform(_ action: DeliveryAction) throws {
+        switch action {
+        case let .replace(text):
+            guard case let .accessibility(range) = target else {
+                throw DeliveryError.noEditableTarget
+            }
+            try range.replaceOwnedText(with: text)
+
+        case let .append(text):
+            guard !text.isEmpty else { return }
+            guard case let .keyboard(focusedTarget) = target else {
+                throw DeliveryError.accessibilityNotTrusted
+            }
+            guard focusedTarget.isStillFocused else {
+                throw DeliveryError.ownershipLost
+            }
+            guard !IsSecureEventInputEnabled() else {
+                throw DeliveryError.secureInput
+            }
+            try KeyboardWriter.write(text)
+
+        case let .copy(text):
+            copyToPasteboard(text)
+            if case .unavailable = target {
+                warning = DeliveryError.accessibilityNotTrusted.localizedDescription
+            } else {
+                warning = DeliveryError.ownershipLost.localizedDescription
+            }
+
+        case .none:
+            return
+        }
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+    }
+}
+
+private final class FocusedTextTarget {
+    private let systemWide = AXUIElementCreateSystemWide()
+    private let element: AXUIElement
+
+    private init(element: AXUIElement) {
+        self.element = element
+    }
+
+    static func capture() -> FocusedTextTarget? {
+        let systemWide = AXUIElementCreateSystemWide()
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            systemWide,
+            kAXFocusedUIElementAttribute as CFString,
+            &value
+        ) == .success,
+        let value,
+        CFGetTypeID(value) == AXUIElementGetTypeID()
+        else {
+            return nil
+        }
+        return FocusedTextTarget(element: value as! AXUIElement)
+    }
+
+    var isStillFocused: Bool {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            systemWide,
+            kAXFocusedUIElementAttribute as CFString,
+            &value
+        ) == .success,
+        let value,
+        CFGetTypeID(value) == AXUIElementGetTypeID()
+        else {
+            return false
+        }
+        return CFEqual(value, element)
+    }
+}
+
+private final class OwnedTextRange {
+    private let systemWide = AXUIElementCreateSystemWide()
+    private let element: AXUIElement
+    private var ownedRange: CFRange
+    private var expectedSelection: CFRange
+    private var expectedText: String
+
+    private init(
+        element: AXUIElement,
+        selectedRange: CFRange,
+        selectedText: String
+    ) {
+        self.element = element
+        self.ownedRange = selectedRange
+        self.expectedSelection = selectedRange
+        self.expectedText = selectedText
+    }
+
+    static func capture() -> OwnedTextRange? {
+        guard AXIsProcessTrusted() else { return nil }
+        let systemWide = AXUIElementCreateSystemWide()
+        guard let element = copyElement(
+            from: systemWide,
+            attribute: kAXFocusedUIElementAttribute
+        ) else {
+            return nil
+        }
+
+        var selectedTextSettable = DarwinBoolean(false)
+        var selectedRangeSettable = DarwinBoolean(false)
+        guard AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextAttribute as CFString,
+            &selectedTextSettable
+        ) == .success,
+        selectedTextSettable.boolValue,
+        AXUIElementIsAttributeSettable(
+            element,
+            kAXSelectedTextRangeAttribute as CFString,
+            &selectedRangeSettable
+        ) == .success,
+        selectedRangeSettable.boolValue,
+        let range = copyRange(
+            from: element,
+            attribute: kAXSelectedTextRangeAttribute
+        ),
+        let value = copyString(from: element, attribute: kAXValueAttribute)
+        else {
+            return nil
+        }
+
+        let string = value as NSString
+        let nsRange = NSRange(location: range.location, length: range.length)
+        guard NSMaxRange(nsRange) <= string.length else { return nil }
+        return OwnedTextRange(
+            element: element,
+            selectedRange: range,
+            selectedText: string.substring(with: nsRange)
+        )
+    }
+
+    func replaceOwnedText(with text: String) throws {
+        guard let focused = Self.copyElement(
+            from: systemWide,
+            attribute: kAXFocusedUIElementAttribute
+        ), CFEqual(focused, element) else {
+            throw DeliveryError.ownershipLost
+        }
+        guard let value = Self.copyString(
+            from: element,
+            attribute: kAXValueAttribute
+        ), let selection = Self.copyRange(
+            from: element,
+            attribute: kAXSelectedTextRangeAttribute
+        ) else {
+            throw DeliveryError.ownershipLost
+        }
+
+        guard selection.location == expectedSelection.location,
+              selection.length == expectedSelection.length
+        else {
+            throw DeliveryError.ownershipLost
+        }
+
+        let string = value as NSString
+        let nsRange = NSRange(
+            location: ownedRange.location,
+            length: ownedRange.length
+        )
+        guard NSMaxRange(nsRange) <= string.length,
+              string.substring(with: nsRange) == expectedText
+        else {
+            throw DeliveryError.ownershipLost
+        }
+
+        var replacementRange = ownedRange
+        guard let rangeValue = AXValueCreate(.cfRange, &replacementRange),
+              AXUIElementSetAttributeValue(
+                element,
+                kAXSelectedTextRangeAttribute as CFString,
+                rangeValue
+              ) == .success,
+              AXUIElementSetAttributeValue(
+                element,
+                kAXSelectedTextAttribute as CFString,
+                text as CFString
+              ) == .success
+        else {
+            throw DeliveryError.noEditableTarget
+        }
+
+        ownedRange.length = text.utf16.count
+        expectedText = text
+        var cursor = CFRange(
+            location: ownedRange.location + ownedRange.length,
+            length: 0
+        )
+        if let cursorValue = AXValueCreate(.cfRange, &cursor) {
+            AXUIElementSetAttributeValue(
+                element,
+                kAXSelectedTextRangeAttribute as CFString,
+                cursorValue
+            )
+        }
+        expectedSelection = cursor
+    }
+
+    private static func copyElement(
+        from element: AXUIElement,
+        attribute: String
+    ) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            attribute as CFString,
+            &value
+        ) == .success else {
+            return nil
+        }
+        guard let value,
+              CFGetTypeID(value) == AXUIElementGetTypeID()
+        else {
+            return nil
+        }
+        return (value as! AXUIElement)
+    }
+
+    private static func copyString(
+        from element: AXUIElement,
+        attribute: String
+    ) -> String? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            attribute as CFString,
+            &value
+        ) == .success else {
+            return nil
+        }
+        return value as? String
+    }
+
+    private static func copyRange(
+        from element: AXUIElement,
+        attribute: String
+    ) -> CFRange? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            attribute as CFString,
+            &value
+        ) == .success,
+        let value,
+        CFGetTypeID(value) == AXValueGetTypeID()
+        else {
+            return nil
+        }
+        let axValue = value as! AXValue
+        guard AXValueGetType(axValue) == .cfRange else {
+            return nil
+        }
+        var range = CFRange()
+        guard AXValueGetValue(axValue, .cfRange, &range) else {
+            return nil
+        }
+        return range
+    }
+}
+
+private enum KeyboardWriter {
+    static func write(_ text: String) throws {
+        let units = Array(text.utf16)
+        let chunkSize = 20
+        for offset in stride(from: 0, to: units.count, by: chunkSize) {
+            let end = min(offset + chunkSize, units.count)
+            let chunk = Array(units[offset..<end])
+            guard let down = CGEvent(
+                keyboardEventSource: nil,
+                virtualKey: 0,
+                keyDown: true
+            ), let up = CGEvent(
+                keyboardEventSource: nil,
+                virtualKey: 0,
+                keyDown: false
+            ) else {
+                throw DeliveryError.keyboardEventFailed
+            }
+            chunk.withUnsafeBufferPointer { pointer in
+                down.keyboardSetUnicodeString(
+                    stringLength: chunk.count,
+                    unicodeString: pointer.baseAddress!
+                )
+                up.keyboardSetUnicodeString(
+                    stringLength: chunk.count,
+                    unicodeString: pointer.baseAddress!
+                )
+            }
+            down.post(tap: .cghidEventTap)
+            up.post(tap: .cghidEventTap)
+        }
+    }
+}
+
+@discardableResult
+func requestAccessibilityPermission(prompt: Bool) -> Bool {
+    guard prompt else { return AXIsProcessTrusted() }
+    let options = [
+        "AXTrustedCheckOptionPrompt": true
+    ] as CFDictionary
+    return AXIsProcessTrustedWithOptions(options)
+}

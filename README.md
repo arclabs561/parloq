@@ -10,6 +10,7 @@ which speech/prosody signals should graduate into recorder.
 ## Layout
 
 - `recorder/`: local meeting recorder and dictation CLI.
+- `macos/ParloqMenu/`: native menu-bar client for live in-field dictation.
 - `examples/`: sample files for the dictation features (a starter vocab file).
 - `experiments/`: self-contained PEP 723 uv scripts (`uv run experiments/<x>.py`).
 - `prosody-bench/`: reusable evaluation scripts for prosody/tagging experiments.

@@ -75,6 +75,21 @@ recorder dictate --save     # also keep .flac + .txt in ~/recordings/
 
 Flow: model warms once, then each Enter cycles record->transcribe->`pbcopy`. Paste with Cmd-V into any app. Idle RAM: ~600MB while the loop is running.
 
+For live transcript text directly in the focused macOS control, install the
+native menu app:
+
+```sh
+just macos-app
+just install-macos-app
+recorder dictate install-agent
+open ~/Applications/Parloq.app
+```
+
+Then use `⌃⌥Space` to start and stop. The app shows state in the menu bar and
+updates only the text range it owns; it does not show a transcript popup. See
+[`macos/ParloqMenu/README.md`](../macos/ParloqMenu/README.md) for fallback and
+permission behavior.
+
 ### Vocab file: deterministic corrections
 
 Speech models mishear the same domain terms the same way every time: a name, a
