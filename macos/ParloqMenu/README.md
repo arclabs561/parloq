@@ -26,7 +26,7 @@ From the repository root:
 just macos-app
 just install-macos-app
 recorder dictate install-agent
-open ~/Applications/Parloq.app
+open /Applications/Parloq.app
 ```
 
 The app does not open a permission prompt at launch. When you are ready, use

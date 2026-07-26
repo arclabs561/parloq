@@ -37,6 +37,5 @@ macos-app:
     codesign --verify --deep --strict macos/ParloqMenu/.build/Parloq.app
 
 install-macos-app: macos-app
-    mkdir -p "$HOME/Applications"
-    ditto macos/ParloqMenu/.build/Parloq.app "$HOME/Applications/Parloq.app"
-    codesign --verify --deep --strict "$HOME/Applications/Parloq.app"
+    ditto macos/ParloqMenu/.build/Parloq.app /Applications/Parloq.app
+    codesign --verify --deep --strict /Applications/Parloq.app

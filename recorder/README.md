@@ -82,7 +82,7 @@ native menu app:
 just macos-app
 just install-macos-app
 recorder dictate install-agent
-open ~/Applications/Parloq.app
+open /Applications/Parloq.app
 ```
 
 Then use `⌃⌥Space` to start and stop. The app shows state in the menu bar and
