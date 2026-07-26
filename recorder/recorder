@@ -3,7 +3,7 @@
 # requires-python = ">=3.10"
 # dependencies = [
 #     "parakeet-mlx>=0.5",
-#     "numpy",
+#     "numpy>=2.2.5,<2.5",
 #     "sherpa-onnx>=1.13",
 #     "soundfile>=0.12",
 # ]
@@ -55,8 +55,11 @@ import subprocess
 import sys
 import threading
 import time
+import uuid
 import webbrowser
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 
 import numpy as np
@@ -3093,6 +3096,162 @@ def _dispatch_subcommand(verb: str, rest: list[str]) -> int:
 
 DICTATE_SOCK_ENV = "RECORDER_DICTATE_SOCK"
 DICTATE_SOCK = Path("/tmp") / f"recorder-dictate-{os.getuid()}.sock"
+DICTATE_PROTOCOL_VERSION = 1
+DICTATE_STREAM_SECONDS = 0.5
+
+
+class DictatePhase(str, Enum):
+    WARMING = "warming"
+    IDLE = "idle"
+    RECORDING = "recording"
+    FINALIZING = "finalizing"
+    POLISHING = "polishing"
+    ERROR = "error"
+
+
+class DictateCommand(str, Enum):
+    STATUS = "status"
+    START = "start"
+    STOP = "stop"
+    SUBSCRIBE = "subscribe"
+
+
+class DictateEventType(str, Enum):
+    ACK = "ack"
+    STATUS = "status"
+    TRANSCRIPT = "transcript"
+    FINAL = "final"
+    ERROR = "error"
+
+
+class DictateProtocolError(ValueError):
+    """A malformed or unsupported dictation protocol request."""
+
+
+class DictateRequest:
+    """Validated v1 JSON Lines request from a native dictation client."""
+
+    __slots__ = ("command",)
+
+    def __init__(self, command: DictateCommand):
+        self.command = command
+
+    @classmethod
+    def parse(cls, line: str) -> "DictateRequest":
+        try:
+            body = json.loads(line)
+        except json.JSONDecodeError as e:
+            raise DictateProtocolError(f"invalid JSON: {e.msg}") from e
+        if not isinstance(body, dict):
+            raise DictateProtocolError("request must be a JSON object")
+        if body.get("version") != DICTATE_PROTOCOL_VERSION:
+            raise DictateProtocolError(
+                f"unsupported protocol version: {body.get('version')!r}")
+        raw_command = body.get("command")
+        try:
+            command = DictateCommand(raw_command)
+        except (TypeError, ValueError) as e:
+            raise DictateProtocolError(
+                f"unsupported command: {raw_command!r}") from e
+        return cls(command)
+
+
+class DictateEvent:
+    """Typed wire event; optional fields are omitted from its JSON encoding."""
+
+    __slots__ = (
+        "event_type", "phase", "sequence", "session_id", "text",
+        "finalized_text", "draft_text", "message", "elapsed_seconds",
+        "device", "model",
+    )
+
+    def __init__(
+        self,
+        event_type: DictateEventType,
+        phase: DictatePhase,
+        sequence: int,
+        *,
+        session_id: str | None = None,
+        text: str | None = None,
+        finalized_text: str | None = None,
+        draft_text: str | None = None,
+        message: str | None = None,
+        elapsed_seconds: float | None = None,
+        device: str | None = None,
+        model: str | None = None,
+    ):
+        self.event_type = event_type
+        self.phase = phase
+        self.sequence = sequence
+        self.session_id = session_id
+        self.text = text
+        self.finalized_text = finalized_text
+        self.draft_text = draft_text
+        self.message = message
+        self.elapsed_seconds = elapsed_seconds
+        self.device = device
+        self.model = model
+
+    def to_dict(self) -> dict:
+        body = {
+            "version": DICTATE_PROTOCOL_VERSION,
+            "type": self.event_type.value,
+            "phase": self.phase.value,
+            "sequence": self.sequence,
+        }
+        optional = (
+            ("session_id", self.session_id),
+            ("text", self.text),
+            ("finalized_text", self.finalized_text),
+            ("draft_text", self.draft_text),
+            ("message", self.message),
+            ("elapsed_seconds", self.elapsed_seconds),
+            ("device", self.device),
+            ("model", self.model),
+        )
+        for key, value in optional:
+            if value is not None:
+                body[key] = value
+        return body
+
+    def to_line(self) -> bytes:
+        return (json.dumps(
+            self.to_dict(), ensure_ascii=False, separators=(",", ":"),
+        ) + "\n").encode("utf-8")
+
+
+class DictateEventBroker:
+    """Bounded fan-out for long-lived subscriber connections."""
+
+    def __init__(self):
+        self._lock = threading.Lock()
+        self._subscribers: set[queue.Queue] = set()
+
+    def subscribe(self) -> queue.Queue:
+        subscriber = queue.Queue(maxsize=64)
+        with self._lock:
+            self._subscribers.add(subscriber)
+        return subscriber
+
+    def unsubscribe(self, subscriber: queue.Queue) -> None:
+        with self._lock:
+            self._subscribers.discard(subscriber)
+
+    def publish(self, event: DictateEvent) -> None:
+        with self._lock:
+            subscribers = tuple(self._subscribers)
+        for subscriber in subscribers:
+            try:
+                subscriber.put_nowait(event)
+            except queue.Full:
+                # A stalled menu client must not block microphone decoding.
+                # Discard its oldest snapshot; every transcript event is a
+                # complete snapshot, so the next event is self-contained.
+                try:
+                    subscriber.get_nowait()
+                    subscriber.put_nowait(event)
+                except (queue.Empty, queue.Full):
+                    pass
 
 
 def _dictate_sock() -> Path:
@@ -3134,6 +3293,8 @@ def _dictate_trigger(rest: list[str]) -> int:
         s.settimeout(2.0)
         s.connect(str(sock_path))
         s.sendall((cmd + "\n").encode("utf-8"))
+        if not args.status:
+            s.settimeout(120.0)
         # Read until close. Daemon writes one line of status text.
         buf = b""
         while True:
@@ -3323,6 +3484,14 @@ def _dictate_agent_plist_path() -> Path:
             / f"{_dictate_agent_label()}.plist")
 
 
+def _dictate_installed_recorder_path() -> Path:
+    """Launchd-safe engine path outside macOS-protected Documents."""
+    return (
+        Path.home() / "Library" / "Application Support"
+        / "Parloq" / "recorder"
+    )
+
+
 def _render_agent_plist(recorder_path: str, daemon_args: list,
                         log_path: str) -> str:
     """Render the launchd agent plist for the dictation daemon.
@@ -3351,30 +3520,72 @@ def _render_agent_plist(recorder_path: str, daemon_args: list,
     return plistlib.dumps(d).decode("utf-8")
 
 
+def _bootstrap_launch_agent(
+    domain: str,
+    plist_path: Path,
+    *,
+    runner=None,
+    sleeper=None,
+):
+    """Bootstrap with a narrow retry for launchd's asynchronous bootout race."""
+    runner = runner or subprocess.run
+    sleeper = sleeper or time.sleep
+    result = None
+    for attempt in range(3):
+        result = runner(
+            ["launchctl", "bootstrap", domain, str(plist_path)],
+            capture_output=True, text=True,
+        )
+        if result.returncode == 0:
+            return result
+        if "Bootstrap failed: 5" not in result.stderr or attempt == 2:
+            return result
+        sleeper(0.5 * (attempt + 1))
+    return result
+
+
 def _dictate_install_agent(rest: list) -> int:
     """Write a launchd agent that runs the dictation daemon at login and load
     it. Extra args are passed through to `recorder dictate --daemon ...` (e.g.
     `install-agent --polish --vocab ~/my.vocab.txt`)."""
     import shutil
-    recorder_path = os.path.realpath(sys.argv[0])
-    if not os.path.exists(recorder_path):
-        recorder_path = shutil.which("recorder") or recorder_path
+    source_path = Path(os.path.realpath(sys.argv[0]))
+    if not source_path.exists():
+        resolved = shutil.which("recorder")
+        if resolved:
+            source_path = Path(os.path.realpath(resolved))
+    if not source_path.exists():
+        print(f"recorder executable not found: {source_path}", file=sys.stderr)
+        return 1
+
+    # A launchd process cannot execute a script from a TCC-protected Documents
+    # tree unless it gets broad Files and Folders access. Install the standalone
+    # PEP 723 script under Application Support instead. copyfile intentionally
+    # does not carry the source's Finder/FileProvider extended attributes.
+    installed_path = _dictate_installed_recorder_path()
+    installed_path.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = installed_path.with_name("recorder.installing")
+    shutil.copyfile(source_path, temporary_path)
+    temporary_path.chmod(0o755)
+    os.replace(temporary_path, installed_path)
+
     label = _dictate_agent_label()
     plist_path = _dictate_agent_plist_path()
     log_path = str(Path.home() / "Library" / "Logs" / "parloq-dictate.log")
     plist_path.parent.mkdir(parents=True, exist_ok=True)
     Path(log_path).parent.mkdir(parents=True, exist_ok=True)
     plist_path.write_text(
-        _render_agent_plist(recorder_path, rest, log_path), encoding="utf-8")
+        _render_agent_plist(str(installed_path), rest, log_path),
+        encoding="utf-8",
+    )
+    print(f"installed engine {installed_path}", file=sys.stderr)
     print(f"wrote {plist_path}", file=sys.stderr)
 
     uid = os.getuid()
     # Bootout any prior instance (ignored if not loaded), then bootstrap.
     subprocess.run(["launchctl", "bootout", f"gui/{uid}/{label}"],
                    capture_output=True)
-    r = subprocess.run(
-        ["launchctl", "bootstrap", f"gui/{uid}", str(plist_path)],
-        capture_output=True, text=True)
+    r = _bootstrap_launch_agent(f"gui/{uid}", plist_path)
     if r.returncode != 0:
         print(f"launchctl bootstrap failed: {r.stderr.strip()}", file=sys.stderr)
         print(f"load it manually: launchctl bootstrap gui/{uid} {plist_path}",
@@ -3398,23 +3609,471 @@ def _dictate_uninstall_agent(rest: list) -> int:
         print(f"removed {plist_path}", file=sys.stderr)
     else:
         print(f"no agent plist at {plist_path}", file=sys.stderr)
+    installed_path = _dictate_installed_recorder_path()
+    if installed_path.exists():
+        installed_path.unlink()
+        print(f"removed {installed_path}", file=sys.stderr)
     return 0
 
 
-def _dictate_daemon(args) -> int:
-    """Run as a long-running daemon. Loads parakeet once, then services
-    `toggle` and `toggle:paste` commands over a unix socket. Each toggle
-    flips between idle (waiting) and recording (capturing); the second
-    toggle stops, transcribes, optionally polishes, copies to clipboard,
-    and (if `:paste`) sends Cmd-V to the focused app.
+class DictateCompletion:
+    """One recording's independently waitable legacy-trigger result."""
 
-    Why a socket and not a signal: signals can't carry the `paste` flag
-    cleanly, and a socket lets `trigger` get back a status message.
-    Why pbcopy + osascript instead of an accessibility-API typing path:
-    no extra deps, works in any focused field (incl. browsers, terminals).
-    """
+    __slots__ = ("event", "message")
+
+    def __init__(self):
+        self.event = threading.Event()
+        self.message = "dictation did not complete"
+
+
+class DictateSessionController:
+    """Own one streaming dictation session and publish immutable snapshots."""
+
+    def __init__(
+        self, args, model, mx, decoding_config, vocab, out_dir: Path,
+        broker: DictateEventBroker, session_submit,
+    ):
+        self._args = args
+        self._model = model
+        self._mx = mx
+        self._decoding_config = decoding_config
+        self._vocab = vocab
+        self._out_dir = out_dir
+        self._broker = broker
+        self._session_submit = session_submit
+        self._lock = threading.Lock()
+        self._sequence_lock = threading.Lock()
+        self._sequence = 0
+        self._phase = DictatePhase.IDLE
+        self._session_id: str | None = None
+        self._started_at = 0.0
+        self._stop_event: threading.Event | None = None
+        self._completion: DictateCompletion | None = None
+        self._ffmpeg = None
+        self._legacy_mode = False
+        self._legacy_paste = False
+        self._energy_hist: list[float] = []
+
+    def _next_sequence(self) -> int:
+        with self._sequence_lock:
+            self._sequence += 1
+            return self._sequence
+
+    def status_event(
+        self,
+        event_type: DictateEventType = DictateEventType.STATUS,
+        message: str | None = None,
+    ) -> DictateEvent:
+        with self._lock:
+            phase = self._phase
+            session_id = self._session_id
+            elapsed = (
+                time.time() - self._started_at
+                if phase in (
+                    DictatePhase.RECORDING,
+                    DictatePhase.FINALIZING,
+                    DictatePhase.POLISHING,
+                )
+                else None
+            )
+        return DictateEvent(
+            event_type,
+            phase,
+            self._next_sequence(),
+            session_id=session_id,
+            message=message,
+            elapsed_seconds=elapsed,
+            device=self._args.device,
+            model=self._args.model,
+        )
+
+    def legacy_status(self, sock_path: Path) -> str:
+        event = self.status_event()
+        parts = [
+            f"phase={event.phase.value}",
+            f"device={self._args.device}",
+            f"model={self._args.model}",
+            f"prosody={'on' if getattr(self._args, 'prosody', False) else 'off'}",
+            f"polish={'on' if self._args.polish else 'off'}",
+            f"chime={'off' if self._args.no_chime else 'on'}",
+            f"clipboard={'off' if self._args.no_clipboard else 'on'}",
+            f"save={'on' if self._args.save else 'off'}",
+            f"socket={sock_path}",
+        ]
+        if event.elapsed_seconds is not None:
+            parts.insert(1, f"elapsed={event.elapsed_seconds:.1f}s")
+        return " ".join(parts)
+
+    def phase(self) -> DictatePhase:
+        with self._lock:
+            return self._phase
+
+    def start(self, *, legacy: bool) -> tuple[str | None, str | None]:
+        with self._lock:
+            if self._phase not in (DictatePhase.IDLE, DictatePhase.ERROR):
+                return None, f"already {self._phase.value}"
+            session_id = uuid.uuid4().hex
+            stop_event = threading.Event()
+            completion = DictateCompletion()
+            self._phase = DictatePhase.RECORDING
+            self._session_id = session_id
+            self._started_at = time.time()
+            self._stop_event = stop_event
+            self._completion = completion
+            self._ffmpeg = None
+            self._legacy_mode = legacy
+            self._legacy_paste = False
+
+        self._broker.publish(self.status_event())
+        if not self._args.no_chime:
+            _play_sound(_CHIME_START)
+        self._session_submit(
+            self._run_session, session_id, stop_event, completion,
+        )
+        return session_id, None
+
+    def stop(
+        self, *, paste: bool,
+    ) -> tuple[DictateCompletion | None, str | None]:
+        with self._lock:
+            if self._phase == DictatePhase.RECORDING:
+                self._phase = DictatePhase.FINALIZING
+                if paste:
+                    self._legacy_paste = True
+                stop_event = self._stop_event
+                completion = self._completion
+                ffmpeg = self._ffmpeg
+                error = None
+            elif self._phase in (
+                DictatePhase.FINALIZING, DictatePhase.POLISHING,
+            ):
+                completion = self._completion
+                stop_event = self._stop_event
+                ffmpeg = self._ffmpeg
+                error = f"already {self._phase.value}"
+            else:
+                return None, "not recording"
+
+        if stop_event is not None:
+            stop_event.set()
+        if ffmpeg is not None and ffmpeg.poll() is None:
+            try:
+                ffmpeg.send_signal(signal.SIGINT)
+            except ProcessLookupError:
+                pass
+        self._broker.publish(self.status_event())
+        return completion, error
+
+    def _set_phase(self, phase: DictatePhase, message: str | None = None) -> None:
+        with self._lock:
+            self._phase = phase
+        self._broker.publish(self.status_event(message=message))
+
+    def _publish_transcript(
+        self, session_id: str, finalized: str, draft: str, elapsed: float,
+    ) -> None:
+        text = join_fragments([finalized, draft])
+        text = _apply_vocab(text, self._vocab)
+        finalized = _apply_vocab(finalized, self._vocab)
+        self._broker.publish(DictateEvent(
+            DictateEventType.TRANSCRIPT,
+            self.phase(),
+            self._next_sequence(),
+            session_id=session_id,
+            text=text,
+            finalized_text=finalized,
+            draft_text=draft,
+            elapsed_seconds=elapsed,
+        ))
+
+    @staticmethod
+    def _stop_ffmpeg(ffmpeg) -> None:
+        if ffmpeg is None or ffmpeg.poll() is not None:
+            return
+        try:
+            ffmpeg.send_signal(signal.SIGINT)
+            ffmpeg.wait(timeout=3)
+        except ProcessLookupError:
+            return
+        except subprocess.TimeoutExpired:
+            ffmpeg.kill()
+            ffmpeg.wait()
+
+    def _legacy_delivery(
+        self, text: str, *, paste: bool, record_s: float, asr_s: float,
+    ) -> str:
+        prev_clip = _clipboard_get() if paste else None
+        if paste or not self._args.no_clipboard:
+            if not _clipboard_set(text):
+                return (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                    "clipboard failed"
+                )
+
+        if paste:
+            if _secure_input_active():
+                return (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                    "paste blocked: secure input active (text on clipboard)"
+                )
+            try:
+                paste_result = subprocess.run(
+                    [
+                        "osascript", "-e",
+                        'tell application "System Events" to keystroke "v" '
+                        "using command down",
+                    ],
+                    timeout=10, check=False, capture_output=True, text=True,
+                )
+            except (OSError, subprocess.SubprocessError) as e:
+                return (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                    f"paste failed: {e}"
+                )
+            if paste_result.returncode != 0:
+                detail = paste_result.stderr.strip() or "osascript failed"
+                return (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
+                    f"paste failed: {detail}"
+                )
+            if prev_clip is not None:
+                time.sleep(0.15)
+                _clipboard_set(prev_clip)
+
+        paste_text = " pasted" if paste else ""
+        return (
+            f"✓ {len(text.split())} words "
+            f"(audio {record_s:.1f}s, asr {asr_s:.1f}s){paste_text}"
+        )
+
+    def _save_result(self, text: str, flac_tmp: Path) -> None:
+        if not self._args.save:
+            return
+        import shutil
+        ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+        (self._out_dir / f"dict-{ts}.txt").write_text(
+            text + "\n", encoding="utf-8")
+        if flac_tmp.exists():
+            shutil.copy(flac_tmp, self._out_dir / f"dict-{ts}.flac")
+
+    def _polish(self, text: str) -> str:
+        if not self._args.polish:
+            return text
+        self._set_phase(DictatePhase.POLISHING)
+        try:
+            edits = ollama_chat(
+                self._args.polish_model,
+                [
+                    {"role": "system", "content": STREAMING_POLISH_PROMPT},
+                    {"role": "user", "content": text},
+                ],
+                stream=False, timeout=15, num_predict=300,
+            )
+            parsed = parse_edits(edits)
+            if parsed:
+                polished, applied = apply_edits(text, parsed)
+                if applied > 0:
+                    return polished
+        except Exception as e:
+            # Optional external polish must never consume a valid ASR result.
+            print(f"dictation polish skipped: {e}", file=sys.stderr)
+        return text
+
+    def _run_session(
+        self, session_id: str, stop_event: threading.Event,
+        completion: DictateCompletion,
+    ) -> None:
+        flac_tmp = (
+            Path("/tmp") / f"_dictate_daemon_{os.getpid()}_{session_id[:8]}.flac"
+        )
+        ffmpeg = None
+        final_fragments: list[str] = []
+        samples_buf = bytearray()
+        asr_s = 0.0
+        final_published = False
+        try:
+            cmd = build_ffmpeg_cmd(self._args.device, None, flac_tmp)
+            ffmpeg = subprocess.Popen(
+                cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
+            with self._lock:
+                if self._session_id == session_id:
+                    self._ffmpeg = ffmpeg
+            if stop_event.is_set():
+                self._stop_ffmpeg(ffmpeg)
+
+            chunk_samples = max(
+                1, int(SAMPLE_RATE * self._args.stream_interval))
+            chunk_bytes = chunk_samples * 4
+            written = 0
+            last_snapshot = ("", "")
+            ctx = int(os.environ.get("MEETING_CONTEXT_SIZE", "256"))
+            depth = int(os.environ.get("MEETING_STREAM_DEPTH", "8"))
+            keep_orig = (
+                os.environ.get("MEETING_KEEP_ORIGINAL_ATTENTION", "0") == "1")
+
+            with self._model.transcribe_stream(
+                decoding_config=self._decoding_config,
+                context_size=(ctx, ctx),
+                depth=depth,
+                keep_original_attention=keep_orig,
+            ) as tx:
+                while True:
+                    buf = read_exact(ffmpeg.stdout, chunk_bytes)
+                    if buf:
+                        samples_buf.extend(buf)
+                        samples_np = np.frombuffer(buf, dtype=np.float32)
+                        tx.add_audio(self._mx.array(samples_np))
+
+                        finalized_tokens = tx.finalized_tokens
+                        if len(finalized_tokens) > written:
+                            fragment = "".join(
+                                token.text
+                                for token in finalized_tokens[written:]
+                            )
+                            written = len(finalized_tokens)
+                            if fragment:
+                                final_fragments.append(fragment)
+
+                        finalized = join_fragments(final_fragments)
+                        draft = "".join(
+                            token.text for token in tx.draft_tokens)
+                        snapshot = (finalized, draft)
+                        if snapshot != last_snapshot:
+                            elapsed = len(samples_buf) / 4 / SAMPLE_RATE
+                            self._publish_transcript(
+                                session_id, finalized, draft, elapsed)
+                            last_snapshot = snapshot
+
+                    if stop_event.is_set() or not buf or len(buf) < chunk_bytes:
+                        break
+
+                draft = "".join(token.text for token in tx.draft_tokens)
+                if draft:
+                    final_fragments.append(draft)
+
+            self._stop_ffmpeg(ffmpeg)
+            record_s = len(samples_buf) / 4 / SAMPLE_RATE
+            if not samples_buf:
+                completion.message = "○ no audio captured"
+                self._broker.publish(DictateEvent(
+                    DictateEventType.FINAL,
+                    DictatePhase.FINALIZING,
+                    self._next_sequence(),
+                    session_id=session_id,
+                    text="",
+                    finalized_text="",
+                    draft_text="",
+                    message="no audio captured",
+                    elapsed_seconds=record_s,
+                ))
+                final_published = True
+                return
+
+            live_text = join_fragments(final_fragments)
+            asr_t0 = time.time()
+            try:
+                result = self._model.transcribe(str(flac_tmp))
+                offline_text = (result.text or "").strip()
+            except (OSError, RuntimeError, ValueError) as e:
+                print(
+                    f"offline final pass failed; using live transcript: {e}",
+                    file=sys.stderr,
+                )
+                offline_text = ""
+            asr_s = time.time() - asr_t0
+            text = offline_text or live_text
+            if not text:
+                completion.message = f"○ empty transcript ({record_s:.1f}s)"
+                self._broker.publish(DictateEvent(
+                    DictateEventType.FINAL,
+                    DictatePhase.FINALIZING,
+                    self._next_sequence(),
+                    session_id=session_id,
+                    text="",
+                    finalized_text="",
+                    draft_text="",
+                    message="empty transcript",
+                    elapsed_seconds=record_s,
+                ))
+                final_published = True
+                return
+
+            text = self._polish(text)
+            text = _apply_vocab(text, self._vocab)
+            if getattr(self._args, "prosody", False):
+                samples = np.frombuffer(bytes(samples_buf), dtype=np.float32)
+                text = _emphasis_tag(samples, self._energy_hist) + text
+
+            with self._lock:
+                legacy_mode = self._legacy_mode
+                paste = self._legacy_paste
+            self._save_result(text, flac_tmp)
+            if legacy_mode:
+                completion.message = self._legacy_delivery(
+                    text, paste=paste, record_s=record_s, asr_s=asr_s)
+            else:
+                completion.message = (
+                    f"✓ {len(text.split())} words "
+                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s)"
+                )
+
+            final_phase = (
+                DictatePhase.POLISHING
+                if self._args.polish else DictatePhase.FINALIZING
+            )
+            self._broker.publish(DictateEvent(
+                DictateEventType.FINAL,
+                final_phase,
+                self._next_sequence(),
+                session_id=session_id,
+                text=text,
+                finalized_text=text,
+                draft_text="",
+                elapsed_seconds=record_s,
+            ))
+            final_published = True
+            if not self._args.no_chime:
+                _play_sound(_CHIME_STOP)
+        except Exception as e:
+            # The worker is the process boundary: convert an unexpected model
+            # or capture failure into a visible event instead of dying silently.
+            completion.message = f"○ dictation failed: {e}"
+            self._set_phase(DictatePhase.ERROR, str(e))
+            self._broker.publish(DictateEvent(
+                DictateEventType.ERROR,
+                DictatePhase.ERROR,
+                self._next_sequence(),
+                session_id=session_id,
+                message=str(e),
+            ))
+        finally:
+            self._stop_ffmpeg(ffmpeg)
+            flac_tmp.unlink(missing_ok=True)
+            resulting_phase = DictatePhase.ERROR
+            with self._lock:
+                if self._session_id == session_id:
+                    self._ffmpeg = None
+                    if self._phase != DictatePhase.ERROR:
+                        self._phase = DictatePhase.IDLE
+                        self._session_id = None
+                        self._stop_event = None
+                        self._completion = None
+                    resulting_phase = self._phase
+            completion.event.set()
+            if resulting_phase == DictatePhase.IDLE:
+                self._broker.publish(self.status_event())
+            elif not final_published:
+                print(completion.message, file=sys.stderr)
+
+
+def _dictate_daemon(args) -> int:
+    """Run the warm streaming engine and its legacy + JSONL unix protocol."""
+    import select as _select
     import socket as _sock
-    import threading
 
     sock_path = _dictate_sock()
     if sock_path.exists():
@@ -3426,10 +4085,24 @@ def _dictate_daemon(args) -> int:
                   file=sys.stderr)
             return 1
 
+    engine = ThreadPoolExecutor(max_workers=1, thread_name_prefix="dictate-engine")
+
+    def load_engine():
+        import mlx.core as mx
+        from parakeet_mlx import from_pretrained, DecodingConfig, SentenceConfig
+        model = from_pretrained(args.model)
+        _warmup_model(model)
+        decoding_config = DecodingConfig(
+            sentence=SentenceConfig(
+                silence_gap=0.8, max_words=25, max_duration=18.0))
+        return mx, model, decoding_config
+
     print(f"loading {args.model} ...", file=sys.stderr, flush=True)
-    from parakeet_mlx import from_pretrained
-    model = from_pretrained(args.model)
-    _warmup_model(model)  # pay the MLX compile cost now, not on first dictation
+    try:
+        mx, model, decoding_config = engine.submit(load_engine).result()
+    except Exception:
+        engine.shutdown(wait=False, cancel_futures=True)
+        raise
 
     vocab = _load_vocab(args.vocab)
     if vocab:
@@ -3440,221 +4113,9 @@ def _dictate_daemon(args) -> int:
     if args.save:
         out_dir.mkdir(parents=True, exist_ok=True)
 
-    state_lock = threading.Lock()
-    state: dict = {
-        "phase": "idle",       # idle | recording
-        "ffmpeg": None,
-        "samples_buf": None,
-        "stop_event": None,
-        "drain_thread": None,
-        "started_at": 0.0,
-        "energy_hist": [],     # running RMS baseline for --prosody emphasis tag
-    }
-
-    def start_recording() -> str:
-        with state_lock:
-            if state["phase"] != "idle":
-                return "already recording"
-            samples_buf = bytearray()
-            stop_event = threading.Event()
-            cmd = [
-                "ffmpeg", "-hide_banner", "-loglevel", "error",
-                "-f", "avfoundation", "-i", args.device,
-                "-ac", "1", "-ar", str(SAMPLE_RATE),
-                "-c:a", "flac", "-flush_packets", "1",
-                "-y", f"/tmp/_dictate_daemon_{os.getpid()}.flac",
-                "-ac", "1", "-ar", str(SAMPLE_RATE),
-                "-f", "f32le", "-c:a", "pcm_f32le",
-                "pipe:1",
-            ]
-            ff = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                                  stderr=subprocess.DEVNULL)
-
-            def drain():
-                while not stop_event.is_set():
-                    chunk = ff.stdout.read(CHUNK_BYTES)
-                    if not chunk:
-                        break
-                    samples_buf.extend(chunk)
-
-            t = threading.Thread(target=drain, daemon=True)
-            t.start()
-            state["phase"] = "recording"
-            state["ffmpeg"] = ff
-            state["samples_buf"] = samples_buf
-            state["stop_event"] = stop_event
-            state["drain_thread"] = t
-            state["started_at"] = time.time()
-            if not args.no_chime:
-                _play_sound(_CHIME_START)
-            return "● recording"
-
-    def status_message() -> str:
-        with state_lock:
-            phase = state["phase"]
-            record_s = (
-                time.time() - state["started_at"]
-                if phase == "recording" else 0.0
-            )
-        parts = [
-            f"phase={phase}",
-            f"device={args.device}",
-            f"model={args.model}",
-            f"prosody={'on' if getattr(args, 'prosody', False) else 'off'}",
-            f"polish={'on' if args.polish else 'off'}",
-            f"chime={'off' if args.no_chime else 'on'}",
-            f"clipboard={'off' if args.no_clipboard else 'on'}",
-            f"save={'on' if args.save else 'off'}",
-            f"socket={sock_path}",
-        ]
-        if phase == "recording":
-            parts.insert(1, f"elapsed={record_s:.1f}s")
-        return " ".join(parts)
-
-    def stop_and_transcribe(paste: bool) -> str:
-        request_t0 = time.time()
-        with state_lock:
-            if state["phase"] != "recording":
-                return "not recording"
-            ff = state["ffmpeg"]
-            samples_buf = state["samples_buf"]
-            stop_event = state["stop_event"]
-            record_s = time.time() - state["started_at"]
-            stop_event.set()
-            ff.send_signal(signal.SIGINT)
-            try:
-                ff.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                ff.kill()
-            state["phase"] = "idle"
-            state["ffmpeg"] = None
-
-        if not samples_buf:
-            return "○ no audio captured"
-
-        samples = np.frombuffer(bytes(samples_buf), dtype=np.float32)
-        audio_s = len(samples) / SAMPLE_RATE
-        tmp_wav = Path("/tmp") / f"_dictate_daemon_{os.getpid()}.wav"
-        try:
-            import soundfile as sf
-            sf.write(str(tmp_wav), samples, SAMPLE_RATE)
-            asr_t0 = time.time()
-            result = model.transcribe(str(tmp_wav))
-            asr_s = time.time() - asr_t0
-        except Exception as e:
-            return f"○ transcribe failed: {e}"
-        finally:
-            tmp_wav.unlink(missing_ok=True)
-
-        text = (result.text or "").strip()
-        if not text:
-            return f"○ empty transcript ({audio_s:.1f}s)"
-
-        if args.polish:
-            try:
-                edits = ollama_chat(
-                    args.polish_model,
-                    [
-                        {"role": "system", "content": STREAMING_POLISH_PROMPT},
-                        {"role": "user", "content": text},
-                    ],
-                    stream=False, timeout=15, num_predict=300,
-                )
-                parsed = parse_edits(edits)
-                if parsed:
-                    polished, applied = apply_edits(text, parsed)
-                    if applied > 0:
-                        text = polished
-            except Exception:
-                pass
-
-        # Deterministic vocab corrections (proper nouns, identifiers). Runs
-        # after polish so the LLM can't undo a known-correct spelling, and
-        # before the prosody tag so it never rewrites the bracket marker.
-        text = _apply_vocab(text, vocab)
-
-        # Prosody (opt-in): prepend an emphasis tag AFTER polish, so the polish
-        # model can't strip it. Tags-only: the lexical transcript is untouched.
-        if getattr(args, "prosody", False):
-            text = _emphasis_tag(samples, state["energy_hist"]) + text
-
-        # Snapshot the user's clipboard before we overwrite it, so a paste can
-        # restore it afterward (only needed on the paste path).
-        prev_clip = _clipboard_get() if paste else None
-
-        # Paste works by Cmd-V, so the transcript must be on the clipboard to
-        # paste it: set it whenever pasting even under --no-clipboard. The
-        # restore below puts the user's prior clipboard back afterward, so
-        # --no-clipboard still keeps the dictation off the persistent clipboard.
-        if paste or not args.no_clipboard:
-            if not _clipboard_set(text):
-                return (
-                    f"✓ {len(text.split())} words "
-                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
-                    "clipboard failed"
-                )
-
-        if paste:
-            # Secure Event Input (password fields, Terminal secure entry, a
-            # password manager) silently swallows synthetic Cmd-V. Detect it and
-            # surface a clear status instead of dropping the text into the void;
-            # the text is on the clipboard, so the user can paste manually.
-            if _secure_input_active():
-                return (
-                    f"✓ {len(text.split())} words "
-                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
-                    "paste blocked: secure input active (text on clipboard)"
-                )
-            # Paste the clipboard via Cmd-V. Typing the clipboard contents
-            # through AppleScript is slower and can mangle punctuation.
-            try:
-                paste_result = subprocess.run(
-                    ["osascript", "-e",
-                     'tell application "System Events" to keystroke "v" using command down'],
-                    timeout=10, check=False, capture_output=True, text=True,
-                )
-                if paste_result.returncode != 0:
-                    detail = paste_result.stderr.strip() or "osascript failed"
-                    return (
-                        f"✓ {len(text.split())} words "
-                        f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
-                        f"paste failed: {detail}"
-                    )
-            except Exception as e:
-                return (
-                    f"✓ {len(text.split())} words "
-                    f"(audio {record_s:.1f}s, asr {asr_s:.1f}s) "
-                    f"paste failed: {e}"
-                )
-            # Restore the user's prior clipboard after the paste lands. The delay
-            # is load-bearing: paste is async, so the target reads the pasteboard
-            # after the keystroke arrives; restoring too early makes it read the
-            # restored (wrong) data. Only on success, so a failed paste leaves
-            # the dictated text on the clipboard as a manual-paste fallback.
-            if prev_clip is not None:
-                time.sleep(0.15)
-                _clipboard_set(prev_clip)
-
-        if args.save:
-            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-            (out_dir / f"dict-{ts}.txt").write_text(text + "\n", encoding="utf-8")
-            # Archive the crash-backup FLAC alongside the text, so a daemon
-            # dictation can be re-passed/eval'd later like the interactive path.
-            flac_tmp = Path(f"/tmp/_dictate_daemon_{os.getpid()}.flac")
-            if flac_tmp.exists():
-                import shutil
-                shutil.copy(flac_tmp, out_dir / f"dict-{ts}.flac")
-
-        if not args.no_chime:
-            _play_sound(_CHIME_STOP)
-
-        total_s = time.time() - request_t0
-        paste_text = " pasted" if paste else ""
-        return (
-            f"✓ {len(text.split())} words "
-            f"(audio {record_s:.1f}s, asr {asr_s:.1f}s, total {total_s:.1f}s)"
-            f"{paste_text}"
-        )
+    broker = DictateEventBroker()
+    controller = DictateSessionController(
+        args, model, mx, decoding_config, vocab, out_dir, broker, engine.submit)
 
     # Listen on the unix socket
     srv = _sock.socket(_sock.AF_UNIX, _sock.SOCK_STREAM)
@@ -3662,13 +4123,17 @@ def _dictate_daemon(args) -> int:
     sock_path.chmod(0o600)  # user-only
     srv.listen(4)
 
+    shutting_down = threading.Event()
+
     def cleanup(*_):
+        shutting_down.set()
+        if controller.phase() == DictatePhase.RECORDING:
+            controller.stop(paste=False)
         try:
             srv.close()
         finally:
             if sock_path.exists():
                 sock_path.unlink()
-        sys.exit(0)
 
     signal.signal(signal.SIGINT, cleanup)
     signal.signal(signal.SIGTERM, cleanup)
@@ -3683,47 +4148,135 @@ def _dictate_daemon(args) -> int:
         file=sys.stderr, flush=True,
     )
 
-    while True:
+    def send_json_error(conn, message: str) -> None:
+        event = DictateEvent(
+            DictateEventType.ERROR,
+            controller.phase(),
+            controller._next_sequence(),
+            message=message,
+        )
+        conn.sendall(event.to_line())
+
+    def handle_json(conn, request: DictateRequest) -> None:
+        if request.command == DictateCommand.SUBSCRIBE:
+            subscriber = broker.subscribe()
+            try:
+                conn.settimeout(None)
+                conn.sendall(controller.status_event().to_line())
+                while not shutting_down.is_set():
+                    try:
+                        event = subscriber.get(timeout=1.0)
+                    except queue.Empty:
+                        # A subscriber is otherwise write-only, so an app that
+                        # quits while dictation is idle would remain registered
+                        # until the next event. Peek only when select says the
+                        # socket is readable; EOF means the client is gone.
+                        try:
+                            readable, _, _ = _select.select(
+                                [conn], [], [], 0)
+                            if readable and not conn.recv(1, _sock.MSG_PEEK):
+                                break
+                        except OSError:
+                            break
+                        continue
+                    conn.sendall(event.to_line())
+            finally:
+                broker.unsubscribe(subscriber)
+            return
+
+        if request.command == DictateCommand.STATUS:
+            conn.sendall(controller.status_event().to_line())
+            return
+
+        if request.command == DictateCommand.START:
+            session_id, error = controller.start(legacy=False)
+            if error:
+                send_json_error(conn, error)
+                return
+            conn.sendall(DictateEvent(
+                DictateEventType.ACK,
+                DictatePhase.RECORDING,
+                controller._next_sequence(),
+                session_id=session_id,
+                message="recording started",
+            ).to_line())
+            return
+
+        completion, error = controller.stop(paste=False)
+        if completion is None:
+            send_json_error(conn, error or "not recording")
+            return
+        conn.sendall(DictateEvent(
+            DictateEventType.ACK,
+            controller.phase(),
+            controller._next_sequence(),
+            message=error or "recording stopped",
+        ).to_line())
+
+    def handle_connection(conn) -> None:
+        try:
+            cmd_bytes = b""
+            conn.settimeout(2.0)
+            while not cmd_bytes.endswith(b"\n") and len(cmd_bytes) < 65536:
+                chunk = conn.recv(4096)
+                if not chunk:
+                    break
+                cmd_bytes += chunk
+            line = cmd_bytes.decode("utf-8", errors="strict").strip()
+            if line.startswith("{"):
+                try:
+                    request = DictateRequest.parse(line)
+                except DictateProtocolError as e:
+                    send_json_error(conn, str(e))
+                    return
+                handle_json(conn, request)
+                return
+
+            if line == "status":
+                msg = controller.legacy_status(sock_path)
+            elif line in ("toggle", "toggle:paste"):
+                paste = line == "toggle:paste"
+                if controller.phase() in (
+                    DictatePhase.IDLE, DictatePhase.ERROR,
+                ):
+                    _, error = controller.start(legacy=True)
+                    msg = error or "● recording"
+                else:
+                    completion, error = controller.stop(paste=paste)
+                    if completion is None:
+                        msg = error or "not recording"
+                    elif completion.event.wait(timeout=120):
+                        msg = completion.message
+                    else:
+                        msg = "○ dictation timed out"
+            else:
+                msg = f"unknown command: {line!r}"
+            conn.sendall((msg + "\n").encode("utf-8"))
+        except (
+            BrokenPipeError, ConnectionResetError, UnicodeDecodeError, OSError,
+        ) as e:
+            if not shutting_down.is_set():
+                print(f"dictation client error: {e}", file=sys.stderr)
+        finally:
+            try:
+                conn.close()
+            except OSError:
+                pass
+
+    while not shutting_down.is_set():
         try:
             conn, _ = srv.accept()
         except OSError:
             break
-        try:
-            cmd_bytes = b""
-            conn.settimeout(2.0)
-            while not cmd_bytes.endswith(b"\n") and len(cmd_bytes) < 256:
-                chunk = conn.recv(64)
-                if not chunk:
-                    break
-                cmd_bytes += chunk
-            cmd = cmd_bytes.decode("utf-8", errors="replace").strip()
-
-            if cmd == "status":
-                msg = status_message()
-            elif cmd in ("toggle", "toggle:paste"):
-                paste = (cmd == "toggle:paste")
-                with state_lock:
-                    cur_phase = state["phase"]
-                if cur_phase == "idle":
-                    msg = start_recording()
-                else:
-                    msg = stop_and_transcribe(paste=paste)
-            else:
-                msg = f"unknown command: {cmd!r}"
-
-            conn.sendall((msg + "\n").encode("utf-8"))
-        except Exception as e:
-            try:
-                conn.sendall(f"error: {e}\n".encode("utf-8"))
-            except Exception:
-                pass
-        finally:
-            try:
-                conn.close()
-            except Exception:
-                pass
+        threading.Thread(
+            target=handle_connection,
+            args=(conn,),
+            name="dictate-client",
+            daemon=True,
+        ).start()
 
     cleanup()
+    engine.shutdown(wait=True, cancel_futures=True)
     return 0
 
 
@@ -3776,7 +4329,16 @@ def cmd_dictate(rest: list[str]) -> int:
     p.add_argument("--no-chime", action="store_true",
                    help="suppress the start/stop sounds the daemon plays so a "
                         "hotkey user gets audible record/ready feedback")
+    p.add_argument(
+        "--stream-interval",
+        type=float,
+        default=float(os.environ.get(
+            "DICTATE_STREAM_SECONDS", str(DICTATE_STREAM_SECONDS))),
+        help="seconds of audio per live transcript update (default: 0.5)",
+    )
     args = p.parse_args(rest)
+    if not 0.1 <= args.stream_interval <= 2.0:
+        p.error("--stream-interval must be between 0.1 and 2.0 seconds")
 
     if args.daemon:
         return _dictate_daemon(args)

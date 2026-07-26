@@ -136,11 +136,15 @@ recorder dictate install-agent --polish --vocab ~/my.vocab.txt  # with flags
 recorder dictate uninstall-agent            # remove it
 ```
 
-`install-agent` writes `~/Library/LaunchAgents/parloq.dictate.plist`, loads it
-with launchctl, and logs to `~/Library/Logs/parloq-dictate.log`. Any extra flags
-are passed straight through to `dictate --daemon`. The plist sets an explicit
-PATH that includes Homebrew, because launchd's minimal PATH would otherwise hide
-ffmpeg. To run the daemon by hand instead (e.g. while testing):
+`install-agent` installs the standalone engine at
+`~/Library/Application Support/Parloq/recorder`, writes
+`~/Library/LaunchAgents/parloq.dictate.plist`, loads it with launchctl, and logs
+to `~/Library/Logs/parloq-dictate.log`. The copy outside `~/Documents` is
+intentional: macOS denies launchd access to that protected tree without broad
+Files and Folders permission. Any extra flags are passed straight through to
+`dictate --daemon`. The plist sets an explicit PATH that includes Homebrew,
+because launchd's minimal PATH would otherwise hide ffmpeg. To run the daemon
+by hand instead (e.g. while testing):
 
 ```sh
 recorder dictate --daemon --prosody

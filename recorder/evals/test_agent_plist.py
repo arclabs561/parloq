@@ -16,8 +16,10 @@ Run: uv run recorder/evals/test_agent_plist.py
 """
 import importlib.machinery
 import importlib.util
+import os
 import pathlib
 import plistlib
+from types import SimpleNamespace
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 RECORDER = REPO / "recorder" / "recorder"
@@ -34,6 +36,11 @@ def load():
 
 def main():
     rec = load()
+    source = RECORDER.read_text(encoding="utf-8")
+    assert '"numpy>=2.2.5,<2.5"' in source, (
+        "fresh uv script environments can resolve NumPy 2.5 with an "
+        "incompatible legacy Numba/llvmlite pair"
+    )
     xml = rec._render_agent_plist(
         "/usr/local/bin/recorder", ["--polish", "--vocab", "/x.txt"],
         "/tmp/parloq.log")
@@ -54,6 +61,38 @@ def main():
         "/r", [], "/l").encode("utf-8"))
     assert d2["ProgramArguments"] == ["/r", "dictate", "--daemon"], \
         d2["ProgramArguments"]
+
+    # The installed engine must not execute from ~/Documents. macOS denies
+    # launchd access to that protected tree even when an interactive shell can
+    # read the same repo file.
+    installed = rec._dictate_installed_recorder_path()
+    assert installed == (
+        pathlib.Path.home() / "Library" / "Application Support"
+        / "Parloq" / "recorder"
+    ), installed
+    assert not os.path.commonpath([
+        str(installed), str(pathlib.Path.home() / "Documents")
+    ]) == str(pathlib.Path.home() / "Documents")
+
+    attempts = []
+    sleeps = []
+
+    def race_then_success(command, **_kwargs):
+        attempts.append(command)
+        if len(attempts) == 1:
+            return SimpleNamespace(
+                returncode=5, stderr="Bootstrap failed: 5: Input/output error")
+        return SimpleNamespace(returncode=0, stderr="")
+
+    result = rec._bootstrap_launch_agent(
+        "gui/501",
+        pathlib.Path("/tmp/parloq.plist"),
+        runner=race_then_success,
+        sleeper=sleeps.append,
+    )
+    assert result.returncode == 0
+    assert len(attempts) == 2, attempts
+    assert sleeps == [0.5], sleeps
 
     print("PASS: agent plist is well-formed with daemon args and Homebrew PATH")
 
