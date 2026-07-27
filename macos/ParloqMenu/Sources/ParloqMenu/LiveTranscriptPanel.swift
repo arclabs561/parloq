@@ -28,6 +28,14 @@ private enum ParloqVisuals {
     )
 }
 
+private enum PanelMetrics {
+    static let width: CGFloat = 574
+    static let minimumHeight: CGFloat = 86
+    static let maximumHeight: CGFloat = 150
+    static let horizontalInset: CGFloat = 18
+    static let verticalChrome: CGFloat = 55
+}
+
 @MainActor
 final class LiveTranscriptPanel {
     private let panel: NSPanel
@@ -39,7 +47,12 @@ final class LiveTranscriptPanel {
 
     init() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 574, height: 132),
+            contentRect: NSRect(
+                x: 0,
+                y: 0,
+                width: PanelMetrics.width,
+                height: PanelMetrics.minimumHeight
+            ),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -124,7 +137,7 @@ final class LiveTranscriptPanel {
             accentRail.widthAnchor.constraint(equalToConstant: 3),
             iconView.leadingAnchor.constraint(
                 equalTo: material.leadingAnchor,
-                constant: 18
+                constant: PanelMetrics.horizontalInset
             ),
             iconView.centerYAnchor.constraint(
                 equalTo: stateLabel.centerYAnchor
@@ -141,7 +154,7 @@ final class LiveTranscriptPanel {
             ),
             hintLabel.trailingAnchor.constraint(
                 equalTo: material.trailingAnchor,
-                constant: -18
+                constant: -PanelMetrics.horizontalInset
             ),
             hintLabel.firstBaselineAnchor.constraint(
                 equalTo: stateLabel.firstBaselineAnchor
@@ -152,11 +165,11 @@ final class LiveTranscriptPanel {
             ),
             transcriptLabel.leadingAnchor.constraint(
                 equalTo: material.leadingAnchor,
-                constant: 18
+                constant: PanelMetrics.horizontalInset
             ),
             transcriptLabel.trailingAnchor.constraint(
                 equalTo: material.trailingAnchor,
-                constant: -18
+                constant: -PanelMetrics.horizontalInset
             ),
             transcriptLabel.topAnchor.constraint(
                 equalTo: stateLabel.bottomAnchor,
@@ -232,7 +245,7 @@ final class LiveTranscriptPanel {
         if !snapshot.activeText.isEmpty {
             if !value.string.isEmpty {
                 value.append(NSAttributedString(
-                    string: " ",
+                    string: "\n",
                     attributes: [.paragraphStyle: paragraph]
                 ))
             }
@@ -250,7 +263,7 @@ final class LiveTranscriptPanel {
         }
         if showCursor {
             value.append(NSAttributedString(
-                string: "  │",
+                string: "\u{00A0}\u{00A0}│",
                 attributes: [
                     .font: NSFont.systemFont(
                         ofSize: 16.5,
@@ -263,6 +276,7 @@ final class LiveTranscriptPanel {
         }
         transcriptLabel.attributedStringValue = value
         transcriptLabel.setAccessibilityValue(snapshot.text)
+        growToFitTranscript()
     }
 
     private func renderPlaceholder(_ text: String) {
@@ -279,6 +293,30 @@ final class LiveTranscriptPanel {
             ]
         )
         transcriptLabel.setAccessibilityValue(text)
+        growToFitTranscript()
+    }
+
+    private func growToFitTranscript() {
+        let textWidth = PanelMetrics.width
+            - 2 * PanelMetrics.horizontalInset
+        let bounds = transcriptLabel.attributedStringValue.boundingRect(
+            with: NSSize(
+                width: textWidth,
+                height: .greatestFiniteMagnitude
+            ),
+            options: [.usesLineFragmentOrigin, .usesFontLeading]
+        )
+        let fittedHeight = ceil(bounds.height)
+            + PanelMetrics.verticalChrome
+        let targetHeight = min(
+            PanelMetrics.maximumHeight,
+            max(PanelMetrics.minimumHeight, fittedHeight)
+        )
+
+        guard targetHeight > panel.frame.height + 0.5 else { return }
+        var frame = panel.frame
+        frame.size.height = targetHeight
+        panel.setFrame(frame, display: true)
     }
 
     private func setMode(title: String, hint: String) {
