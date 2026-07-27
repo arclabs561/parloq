@@ -40,7 +40,8 @@ public struct DictationHUDTelemetry: Equatable, Sendable {
     public var summaryLabel: String {
         [
             microphoneLabel,
-            modelLabel,
+            details.saveEnabled == true ? nil : modelLabel,
+            retentionLabel,
             speakingRateLabel,
             signalLabel,
         ]
@@ -99,6 +100,10 @@ public struct DictationHUDTelemetry: Equatable, Sendable {
             return "Parakeet 0.6B v3"
         }
         return short
+    }
+
+    private var retentionLabel: String? {
+        details.saveEnabled == true ? "Saving audio" : nil
     }
 
     private var speakingRateLabel: String? {

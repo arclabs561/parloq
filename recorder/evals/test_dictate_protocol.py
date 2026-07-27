@@ -60,6 +60,15 @@ def main() -> int:
     assert configure.device.identifier == ":2"
     assert configure.device.name == "Studio Display Microphone"
 
+    save_configure = rec.DictateRequest.parse(json.dumps({
+        "version": 1,
+        "command": "configure",
+        "settings": {"save_recordings": True},
+    }))
+    assert save_configure.command == rec.DictateCommand.CONFIGURE
+    assert save_configure.device is None
+    assert save_configure.save_recordings is True
+
     expect_protocol_error(rec, "[]", "JSON object")
     expect_protocol_error(
         rec, '{"version":2,"command":"status"}', "protocol version")
@@ -74,7 +83,7 @@ def main() -> int:
     expect_protocol_error(
         rec,
         '{"version":1,"command":"configure","settings":{}}',
-        "exactly 'device'",
+        "exactly one setting",
     )
     expect_protocol_error(
         rec,
@@ -93,6 +102,15 @@ def main() -> int:
             "settings": {"device": {"id": ":2", "name": ""}},
         }),
         "non-empty",
+    )
+    expect_protocol_error(
+        rec,
+        json.dumps({
+            "version": 1,
+            "command": "configure",
+            "settings": {"save_recordings": "yes"},
+        }),
+        "true or false",
     )
 
     event = rec.DictateEvent(
@@ -116,6 +134,7 @@ def main() -> int:
         polish_enabled=True,
         chime_enabled=False,
         save_enabled=False,
+        recordings_path="/tmp/recordings",
         vocab_count=3,
         vocab_path="/tmp/example-vocab.txt",
         vocab_warning="example vocab warning",
@@ -157,6 +176,7 @@ def main() -> int:
         "polish_enabled": True,
         "chime_enabled": False,
         "save_enabled": False,
+        "recordings_path": "/tmp/recordings",
         "vocab_count": 3,
         "vocab_path": "/tmp/example-vocab.txt",
         "vocab_warning": "example vocab warning",
@@ -263,16 +283,22 @@ def main() -> int:
 
     with tempfile.TemporaryDirectory() as temporary_directory:
         config_path = Path(temporary_directory) / "Parloq" / "config.json"
-        rec._write_dictate_device_config(config_path, saved)
-        loaded, warning = rec._load_dictate_device_config(config_path)
+        config = rec.DictationRuntimeConfig(
+            device=saved,
+            save_recordings=True,
+        )
+        rec._write_dictate_runtime_config(config_path, config)
+        loaded, warning = rec._load_dictate_runtime_config(config_path)
         assert warning is None
-        assert loaded.identifier == saved.identifier
-        assert loaded.name == saved.name
+        assert loaded.device.identifier == saved.identifier
+        assert loaded.device.name == saved.name
+        assert loaded.save_recordings is True
         assert stat.S_IMODE(config_path.stat().st_mode) == 0o600
 
         config_path.write_text('{"version":2}\n', encoding="utf-8")
-        loaded, warning = rec._load_dictate_device_config(config_path)
-        assert loaded is None
+        loaded, warning = rec._load_dictate_runtime_config(config_path)
+        assert loaded.device is None
+        assert loaded.save_recordings is None
         assert "unsupported format" in warning
 
     print("PASS: dictate JSONL protocol and bounded subscriber fan-out")

@@ -13,6 +13,7 @@ public struct DictationDetails: Equatable, Sendable {
     public private(set) var polishEnabled: Bool?
     public private(set) var chimeEnabled: Bool?
     public private(set) var saveEnabled: Bool?
+    public private(set) var recordingsPath: String?
     public private(set) var vocabCount: Int?
     public private(set) var vocabPath: String?
     public private(set) var vocabWarning: String?
@@ -35,6 +36,7 @@ public struct DictationDetails: Equatable, Sendable {
         polishEnabled: Bool? = nil,
         chimeEnabled: Bool? = nil,
         saveEnabled: Bool? = nil,
+        recordingsPath: String? = nil,
         vocabCount: Int? = nil,
         vocabPath: String? = nil,
         vocabWarning: String? = nil,
@@ -56,6 +58,7 @@ public struct DictationDetails: Equatable, Sendable {
         self.polishEnabled = polishEnabled
         self.chimeEnabled = chimeEnabled
         self.saveEnabled = saveEnabled
+        self.recordingsPath = recordingsPath
         self.vocabCount = vocabCount
         self.vocabPath = vocabPath
         self.vocabWarning = vocabWarning
@@ -93,6 +96,7 @@ public struct DictationDetails: Equatable, Sendable {
         polishEnabled = event.polishEnabled ?? polishEnabled
         chimeEnabled = event.chimeEnabled ?? chimeEnabled
         saveEnabled = event.saveEnabled ?? saveEnabled
+        recordingsPath = event.recordingsPath ?? recordingsPath
         vocabCount = event.vocabCount ?? vocabCount
         vocabPath = event.vocabPath ?? vocabPath
         if event.vocabPath != nil {

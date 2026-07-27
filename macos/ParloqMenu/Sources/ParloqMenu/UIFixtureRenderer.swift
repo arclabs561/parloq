@@ -269,7 +269,10 @@ enum UIFixtureRenderer {
     private static func renderListeningLong(
         to directory: URL
     ) throws -> URL {
-        let panel = makePanel(elapsedSeconds: 38)
+        let panel = makePanel(
+            elapsedSeconds: 38,
+            details: fixtureDetails(saveEnabled: true)
+        )
         panel.showListening()
         panel.update(
             snapshot: LiveTranscriptSnapshot(
@@ -853,6 +856,7 @@ enum UIFixtureRenderer {
         latestProsodyState: DictationProsodyState? = nil,
         latestProsodyEnergyZ: Double? = nil,
         prosodyBaselineCount: Int? = 2,
+        saveEnabled: Bool = false,
         lastAudioSeconds: Double? = nil,
         lastASRSeconds: Double? = nil
     ) -> DictationDetails {
@@ -866,7 +870,7 @@ enum UIFixtureRenderer {
             prosodyBaselineCount: prosodyBaselineCount,
             polishEnabled: false,
             chimeEnabled: false,
-            saveEnabled: false,
+            saveEnabled: saveEnabled,
             vocabCount: 0,
             streamIntervalSeconds: 0.5,
             lastAudioSeconds: lastAudioSeconds,

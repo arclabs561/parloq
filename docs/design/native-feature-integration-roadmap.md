@@ -145,7 +145,9 @@ After choosing configuration authority, expose in this order:
    Delivered as an edit action against the daemon-reported path, with a reload
    at the start of each dictation.
 3. `Save Recordings` privacy toggle with a plain description of the storage
-   location and retention behavior.
+   location and retention behavior. Delivered as an off-by-default
+   `Save Audio & Transcript` control, with the effective output path in the
+   menu and an active-retention label in the HUD.
 4. `Polish Final Text` as an explicit opt-in. Preserve raw ASR alongside any
    polished result so entity regressions remain recoverable.
 5. `Prosody` only under a Labs/experimental section after a real-use quality

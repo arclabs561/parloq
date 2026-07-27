@@ -80,6 +80,9 @@ The Python daemon remains the speech engine.
   from the running daemon, including the latest ASR-to-audio realtime factor.
   **Edit Vocabulary…** creates or opens the daemon's deterministic correction
   file; saved changes reload at the start of the next dictation.
+  **Save Audio & Transcript** is an explicit, off-by-default retention toggle;
+  while enabled, the HUD says **Saving audio** and the menu reports the
+  daemon's actual output directory.
   **Copy Diagnostics** exports runtime facts plus connection, phase, app,
   system, and Accessibility state without transcript or target-application
   contents.

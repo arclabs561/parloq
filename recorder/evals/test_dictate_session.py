@@ -186,6 +186,7 @@ def main() -> int:
     model = engine.submit(FakeModel).result()
     config_directory = tempfile.TemporaryDirectory()
     config_path = Path(config_directory.name) / "dictation-config.json"
+    recordings_path = Path(config_directory.name) / "recordings"
     vocab_path = Path(config_directory.name) / "vocab.txt"
     vocab_path.write_text("parlo = Parloq\n", encoding="utf-8")
     available_devices = [
@@ -198,7 +199,7 @@ def main() -> int:
         mx=FakeMX(),
         decoding_config=object(),
         vocab=[],
-        out_dir=Path("/unused"),
+        out_dir=recordings_path,
         broker=broker,
         session_submit=engine.submit,
         config_path=config_path,
@@ -229,6 +230,11 @@ def main() -> int:
         assert event.device_available is True
         assert config_path.exists()
 
+        event, error = controller.configure_save_recordings(True)
+        assert error is None
+        assert event.event_type == rec.DictateEventType.ACK
+        assert event.save_enabled is True
+
         session_id, error = controller.start(legacy=False)
         assert error is None
         assert session_id
@@ -237,6 +243,9 @@ def main() -> int:
             rec.DictationDevice(":0", "MacBook Pro Microphone"))
         assert event is None
         assert error == "microphone cannot change during dictation"
+        event, error = controller.configure_save_recordings(False)
+        assert event is None
+        assert error == "recording retention cannot change during dictation"
 
         meter = next_meter(subscriber)
         assert meter.phase == rec.DictatePhase.RECORDING
@@ -280,12 +289,23 @@ def main() -> int:
         assert idle.prosody_baseline_count == 1
         assert idle.polish_enabled is False
         assert idle.chime_enabled is False
-        assert idle.save_enabled is False
+        assert idle.save_enabled is True
+        assert idle.recordings_path == str(recordings_path)
         assert idle.vocab_count == 1
         assert idle.vocab_path == str(vocab_path)
         assert idle.vocab_warning is None
         assert idle.stream_interval_seconds == args.stream_interval
         assert controller.phase() == rec.DictatePhase.IDLE
+        assert len(list(recordings_path.glob("dict-*.txt"))) == 1
+        assert len(list(recordings_path.glob("dict-*.flac"))) == 1
+
+        event, error = controller.configure_save_recordings(False)
+        assert error is None
+        assert event.save_enabled is False
+        saved_config, warning = rec._load_dictate_runtime_config(config_path)
+        assert warning is None
+        assert saved_config.device.identifier == selected.identifier
+        assert saved_config.save_recordings is False
 
         available_devices[:] = [
             rec.DictationDevice(":0", "MacBook Pro Microphone"),

@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var microphoneMenuItem: NSMenuItem?
     private let microphoneMenu = NSMenu()
     private let detailsMenu = NSMenu()
+    private var saveRecordingsMenuItem: NSMenuItem?
     private var historyMenuItem: NSMenuItem?
     private let historyMenu = NSMenu()
     private let historyStore = TranscriptHistoryStore()
@@ -47,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var details = DictationDetails()
     private var statusMenuIsOpen = false
     private var microphoneChangePending = false
+    private var saveRecordingsChangePending = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -86,6 +88,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.cancellationWarning = nil
                 self.details = DictationDetails()
                 self.microphoneChangePending = false
+                self.saveRecordingsChangePending = false
                 let failure = message ?? "Daemon unavailable"
                 if !self.recoverTranscript(message: failure) {
                     self.clearOverlay()
@@ -215,6 +218,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         client.send(DictateRequest(device: device))
     }
 
+    @objc private func toggleSaveRecordings() {
+        guard !saveRecordingsChangePending,
+              phase == .idle || phase == .error,
+              let enabled = details.saveEnabled
+        else {
+            return
+        }
+        saveRecordingsChangePending = true
+        updateStatus(
+            enabled
+                ? "Turning recording retention off…"
+                : "Turning recording retention on…"
+        )
+        refreshDetailsMenu()
+        updateMenuActions()
+        client.send(DictateRequest(saveRecordings: !enabled))
+    }
+
     private func toggleDictation() {
         guard connected else {
             updateStatus("Daemon unavailable")
@@ -266,6 +287,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         {
             microphoneChangePending = false
+        }
+        if saveRecordingsChangePending,
+           event.type == .error
+            || (
+                event.type == .ack
+                && event.message?.hasPrefix(
+                    "Save Audio & Transcript turned "
+                ) == true
+            )
+        {
+            saveRecordingsChangePending = false
         }
         let previousDetails = details
         details.update(from: event)
@@ -545,6 +577,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         where item.representedObject is String {
             item.isEnabled = canChangeMicrophone
         }
+        saveRecordingsMenuItem?.isEnabled =
+            connected
+            && !saveRecordingsChangePending
+            && (phase == .idle || phase == .error)
     }
 
     private var recoveryMessage: String? {
@@ -833,6 +869,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshDetailsMenu() {
         detailsMenu.removeAllItems()
+        saveRecordingsMenuItem = nil
         guard connected else {
             addDetail("Waiting for dictation daemon…")
             addCopyDiagnosticsItem()
@@ -892,7 +929,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             "Voice level analysis",
             enabled: details.prosodyEnabled
         )
-        addModeDetail("Save recordings", enabled: details.saveEnabled)
+        if let saveEnabled = details.saveEnabled {
+            let saveRecordings = NSMenuItem(
+                title: "Save Audio & Transcript",
+                action: #selector(toggleSaveRecordings),
+                keyEquivalent: ""
+            )
+            saveRecordings.target = self
+            saveRecordings.state = saveEnabled ? .on : .off
+            saveRecordings.isEnabled =
+                !saveRecordingsChangePending
+                && (phase == .idle || phase == .error)
+            let recordingsPath = details.recordingsPath.map(
+                Self.displayPath
+            ) ?? "the daemon recordings folder"
+            saveRecordings.toolTip = saveEnabled
+                ? "Completed audio and transcripts are saved in \(recordingsPath)."
+                : "Off: audio is temporary and removed after transcription."
+            saveRecordingsMenuItem = saveRecordings
+            detailsMenu.addItem(saveRecordings)
+            if saveEnabled, let path = details.recordingsPath {
+                addDetail("Saving to: \(Self.displayPath(path))")
+            }
+        }
         addModeDetail("Chimes", enabled: details.chimeEnabled)
 
         if details.latestProsodyState != nil {
@@ -971,6 +1030,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private static func shortModelName(_ model: String) -> String {
         model.split(separator: "/").last.map(String.init) ?? model
+    }
+
+    private static func displayPath(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path == home {
+            return "~"
+        }
+        if path.hasPrefix(home + "/") {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
     }
 
     private static func seconds(_ value: Double) -> String {

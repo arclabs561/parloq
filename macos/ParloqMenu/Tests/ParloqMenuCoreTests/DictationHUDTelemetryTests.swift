@@ -7,7 +7,8 @@ import Testing
         deviceName: "Studio Display Microphone",
         model: "mlx-community/parakeet-tdt-0.6b-v3",
         prosodyEnabled: true,
-        prosodyBaselineCount: 2
+        prosodyBaselineCount: 2,
+        saveEnabled: true
     ))
 
     telemetry.updateTranscript(
@@ -18,7 +19,7 @@ import Testing
 
     #expect(
         telemetry.summaryLabel
-            == "Studio Display Mic  ·  Parakeet 0.6B v3  ·  60 wpm  ·  −17 dBFS"
+            == "Studio Display Mic  ·  Saving audio  ·  60 wpm  ·  −17 dBFS"
     )
     #expect(
         telemetry.prosodyLabel == "Learning typical voice level · 2/3"

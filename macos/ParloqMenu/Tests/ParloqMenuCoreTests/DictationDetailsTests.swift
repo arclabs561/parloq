@@ -23,6 +23,7 @@ import Testing
           "polish_enabled": true,
           "chime_enabled": false,
           "save_enabled": true,
+          "recordings_path": "/tmp/recordings",
           "vocab_count": 7,
           "vocab_path": "/tmp/example-vocab.txt",
           "stream_interval_seconds": 0.5
@@ -45,6 +46,7 @@ import Testing
         DictationDevice(id: ":2", name: "Studio Display Microphone"),
     ])
     #expect(details.polishEnabled == true)
+    #expect(details.recordingsPath == "/tmp/recordings")
     #expect(details.vocabCount == 7)
     #expect(details.vocabPath == "/tmp/example-vocab.txt")
     #expect(details.vocabWarning == nil)
@@ -155,6 +157,19 @@ import Testing
         "id": ":2",
         "name": "Studio Display Microphone",
     ])
+}
+
+@Test func configureRequestEncodesRecordingRetentionSetting() throws {
+    let request = DictateRequest(saveRecordings: true)
+    let object = try #require(
+        JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(request)
+        ) as? [String: Any]
+    )
+    #expect(object["command"] as? String == "configure")
+    let settings = try #require(object["settings"] as? [String: Any])
+    #expect(settings["save_recordings"] as? Bool == true)
+    #expect(settings["device"] == nil)
 }
 
 private func decodeEvent(_ json: String) throws -> DictateEvent {

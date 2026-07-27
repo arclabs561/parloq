@@ -3186,18 +3186,66 @@ class DictationDevice:
         return {"id": self.identifier, "name": self.name}
 
 
+class DictationRuntimeConfig:
+    """Versioned settings explicitly saved by a dictation client."""
+
+    __slots__ = ("device", "save_recordings")
+
+    def __init__(
+        self,
+        *,
+        device: DictationDevice | None = None,
+        save_recordings: bool | None = None,
+    ):
+        self.device = device
+        self.save_recordings = save_recordings
+
+    @classmethod
+    def from_dict(cls, body) -> "DictationRuntimeConfig":
+        if not isinstance(body, dict) or body.get("version") != 1:
+            raise DictateProtocolError(
+                "saved settings use an unsupported format")
+        unknown = set(body) - {"version", "device", "save_recordings"}
+        if unknown:
+            raise DictateProtocolError(
+                f"saved settings contain unknown fields: {sorted(unknown)}")
+        device_body = body.get("device")
+        device = (
+            DictationDevice.from_dict(device_body)
+            if device_body is not None
+            else None
+        )
+        save_recordings = body.get("save_recordings")
+        if save_recordings is not None and not isinstance(
+            save_recordings, bool,
+        ):
+            raise DictateProtocolError(
+                "save_recordings must be true or false")
+        return cls(device=device, save_recordings=save_recordings)
+
+    def to_dict(self) -> dict:
+        body = {"version": 1}
+        if self.device is not None:
+            body["device"] = self.device.to_dict()
+        if self.save_recordings is not None:
+            body["save_recordings"] = self.save_recordings
+        return body
+
+
 class DictateRequest:
     """Validated v1 JSON Lines request from a native dictation client."""
 
-    __slots__ = ("command", "device")
+    __slots__ = ("command", "device", "save_recordings")
 
     def __init__(
         self,
         command: DictateCommand,
         device: DictationDevice | None = None,
+        save_recordings: bool | None = None,
     ):
         self.command = command
         self.device = device
+        self.save_recordings = save_recordings
 
     @classmethod
     def parse(cls, line: str) -> "DictateRequest":
@@ -3218,10 +3266,22 @@ class DictateRequest:
                 f"unsupported command: {raw_command!r}") from e
         settings = body.get("settings")
         if command == DictateCommand.CONFIGURE:
-            if not isinstance(settings, dict) or set(settings) != {"device"}:
+            if not isinstance(settings, dict) or len(settings) != 1:
                 raise DictateProtocolError(
-                    "configure settings must contain exactly 'device'")
-            return cls(command, DictationDevice.from_dict(settings["device"]))
+                    "configure request must contain exactly one setting")
+            if set(settings) == {"device"}:
+                return cls(
+                    command,
+                    device=DictationDevice.from_dict(settings["device"]),
+                )
+            if set(settings) == {"save_recordings"}:
+                save_recordings = settings["save_recordings"]
+                if not isinstance(save_recordings, bool):
+                    raise DictateProtocolError(
+                        "save_recordings must be true or false")
+                return cls(command, save_recordings=save_recordings)
+            raise DictateProtocolError(
+                f"unsupported setting: {next(iter(settings))!r}")
         if settings is not None:
             raise DictateProtocolError(
                 f"{command.value} request cannot contain settings")
@@ -3236,7 +3296,7 @@ class DictateEvent:
         "finalized_text", "draft_text", "message", "elapsed_seconds",
         "input_peak_db", "input_spectrum_db", "asr_seconds", "device", "model",
         "prosody_enabled", "polish_enabled", "chime_enabled", "save_enabled",
-        "vocab_count", "vocab_path", "vocab_warning",
+        "recordings_path", "vocab_count", "vocab_path", "vocab_warning",
         "stream_interval_seconds", "device_name",
         "device_available", "available_devices", "configuration_warning",
         "prosody_state", "prosody_energy_z", "prosody_baseline_count",
@@ -3264,6 +3324,7 @@ class DictateEvent:
         polish_enabled: bool | None = None,
         chime_enabled: bool | None = None,
         save_enabled: bool | None = None,
+        recordings_path: str | None = None,
         vocab_count: int | None = None,
         vocab_path: str | None = None,
         vocab_warning: str | None = None,
@@ -3295,6 +3356,7 @@ class DictateEvent:
         self.polish_enabled = polish_enabled
         self.chime_enabled = chime_enabled
         self.save_enabled = save_enabled
+        self.recordings_path = recordings_path
         self.vocab_count = vocab_count
         self.vocab_path = vocab_path
         self.vocab_warning = vocab_warning
@@ -3331,6 +3393,7 @@ class DictateEvent:
             ("polish_enabled", self.polish_enabled),
             ("chime_enabled", self.chime_enabled),
             ("save_enabled", self.save_enabled),
+            ("recordings_path", self.recordings_path),
             ("vocab_count", self.vocab_count),
             ("vocab_path", self.vocab_path),
             ("vocab_warning", self.vocab_warning),
@@ -3413,29 +3476,33 @@ def _dictate_config_path() -> Path:
     )
 
 
-def _load_dictate_device_config(
+def _load_dictate_runtime_config(
     path: Path,
-) -> tuple[DictationDevice | None, str | None]:
-    """Load the selected microphone without making daemon startup fragile."""
+) -> tuple[DictationRuntimeConfig, str | None]:
+    """Load explicit runtime settings without making daemon startup fragile."""
     try:
         body = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        return None, None
+        return DictationRuntimeConfig(), None
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
-        return None, f"Saved microphone settings could not be read: {error}"
-    if not isinstance(body, dict) or body.get("version") != 1:
-        return None, "Saved microphone settings use an unsupported format"
+        return (
+            DictationRuntimeConfig(),
+            f"Saved dictation settings could not be read: {error}",
+        )
     try:
-        return DictationDevice.from_dict(body.get("device")), None
+        return DictationRuntimeConfig.from_dict(body), None
     except DictateProtocolError as error:
-        return None, f"Saved microphone settings are invalid: {error}"
+        return (
+            DictationRuntimeConfig(),
+            f"Saved dictation settings are invalid: {error}",
+        )
 
 
-def _write_dictate_device_config(
+def _write_dictate_runtime_config(
     path: Path,
-    device: DictationDevice,
+    config: DictationRuntimeConfig,
 ) -> None:
-    """Atomically persist a user-only, versioned microphone selection."""
+    """Atomically persist user-only, versioned dictation settings."""
     path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
     temporary_path = path.with_name(
         f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
@@ -3447,7 +3514,7 @@ def _write_dictate_device_config(
     try:
         with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
             json.dump(
-                {"version": 1, "device": device.to_dict()},
+                config.to_dict(),
                 stream,
                 ensure_ascii=False,
                 separators=(",", ":"),
@@ -3956,7 +4023,7 @@ class DictateSessionController:
         broker: DictateEventBroker, session_submit,
         *,
         config_path: Path | None = None,
-        saved_device: DictationDevice | None = None,
+        runtime_config: DictationRuntimeConfig | None = None,
         configuration_warning: str | None = None,
         device_provider=None,
         vocab_path: Path | None = None,
@@ -3973,6 +4040,7 @@ class DictateSessionController:
         self._broker = broker
         self._session_submit = session_submit
         self._config_path = config_path
+        self._runtime_config = runtime_config or DictationRuntimeConfig()
         self._device_provider = device_provider or _available_dictation_devices
         self._lock = threading.Lock()
         self._sequence_lock = threading.Lock()
@@ -4004,12 +4072,20 @@ class DictateSessionController:
         self._configuration_file_warning = configuration_warning
         self._device_warning: str | None = None
         self._managed_device_identity = bool(bootstrap_matches)
+        self._save_enabled = (
+            self._runtime_config.save_recordings
+            if self._runtime_config.save_recordings is not None
+            else bool(args.save)
+        )
+        if self._save_enabled:
+            self._out_dir.mkdir(parents=True, exist_ok=True)
         if re.fullmatch(r":\d+", args.device) and not bootstrap_matches:
             self._capture_device = None
             self._device_available = False
             self._device_warning = (
                 f"Microphone {args.device} is not connected")
             self._managed_device_identity = True
+        saved_device = self._runtime_config.device
         if saved_device is not None:
             resolved, resolution_warning = _resolve_saved_dictation_device(
                 saved_device,
@@ -4078,7 +4154,8 @@ class DictateSessionController:
             prosody_enabled=bool(getattr(self._args, "prosody", False)),
             polish_enabled=bool(self._args.polish),
             chime_enabled=not self._args.no_chime,
-            save_enabled=bool(self._args.save),
+            save_enabled=self._save_enabled,
+            recordings_path=str(self._out_dir),
             vocab_count=vocab_count,
             vocab_path=vocab_path,
             vocab_warning=vocab_warning,
@@ -4100,7 +4177,7 @@ class DictateSessionController:
             f"polish={'on' if self._args.polish else 'off'}",
             f"chime={'off' if self._args.no_chime else 'on'}",
             f"clipboard={'off' if self._args.no_clipboard else 'on'}",
-            f"save={'on' if self._args.save else 'off'}",
+            f"save={'on' if event.save_enabled else 'off'}",
             f"socket={sock_path}",
         ]
         if event.elapsed_seconds is not None:
@@ -4156,10 +4233,18 @@ class DictateSessionController:
             if self._config_path is None:
                 return None, "runtime configuration is unavailable"
             selected = matching[0]
+            updated_config = DictationRuntimeConfig(
+                device=selected,
+                save_recordings=self._runtime_config.save_recordings,
+            )
             try:
-                _write_dictate_device_config(self._config_path, selected)
+                _write_dictate_runtime_config(
+                    self._config_path,
+                    updated_config,
+                )
             except OSError as error:
                 return None, f"microphone setting could not be saved: {error}"
+            self._runtime_config = updated_config
             self._capture_device = selected.identifier
             self._display_device = selected.identifier
             self._device_name = selected.name
@@ -4170,6 +4255,42 @@ class DictateSessionController:
         event = self.status_event(
             event_type=DictateEventType.ACK,
             message=f"Microphone set to {selected.name}",
+        )
+        self._broker.publish(event)
+        return event, None
+
+    def configure_save_recordings(
+        self,
+        enabled: bool,
+    ) -> tuple[DictateEvent | None, str | None]:
+        with self._lock:
+            if self._phase not in (DictatePhase.IDLE, DictatePhase.ERROR):
+                return None, "recording retention cannot change during dictation"
+            if self._config_path is None:
+                return None, "runtime configuration is unavailable"
+            if enabled:
+                try:
+                    self._out_dir.mkdir(parents=True, exist_ok=True)
+                except OSError as error:
+                    return None, f"recording folder could not be created: {error}"
+            updated_config = DictationRuntimeConfig(
+                device=self._runtime_config.device,
+                save_recordings=enabled,
+            )
+            try:
+                _write_dictate_runtime_config(
+                    self._config_path,
+                    updated_config,
+                )
+            except OSError as error:
+                return None, f"recording setting could not be saved: {error}"
+            self._runtime_config = updated_config
+            self._save_enabled = enabled
+            self._configuration_file_warning = None
+        state = "on" if enabled else "off"
+        event = self.status_event(
+            event_type=DictateEventType.ACK,
+            message=f"Save Audio & Transcript turned {state}",
         )
         self._broker.publish(event)
         return event, None
@@ -4386,7 +4507,7 @@ class DictateSessionController:
         )
 
     def _save_result(self, text: str, flac_tmp: Path) -> None:
-        if not self._args.save:
+        if not self._save_enabled:
             return
         import shutil
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -4680,7 +4801,7 @@ def _dictate_daemon(args) -> int:
 
     engine = ThreadPoolExecutor(max_workers=1, thread_name_prefix="dictate-engine")
     config_path = _dictate_config_path()
-    saved_device, configuration_warning = _load_dictate_device_config(
+    runtime_config, configuration_warning = _load_dictate_runtime_config(
         config_path)
     if configuration_warning:
         print(f"dictation configuration: {configuration_warning}",
@@ -4730,7 +4851,7 @@ def _dictate_daemon(args) -> int:
         broker,
         engine.submit,
         config_path=config_path,
-        saved_device=saved_device,
+        runtime_config=runtime_config,
         configuration_warning=configuration_warning,
         vocab_path=vocab_path,
         vocab_warning=vocab_warning,
@@ -4812,7 +4933,11 @@ def _dictate_daemon(args) -> int:
             return
 
         if request.command == DictateCommand.CONFIGURE:
-            event, error = controller.configure_device(request.device)
+            if request.device is not None:
+                event, error = controller.configure_device(request.device)
+            else:
+                event, error = controller.configure_save_recordings(
+                    request.save_recordings)
             if event is None:
                 send_json_error(conn, error or "microphone could not change")
                 return

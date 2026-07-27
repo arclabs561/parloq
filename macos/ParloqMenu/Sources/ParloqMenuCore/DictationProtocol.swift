@@ -66,10 +66,22 @@ public struct DictationDevice: Codable, Equatable, Hashable, Sendable {
 }
 
 public struct DictationSettings: Encodable, Sendable {
-    public let device: DictationDevice
+    public let device: DictationDevice?
+    public let saveRecordings: Bool?
 
     public init(device: DictationDevice) {
         self.device = device
+        self.saveRecordings = nil
+    }
+
+    public init(saveRecordings: Bool) {
+        self.device = nil
+        self.saveRecordings = saveRecordings
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case device
+        case saveRecordings = "save_recordings"
     }
 }
 
@@ -88,6 +100,14 @@ public struct DictateRequest: Encodable, Sendable {
         self.version = dictateProtocolVersion
         self.command = .configure
         self.settings = DictationSettings(device: device)
+    }
+
+    public init(saveRecordings: Bool) {
+        self.version = dictateProtocolVersion
+        self.command = .configure
+        self.settings = DictationSettings(
+            saveRecordings: saveRecordings
+        )
     }
 }
 
@@ -119,6 +139,7 @@ public struct DictateEvent: Decodable, Sendable {
     public let polishEnabled: Bool?
     public let chimeEnabled: Bool?
     public let saveEnabled: Bool?
+    public let recordingsPath: String?
     public let vocabCount: Int?
     public let vocabPath: String?
     public let vocabWarning: String?
@@ -152,6 +173,7 @@ public struct DictateEvent: Decodable, Sendable {
         case polishEnabled = "polish_enabled"
         case chimeEnabled = "chime_enabled"
         case saveEnabled = "save_enabled"
+        case recordingsPath = "recordings_path"
         case vocabCount = "vocab_count"
         case vocabPath = "vocab_path"
         case vocabWarning = "vocab_warning"
@@ -211,6 +233,8 @@ public struct DictateEvent: Decodable, Sendable {
             Bool.self, forKey: .chimeEnabled)
         saveEnabled = try values.decodeIfPresent(
             Bool.self, forKey: .saveEnabled)
+        recordingsPath = try values.decodeIfPresent(
+            String.self, forKey: .recordingsPath)
         vocabCount = try values.decodeIfPresent(
             Int.self, forKey: .vocabCount)
         vocabPath = try values.decodeIfPresent(
