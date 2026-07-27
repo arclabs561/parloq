@@ -14,10 +14,11 @@ The Python daemon remains the speech engine.
 - A compact, non-activating HUD shows revisable transcript snapshots while
   recording. Settled context is muted above the bright, changing tail, and
   older context truncates from the top. It cannot receive keyboard focus or
-  mouse input.
-- **Escape** cancels only while a dictation is active. Parloq consumes the key
-  before the focused app sees it, stops without creating a final/history item,
-  and restores live text when it still owns that text safely.
+  mouse input. It follows the focused caret or window's display, with the
+  pointer display only as a fallback.
+- **Escape** cancels while a dictation is active. Parloq consumes the key before
+  the focused app sees it, stops without creating a final/history item, and
+  restores live text when it still owns that text safely.
 - Live transcript snapshots replace only the text range Parloq inserted in the
   control that was focused at start when that control exposes a writable
   Accessibility range.
@@ -25,14 +26,23 @@ The Python daemon remains the speech engine.
   and copies the accurate final transcript instead of overwriting user input.
 - Controls without writable Accessibility ranges receive finalized text only.
   The HUD still provides live feedback, while unstable draft text is never
-  appended where it cannot be revised safely.
+  appended where it cannot be revised safely. Blind keyboard delivery keeps
+  Unicode surrogate pairs intact and refuses line breaks or control characters
+  that could act as terminal commands; the full final is copied instead.
 - The daemon runs a higher-quality offline pass after stop; that result replaces
   the live snapshot when range ownership is still intact.
+- If the daemon fails or disconnects after speech appears, the HUD retains the
+  latest transcript, copies it for clipboard-history recovery, and changes to a
+  distinct **RECOVERED** state. Escape dismisses that recovery without sending
+  a key to the focused app.
 - Each non-empty completed dictation is saved locally in the
   **Dictation History** submenu. Selecting an entry copies it. The bounded
   history lives at
   `~/Library/Application Support/Parloq/History/dictation-history.json`; drafts,
   cancellations, and audio are never stored there.
+- **Dictation Details** reports effective microphone, model, quality/privacy
+  modes, vocabulary count, live-update cadence, and latest capture/ASR timing
+  from the running daemon. These values are diagnostic and read-only.
 
 ## Build and install
 
