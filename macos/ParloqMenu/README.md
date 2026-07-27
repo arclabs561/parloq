@@ -66,8 +66,9 @@ The Python daemon remains the speech engine.
   history lives at
   `~/Library/Application Support/Parloq/History/dictation-history.json`. New
   entries preserve the raw final ASR alongside the delivered text for future
-  comparison and recovery; legacy entries remain compatible. Drafts,
-  cancellations, and audio are never stored there.
+  comparison and recovery; hold Option in the history menu to copy a differing
+  original ASR. Legacy entries remain compatible. Drafts, cancellations, and
+  audio are never stored there.
 - Each non-empty final transcript is also published once to the system
   pasteboard, regardless of insertion mode, so clipboard managers such as
   Maccy can retain it and the latest dictation remains ready to paste. The

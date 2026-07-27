@@ -17,7 +17,9 @@ file under Application Support, and expose recent entries in a native
 recordings, audio, and target-application metadata never enter history. New
 entries also preserve the daemon's raw final ASR alongside the delivered text
 so deterministic corrections and optional polish remain recoverable. Legacy
-entries remain readable and honestly report no known raw version.
+entries remain readable and honestly report no known raw version. The primary
+menu action continues to copy the delivered final; when a known raw version
+differs, holding Option reveals the original ASR as a native alternate action.
 
 Also publish each non-empty final exactly once to the system pasteboard at the
 native completion boundary, regardless of how text delivery succeeded. This

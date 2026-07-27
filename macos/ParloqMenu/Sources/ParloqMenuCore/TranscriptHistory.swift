@@ -17,6 +17,11 @@ public struct TranscriptHistoryEntry: Codable, Equatable, Identifiable, Sendable
         self.rawText = rawText
         self.createdAt = createdAt
     }
+
+    public var distinctRawText: String? {
+        guard let rawText, rawText != text else { return nil }
+        return rawText
+    }
 }
 
 public struct TranscriptHistory: Equatable, Sendable {

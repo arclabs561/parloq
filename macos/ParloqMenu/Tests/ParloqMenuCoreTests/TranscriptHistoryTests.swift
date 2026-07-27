@@ -21,6 +21,8 @@ import Testing
 
     #expect(history.entries.map(\.id) == [secondID, firstID])
     #expect(history.entries[1].rawText == "same words")
+    #expect(history.entries[1].distinctRawText == "same words")
+    #expect(history.entries[0].distinctRawText == nil)
 }
 
 @Test func historyRejectsEmptyTextAndStaysBounded() {

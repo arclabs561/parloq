@@ -680,16 +680,46 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func copyHistoryItem(_ sender: NSMenuItem) {
-        guard let identifier = sender.representedObject as? String,
-              let id = UUID(uuidString: identifier),
-              let entry = historyStore.history.entries.first(
-                  where: { $0.id == id })
+        guard let entry = historyEntry(from: sender) else { return }
+        copyHistoryText(
+            entry.text,
+            successMessage: "Copied dictation from history"
+        )
+    }
+
+    @objc private func copyRawHistoryItem(_ sender: NSMenuItem) {
+        guard let entry = historyEntry(from: sender),
+              let rawText = entry.distinctRawText
         else {
             return
         }
+        copyHistoryText(
+            rawText,
+            successMessage: "Copied original ASR from history"
+        )
+    }
+
+    private func copyHistoryText(
+        _ text: String,
+        successMessage: String
+    ) {
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(entry.text, forType: .string)
-        updateStatus("Copied dictation from history")
+        guard NSPasteboard.general.setString(text, forType: .string) else {
+            updateStatus("Could not copy dictation from history")
+            return
+        }
+        updateStatus(successMessage)
+    }
+
+    private func historyEntry(
+        from sender: NSMenuItem
+    ) -> TranscriptHistoryEntry? {
+        guard let identifier = sender.representedObject as? String,
+              let id = UUID(uuidString: identifier)
+        else {
+            return nil
+        }
+        return historyStore.history.entries.first(where: { $0.id == id })
     }
 
     @objc private func clearHistory() {
@@ -779,6 +809,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             empty.isEnabled = false
             historyMenu.addItem(empty)
         } else {
+            if entries.contains(where: { $0.distinctRawText != nil }) {
+                let hint = NSMenuItem(
+                    title: "Hold ⌥ for original ASR",
+                    action: nil,
+                    keyEquivalent: ""
+                )
+                hint.isEnabled = false
+                historyMenu.addItem(hint)
+                historyMenu.addItem(.separator())
+            }
             for entry in entries {
                 let item = NSMenuItem(
                     title: Self.historyTitle(entry.text),
@@ -787,8 +827,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 )
                 item.target = self
                 item.representedObject = entry.id.uuidString
-                item.toolTip = entry.text
+                if let rawText = entry.distinctRawText {
+                    item.toolTip =
+                        "Final:\n\(entry.text)\n\nOriginal ASR:\n\(rawText)"
+                } else {
+                    item.toolTip = entry.text
+                }
                 historyMenu.addItem(item)
+
+                if let rawText = entry.distinctRawText {
+                    let rawItem = NSMenuItem(
+                        title: Self.historyTitle(rawText),
+                        action: #selector(copyRawHistoryItem(_:)),
+                        keyEquivalent: ""
+                    )
+                    rawItem.target = self
+                    rawItem.representedObject = entry.id.uuidString
+                    rawItem.toolTip = rawText
+                    rawItem.isAlternate = true
+                    rawItem.keyEquivalentModifierMask = [.option]
+                    historyMenu.addItem(rawItem)
+                }
             }
         }
 
