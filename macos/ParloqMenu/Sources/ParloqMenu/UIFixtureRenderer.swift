@@ -437,8 +437,20 @@ enum UIFixtureRenderer {
         to directory: URL
     ) throws -> URL {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 92))
+        view.appearance = NSApplication.shared.appearance
         view.wantsLayer = true
-        view.layer?.backgroundColor = ParloqVisuals.surfaceTint.cgColor
+
+        func resolved(_ color: NSColor) -> NSColor {
+            var cgColor = color.cgColor
+            view.effectiveAppearance.performAsCurrentDrawingAppearance {
+                cgColor = color.cgColor
+            }
+            return NSColor(cgColor: cgColor) ?? color
+        }
+
+        view.layer?.backgroundColor = resolved(
+            NSColor.windowBackgroundColor
+        ).cgColor
         view.layer?.cornerRadius = 16
 
         let items: [(String, NSImage, NSColor)] = [
@@ -466,6 +478,7 @@ enum UIFixtureRenderer {
         view.addSubview(stack)
 
         for (title, image, color) in items {
+            let color = resolved(color)
             let cell = NSStackView()
             cell.orientation = .vertical
             cell.alignment = .centerX

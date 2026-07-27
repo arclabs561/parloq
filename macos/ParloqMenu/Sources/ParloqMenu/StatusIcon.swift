@@ -120,9 +120,9 @@ enum StatusIcon {
 
             let bars: [(x: CGFloat, minimum: CGFloat, maximum: CGFloat)] = [
                 (5.0, 2.8, 6.0),
-                (8.1, 3.4, 12.5),
-                (11.2, 3.0, 9.0),
-                (14.3, 2.6, 5.5),
+                (8.5, 3.4, 12.5),
+                (12.0, 3.0, 9.0),
+                (15.5, 2.6, 5.5),
             ]
             for (index, bar) in bars.enumerated() {
                 let bandLevel = spectrum?[index] ?? normalizedLevel
@@ -132,20 +132,13 @@ enum StatusIcon {
                     roundedRect: NSRect(
                         x: bar.x,
                         y: 9 - height / 2,
-                        width: 2.1,
+                        width: 2.3,
                         height: height
                     ),
-                    xRadius: 1.05,
-                    yRadius: 1.05
+                    xRadius: 1.15,
+                    yRadius: 1.15
                 ).fill()
             }
-
-            let cursor = NSBezierPath()
-            cursor.lineWidth = 2.6
-            cursor.lineCapStyle = .round
-            cursor.move(to: NSPoint(x: 18.4, y: 2.8))
-            cursor.line(to: NSPoint(x: 18.4, y: 15.2))
-            cursor.stroke()
             return true
         }
         image.isTemplate = true
