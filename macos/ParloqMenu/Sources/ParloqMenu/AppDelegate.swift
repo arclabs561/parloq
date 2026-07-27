@@ -197,8 +197,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             cancellationWarning = nil
             cancelRequested = false
             overlay.begin()
-            deliverySession = TextDeliverySession()
-            let panel = LiveTranscriptPanel()
+            let session = TextDeliverySession()
+            deliverySession = session
+            let metadata = DictationHUDMetadata(
+                targetApplication: session.hudTargetApplication,
+                deliveryMode: session.hudDeliveryMode
+            )
+            let panel = LiveTranscriptPanel(metadata: metadata)
             liveTranscriptPanel = panel
             panel.showListening()
             hotKey?.setEscapeEnabled(true)
@@ -212,6 +217,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         lastSequence = event.sequence
         details.update(from: event)
         refreshDetailsMenu()
+        liveTranscriptPanel?.updateElapsed(event.elapsedSeconds)
         if cancelRequested {
             handleCancellationEvent(event)
             updateIcon()
@@ -227,7 +233,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     finalizedText: event.finalizedText,
                     draftText: event.draftText
                 ) {
-                    liveTranscriptPanel?.update(snapshot: visibleSnapshot)
+                    liveTranscriptPanel?.update(
+                        snapshot: visibleSnapshot,
+                        elapsedSeconds: event.elapsedSeconds
+                    )
                 }
             }
             updateStatus(statusText(for: event))
@@ -389,7 +398,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let button = statusItem?.button else { return }
         button.image = statusIcon(for: state)
         button.imagePosition = .imageOnly
-        button.contentTintColor = nil
+        button.contentTintColor = statusTint(for: state)
         button.title = ""
         button.setAccessibilityLabel("Parloq")
         button.setAccessibilityValue(accessibilityValue(for: state))
@@ -462,6 +471,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return StatusIcon.finishing
         case .error:
             return StatusIcon.error
+        }
+    }
+
+    private func statusTint(for state: IconState) -> NSColor? {
+        switch state {
+        case .idle, .offline:
+            return nil
+        case .listening:
+            return ParloqVisuals.listening
+        case .finishing:
+            return ParloqVisuals.cyan
+        case .error:
+            return ParloqVisuals.coral
         }
     }
 

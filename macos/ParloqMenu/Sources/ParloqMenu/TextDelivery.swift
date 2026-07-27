@@ -44,6 +44,18 @@ final class TextDeliverySession {
     private var didDeliverText = false
     private(set) var lastTranscript = ""
     private(set) var warning: String?
+    let hudTargetApplication: String?
+
+    var hudDeliveryMode: DictationDeliveryMode {
+        switch target {
+        case .accessibility:
+            return .directInsertion
+        case .keyboard:
+            return .keyboardFallback
+        case .unavailable:
+            return .clipboardFallback
+        }
+    }
 
     static var focusedTargetDiagnostics: String {
         guard AXIsProcessTrusted() else {
@@ -60,6 +72,8 @@ final class TextDeliverySession {
     }
 
     init() {
+        hudTargetApplication = FocusedTargetApplication.capture()
+
         if !AXIsProcessTrusted() {
             target = .unavailable
             planner = DeliveryPlanner(strategy: .disabled)

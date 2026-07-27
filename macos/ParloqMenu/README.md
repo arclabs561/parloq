@@ -13,9 +13,14 @@ The Python daemon remains the speech engine.
   mappings, and restores the prior mapping when it quits.
 - A compact, non-activating HUD shows revisable transcript snapshots while
   recording. Settled context is muted above the bright, changing tail, and
-  older context truncates from the top. It cannot receive keyboard focus or
-  mouse input. It follows the focused caret or window's display, with the
-  pointer display only as a fallback.
+  older context truncates from the top. A quiet footer identifies the captured
+  application, whether delivery is live or final-only, and elapsed time. It
+  cannot receive keyboard focus or mouse input. It follows the focused caret
+  or window's display, with the pointer display only as a fallback.
+- The menu-bar icon uses a different silhouette for ready, listening,
+  finalizing, unavailable, and error states. Listening adds a visible status
+  dot and green tint; finalizing is cyan and errors are coral. Shape and
+  accessible state text remain authoritative when color or motion is reduced.
 - **Escape** cancels while a dictation is active. Parloq consumes the key before
   the focused app sees it, stops without creating a final/history item, and
   restores live text when it still owns that text safely.

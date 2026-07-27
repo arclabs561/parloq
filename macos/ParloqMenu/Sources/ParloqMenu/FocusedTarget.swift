@@ -42,6 +42,26 @@ enum FocusedElement {
     }
 }
 
+enum FocusedTargetApplication {
+    static func capture() -> String? {
+        if AXIsProcessTrusted(),
+           let element = FocusedElement.capture()
+        {
+            var processIdentifier = pid_t()
+            if AXUIElementGetPid(
+                element,
+                &processIdentifier
+            ) == .success,
+            let application = NSRunningApplication(
+                processIdentifier: processIdentifier
+            ) {
+                return application.localizedName
+            }
+        }
+        return NSWorkspace.shared.frontmostApplication?.localizedName
+    }
+}
+
 enum FocusedTargetScreen {
     static func capture() -> NSScreen? {
         guard AXIsProcessTrusted(),
