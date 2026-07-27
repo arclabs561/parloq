@@ -21,9 +21,10 @@ The Python daemon remains the speech engine.
   finalizing, unavailable, and error states. Listening adds a visible status
   dot and green tint; its waveform and the HUD's nine-band **SPECTRUM**
   visualization respond to real FFT telemetry from the daemon. Peak dBFS
-  remains available as a compatibility fallback. Finalizing is cyan and errors
-  are coral. Shape and accessible state text remain authoritative when color or
-  motion is reduced.
+  remains available as a compatibility fallback. Spectrum telemetry updates at
+  10 Hz independently of the heavier live-transcription cadence. Finalizing is
+  cyan and errors are coral. Shape and accessible state text remain
+  authoritative when color or motion is reduced.
 - **Escape** cancels while a dictation is active. Parloq consumes the key before
   the focused app sees it, stops without creating a final/history item, and
   restores live text when it still owns that text safely.

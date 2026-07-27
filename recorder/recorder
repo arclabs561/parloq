@@ -3114,6 +3114,7 @@ DICTATE_SOCK_ENV = "RECORDER_DICTATE_SOCK"
 DICTATE_SOCK = Path("/tmp") / f"recorder-dictate-{os.getuid()}.sock"
 DICTATE_PROTOCOL_VERSION = 1
 DICTATE_STREAM_SECONDS = 0.5
+DICTATE_METER_SECONDS = 0.1
 
 
 class DictatePhase(str, Enum):
@@ -4055,6 +4056,15 @@ class DictateSessionController:
             chunk_samples = max(
                 1, int(SAMPLE_RATE * self._args.stream_interval))
             chunk_bytes = chunk_samples * 4
+            meter_samples = max(
+                1,
+                min(
+                    chunk_samples,
+                    int(SAMPLE_RATE * DICTATE_METER_SECONDS),
+                ),
+            )
+            meter_bytes = meter_samples * 4
+            asr_buf = bytearray()
             written = 0
             last_snapshot = ("", "")
             ctx = int(os.environ.get("MEETING_CONTEXT_SIZE", "256"))
@@ -4069,11 +4079,11 @@ class DictateSessionController:
                 keep_original_attention=keep_orig,
             ) as tx:
                 while True:
-                    buf = read_exact(ffmpeg.stdout, chunk_bytes)
+                    buf = read_exact(ffmpeg.stdout, meter_bytes)
                     if buf:
                         samples_buf.extend(buf)
+                        asr_buf.extend(buf)
                         samples_np = np.frombuffer(buf, dtype=np.float32)
-                        tx.add_audio(self._mx.array(samples_np))
                         elapsed = len(samples_buf) / 4 / SAMPLE_RATE
                         self._publish_meter(
                             session_id,
@@ -4081,6 +4091,21 @@ class DictateSessionController:
                             _peak_dbfs(samples_np),
                             _spectrum_dbfs(samples_np),
                         )
+
+                    should_flush_asr = bool(asr_buf) and (
+                        len(asr_buf) >= chunk_bytes
+                        or stop_event.is_set()
+                        or not buf
+                        or len(buf) < meter_bytes
+                    )
+                    if should_flush_asr:
+                        asr_samples = np.frombuffer(
+                            bytes(asr_buf),
+                            dtype=np.float32,
+                        )
+                        asr_buf.clear()
+                        tx.add_audio(self._mx.array(asr_samples))
+                        elapsed = len(samples_buf) / 4 / SAMPLE_RATE
 
                         finalized_tokens = tx.finalized_tokens
                         if len(finalized_tokens) > written:
@@ -4101,7 +4126,7 @@ class DictateSessionController:
                                 session_id, finalized, draft, elapsed)
                             last_snapshot = snapshot
 
-                    if stop_event.is_set() or not buf or len(buf) < chunk_bytes:
+                    if stop_event.is_set() or not buf or len(buf) < meter_bytes:
                         break
 
                 draft = "".join(token.text for token in tx.draft_tokens)

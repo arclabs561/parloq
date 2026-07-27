@@ -34,13 +34,20 @@ class FakeStdout:
     def __init__(self, audio: bytes):
         self._chunks: queue.Queue = queue.Queue()
         self._chunks.put(audio)
+        self._pending = bytearray()
 
     def finish(self) -> None:
         self._chunks.put(None)
 
-    def read(self, _count: int) -> bytes:
-        chunk = self._chunks.get(timeout=2)
-        return b"" if chunk is None else chunk
+    def read(self, count: int) -> bytes:
+        if not self._pending:
+            chunk = self._chunks.get(timeout=2)
+            if chunk is None:
+                return b""
+            self._pending.extend(chunk)
+        result = bytes(self._pending[:count])
+        del self._pending[:count]
+        return result
 
 
 class FakeProcess:
@@ -145,7 +152,7 @@ def main() -> int:
             atol=4e-5,
         )
 
-    chunk_samples = int(rec.SAMPLE_RATE * 0.1)
+    chunk_samples = int(rec.SAMPLE_RATE * 0.5)
     audio = np.full(chunk_samples, 0.05, dtype=np.float32).tobytes()
     processes = queue.Queue()
     processes.put(FakeProcess(audio))
@@ -164,7 +171,7 @@ def main() -> int:
     args = SimpleNamespace(
         device=":test",
         model="fake-parakeet",
-        stream_interval=0.1,
+        stream_interval=0.5,
         polish=False,
         polish_model="unused",
         prosody=False,
@@ -197,9 +204,11 @@ def main() -> int:
         assert meter.session_id == session_id
         assert meter.elapsed_seconds == 0.1
         assert -26.1 < meter.input_peak_db < -25.9
+        assert len(meter.input_spectrum_db) == 9
 
         transcript = next_type(subscriber, "transcript")
         assert transcript.phase == rec.DictatePhase.RECORDING
+        assert transcript.elapsed_seconds == 0.5
         assert transcript.text == "hello wor", transcript.text
         assert transcript.finalized_text == "hello"
         assert transcript.draft_text == " wor"

@@ -220,8 +220,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func handle(_ event: DictateEvent) {
         guard event.sequence > lastSequence else { return }
         lastSequence = event.sequence
+        let previousDetails = details
         details.update(from: event)
-        refreshDetailsMenu()
+        if details != previousDetails {
+            refreshDetailsMenu()
+        }
         liveTranscriptPanel?.updateElapsed(event.elapsedSeconds)
         updateInputLevel(from: event)
         if cancelRequested {
