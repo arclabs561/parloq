@@ -9,6 +9,7 @@ import Testing
 
     #expect(history.append(
         text: "  Same words  ",
+        rawText: "  same words  ",
         id: firstID,
         at: Date(timeIntervalSince1970: 1)
     )?.text == "Same words")
@@ -19,6 +20,7 @@ import Testing
     )?.id == secondID)
 
     #expect(history.entries.map(\.id) == [secondID, firstID])
+    #expect(history.entries[1].rawText == "same words")
 }
 
 @Test func historyRejectsEmptyTextAndStaysBounded() {
@@ -36,6 +38,7 @@ import Testing
     let entry = TranscriptHistoryEntry(
         id: UUID(),
         text: "A saved dictation.",
+        rawText: "a saved dictation",
         createdAt: Date(timeIntervalSince1970: 123)
     )
 
@@ -46,4 +49,24 @@ import Testing
     )
 
     #expect(decoded == [entry])
+}
+
+@Test func legacyHistoryEntryDecodesWithoutInventingRawText() throws {
+    let id = UUID()
+    let data = Data("""
+        [{
+          "id": "\(id.uuidString)",
+          "text": "Previously saved final.",
+          "createdAt": 123
+        }]
+        """.utf8)
+    let decoder = JSONDecoder()
+    decoder.dateDecodingStrategy = .secondsSince1970
+
+    let entries = try decoder.decode([TranscriptHistoryEntry].self, from: data)
+
+    #expect(entries.count == 1)
+    #expect(entries[0].id == id)
+    #expect(entries[0].text == "Previously saved final.")
+    #expect(entries[0].rawText == nil)
 }

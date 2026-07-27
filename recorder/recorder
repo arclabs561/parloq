@@ -3293,7 +3293,8 @@ class DictateEvent:
 
     __slots__ = (
         "event_type", "phase", "sequence", "session_id", "text",
-        "finalized_text", "draft_text", "message", "elapsed_seconds",
+        "raw_text", "finalized_text", "draft_text", "message",
+        "elapsed_seconds",
         "input_peak_db", "input_spectrum_db", "asr_seconds", "device", "model",
         "prosody_enabled", "polish_enabled", "chime_enabled", "save_enabled",
         "recordings_path", "vocab_count", "vocab_path", "vocab_warning",
@@ -3311,6 +3312,7 @@ class DictateEvent:
         *,
         session_id: str | None = None,
         text: str | None = None,
+        raw_text: str | None = None,
         finalized_text: str | None = None,
         draft_text: str | None = None,
         message: str | None = None,
@@ -3343,6 +3345,7 @@ class DictateEvent:
         self.sequence = sequence
         self.session_id = session_id
         self.text = text
+        self.raw_text = raw_text
         self.finalized_text = finalized_text
         self.draft_text = draft_text
         self.message = message
@@ -3380,6 +3383,7 @@ class DictateEvent:
         optional = (
             ("session_id", self.session_id),
             ("text", self.text),
+            ("raw_text", self.raw_text),
             ("finalized_text", self.finalized_text),
             ("draft_text", self.draft_text),
             ("message", self.message),
@@ -4687,8 +4691,8 @@ class DictateSessionController:
             if cancel_event.is_set():
                 completion.message = "○ dictation cancelled"
                 return
-            text = offline_text or live_text
-            if not text:
+            raw_text = offline_text or live_text
+            if not raw_text:
                 completion.message = f"○ empty transcript ({record_s:.1f}s)"
                 self._broker.publish(DictateEvent(
                     DictateEventType.FINAL,
@@ -4704,7 +4708,7 @@ class DictateSessionController:
                 final_published = True
                 return
 
-            text = self._polish(text)
+            text = self._polish(raw_text)
             if cancel_event.is_set():
                 completion.message = "○ dictation cancelled"
                 return
@@ -4737,6 +4741,7 @@ class DictateSessionController:
                 self._next_sequence(),
                 session_id=session_id,
                 text=text,
+                raw_text=raw_text,
                 finalized_text=text,
                 draft_text="",
                 elapsed_seconds=record_s,

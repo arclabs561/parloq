@@ -33,11 +33,17 @@ final class TranscriptHistoryStore {
     }
 
     @discardableResult
-    func append(_ text: String) throws -> TranscriptHistoryEntry? {
+    func append(
+        _ text: String,
+        rawText: String? = nil
+    ) throws -> TranscriptHistoryEntry? {
         if let loadError {
             throw loadError
         }
-        guard let entry = history.append(text: text) else { return nil }
+        guard let entry = history.append(
+            text: text,
+            rawText: rawText
+        ) else { return nil }
         try persist()
         return entry
     }

@@ -3,11 +3,18 @@ import Foundation
 public struct TranscriptHistoryEntry: Codable, Equatable, Identifiable, Sendable {
     public let id: UUID
     public let text: String
+    public let rawText: String?
     public let createdAt: Date
 
-    public init(id: UUID = UUID(), text: String, createdAt: Date = Date()) {
+    public init(
+        id: UUID = UUID(),
+        text: String,
+        rawText: String? = nil,
+        createdAt: Date = Date()
+    ) {
         self.id = id
         self.text = text
+        self.rawText = rawText
         self.createdAt = createdAt
     }
 }
@@ -29,15 +36,19 @@ public struct TranscriptHistory: Equatable, Sendable {
     @discardableResult
     public mutating func append(
         text: String,
+        rawText: String? = nil,
         id: UUID = UUID(),
         at date: Date = Date()
     ) -> TranscriptHistoryEntry? {
         let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty else { return nil }
 
+        let normalizedRaw = rawText?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         let entry = TranscriptHistoryEntry(
             id: id,
             text: normalized,
+            rawText: normalizedRaw?.isEmpty == false ? normalizedRaw : nil,
             createdAt: date
         )
         entries.insert(entry, at: 0)

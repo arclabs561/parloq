@@ -206,6 +206,9 @@ def main() -> int:
         device_provider=lambda: available_devices,
         vocab_path=vocab_path,
     )
+    # Exercise the provenance boundary even though the fixture does not run
+    # the optional external polisher.
+    controller._polish = lambda _raw_text: "Hello, world."
 
     try:
         devices = controller.devices_event()
@@ -268,8 +271,9 @@ def main() -> int:
 
         final = next_type(subscriber, "final")
         assert final.session_id == session_id
-        assert final.text == "Hello world."
-        assert final.finalized_text == "Hello world."
+        assert final.text == "Hello, world."
+        assert final.raw_text == "Hello world."
+        assert final.finalized_text == "Hello, world."
         assert final.asr_seconds is not None
         assert final.prosody_state == "calibrating"
         assert final.prosody_energy_z is None

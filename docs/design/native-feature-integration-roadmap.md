@@ -149,7 +149,9 @@ After choosing configuration authority, expose in this order:
    `Save Audio & Transcript` control, with the effective output path in the
    menu and an active-retention label in the HUD.
 4. `Polish Final Text` as an explicit opt-in. Preserve raw ASR alongside any
-   polished result so entity regressions remain recoverable.
+   polished result so entity regressions remain recoverable. The additive
+   protocol and native history fields are delivered; comparison and revert UI
+   remain gated on the interaction design.
 5. `Prosody` only under a Labs/experimental section after a real-use quality
    comparison justifies it.
 

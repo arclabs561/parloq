@@ -208,3 +208,19 @@ private func decodeEvent(_ json: String) throws -> DictateEvent {
         -55, -43, -29, -18.5, -24, -38, -52, -65, -74,
     ])
 }
+
+@Test func protocolDecodesFinalRawTextWhenProvided() throws {
+    let event = try decodeEvent("""
+        {
+          "version": 1,
+          "type": "final",
+          "phase": "finalizing",
+          "sequence": 6,
+          "text": "Parloq is ready.",
+          "raw_text": "par lock is ready"
+        }
+        """)
+
+    #expect(event.text == "Parloq is ready.")
+    #expect(event.rawText == "par lock is ready")
+}

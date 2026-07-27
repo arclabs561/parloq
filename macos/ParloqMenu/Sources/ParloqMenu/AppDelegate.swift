@@ -345,7 +345,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             var historyWarning: String?
             if let text = event.text, !text.isEmpty {
                 do {
-                    try historyStore.append(text)
+                    try historyStore.append(
+                        text,
+                        rawText: event.rawText
+                    )
                     refreshHistoryMenu()
                 } catch {
                     historyWarning = "Dictation complete; history not saved"

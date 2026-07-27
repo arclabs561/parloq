@@ -14,7 +14,10 @@ Keep a small, Parloq-owned history of completed dictations. Append exactly one
 non-empty final transcript per recording, persist it as a bounded local JSON
 file under Application Support, and expose recent entries in a native
 `Dictation History` submenu. Selecting an entry copies it. Drafts, cancelled
-recordings, audio, and target-application metadata never enter history.
+recordings, audio, and target-application metadata never enter history. New
+entries also preserve the daemon's raw final ASR alongside the delivered text
+so deterministic corrections and optional polish remain recoverable. Legacy
+entries remain readable and honestly report no known raw version.
 
 Also publish each non-empty final exactly once to the system pasteboard at the
 native completion boundary, regardless of how text delivery succeeded. This

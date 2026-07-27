@@ -118,6 +118,7 @@ public struct DictateEvent: Decodable, Sendable {
     public let sequence: Int
     public let sessionID: String?
     public let text: String?
+    public let rawText: String?
     public let finalizedText: String?
     public let draftText: String?
     public let message: String?
@@ -152,6 +153,7 @@ public struct DictateEvent: Decodable, Sendable {
         case sequence
         case sessionID = "session_id"
         case text
+        case rawText = "raw_text"
         case finalizedText = "finalized_text"
         case draftText = "draft_text"
         case message
@@ -195,6 +197,7 @@ public struct DictateEvent: Decodable, Sendable {
         sequence = try values.decode(Int.self, forKey: .sequence)
         sessionID = try values.decodeIfPresent(String.self, forKey: .sessionID)
         text = try values.decodeIfPresent(String.self, forKey: .text)
+        rawText = try values.decodeIfPresent(String.self, forKey: .rawText)
         finalizedText = try values.decodeIfPresent(
             String.self, forKey: .finalizedText)
         draftText = try values.decodeIfPresent(String.self, forKey: .draftText)

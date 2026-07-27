@@ -64,7 +64,9 @@ The Python daemon remains the speech engine.
 - Each non-empty completed dictation is saved locally in the
   **Dictation History** submenu. Selecting an entry copies it. The bounded
   history lives at
-  `~/Library/Application Support/Parloq/History/dictation-history.json`; drafts,
+  `~/Library/Application Support/Parloq/History/dictation-history.json`. New
+  entries preserve the raw final ASR alongside the delivered text for future
+  comparison and recovery; legacy entries remain compatible. Drafts,
   cancellations, and audio are never stored there.
 - Each non-empty final transcript is also published once to the system
   pasteboard, regardless of insertion mode, so clipboard managers such as
