@@ -7,8 +7,7 @@ grounded-in:
   - docs/design/live-dictation-forward.md
   - docs/design/dictation-history-and-hud.md
   - docs/design/dictation-tui.md
-  - recorder/parloq_recorder/cli.py
-  - recorder/parloq_recorder/daemon.py
+  - recorder/recorder
   - macos/ParloqMenu/Sources/ParloqMenu/AppDelegate.swift
 review-trigger: choose a configuration authority before implementing mutable native settings, and choose a product surface before integrating meeting workflows
 ---
@@ -76,17 +75,19 @@ configuration or recorder artifacts.
 
 Consumer: a user diagnosing why dictation sounds or behaves differently.
 
-Add a concise read-only `Dictation Details` section or submenu showing:
+The first read-only `Dictation Details` submenu now shows:
 
 - active microphone;
 - ASR model;
 - whether polish, prosody, recording retention, and chimes are enabled;
-- the vocabulary file in use;
-- most recent capture duration and stop-to-final latency.
+- the number of vocabulary corrections loaded;
+- streaming cadence;
+- most recent capture and offline-ASR duration.
 
-Extend the typed daemon status/event protocol only for facts that are not
-already present. Keep the top-level menu calm: state belongs in a details
-submenu unless it requires action.
+The typed daemon protocol carries those facts as optional fields, so older
+clients and daemons remain compatible. Keep extending it only for effective
+runtime facts that are not already present. The top-level menu remains calm:
+state belongs in the details submenu unless it requires action.
 
 Gate:
 
