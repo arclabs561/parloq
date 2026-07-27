@@ -67,8 +67,11 @@ The Python daemon remains the speech engine.
   `~/Library/Application Support/Parloq/History/dictation-history.json`. New
   entries preserve the raw final ASR alongside the delivered text for future
   comparison and recovery; hold Option in the history menu to copy a differing
-  original ASR. Legacy entries remain compatible. Drafts, cancellations, and
-  audio are never stored there.
+  original ASR. **Teach Parloq From Latest Dictation…** shows that evidence and
+  adds one user-confirmed exact phrase correction through the daemon. It never
+  monitors edits in other apps or proposes the whole utterance as a rule.
+  Legacy entries remain compatible. Drafts, cancellations, and audio are never
+  stored there.
 - Each non-empty final transcript is also published once to the system
   pasteboard, regardless of insertion mode, so clipboard managers such as
   Maccy can retain it and the latest dictation remains ready to paste. The
@@ -125,8 +128,9 @@ just ui-native-fixture
 just check
 ```
 
-`just ui-fixtures` renders every representative HUD and status-icon state in
-dark and light appearances to `test-results/ui-fixtures/`. It also creates
+`just ui-fixtures` renders every representative HUD, status-icon, and explicit
+correction-prompt state in dark and light appearances to
+`test-results/ui-fixtures/`. It also creates
 `ui-review-board.png` for one-pass comparison and `manifest.json`, which checks
 that every appearance pair has matching, non-empty geometry. The command uses
 the real AppKit hierarchy without showing a window, activating Parloq, arming

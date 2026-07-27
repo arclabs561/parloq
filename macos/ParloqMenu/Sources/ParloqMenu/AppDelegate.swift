@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let detailsMenu = NSMenu()
     private var saveRecordingsMenuItem: NSMenuItem?
     private var historyMenuItem: NSMenuItem?
+    private var teachCorrectionMenuItem: NSMenuItem?
     private let historyMenu = NSMenu()
     private let historyStore = TranscriptHistoryStore()
     private var launchAtLoginMenuItem: NSMenuItem?
@@ -47,6 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var iconState: IconState?
     private var details = DictationDetails()
     private var statusMenuIsOpen = false
+    private var correctionPromptActive = false
+    private var correctionChangePending = false
+    private var applicationBeforeMenu: NSRunningApplication?
     private var microphoneChangePending = false
     private var saveRecordingsChangePending = false
 
@@ -87,6 +91,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.cancelRequested = false
                 self.cancellationWarning = nil
                 self.details = DictationDetails()
+                self.correctionChangePending = false
                 self.microphoneChangePending = false
                 self.saveRecordingsChangePending = false
                 let failure = message ?? "Daemon unavailable"
@@ -237,6 +242,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func toggleDictation() {
+        guard !correctionPromptActive else { return }
         guard connected else {
             updateStatus("Daemon unavailable")
             return
@@ -298,6 +304,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         {
             saveRecordingsChangePending = false
+        }
+        if correctionChangePending,
+           event.type == .error
+            || (
+                event.type == .ack
+                && event.message?.hasPrefix("Correction ") == true
+            )
+        {
+            correctionChangePending = false
+            refreshHistoryMenu()
         }
         let previousDetails = details
         details.update(from: event)
@@ -584,6 +600,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             connected
             && !saveRecordingsChangePending
             && (phase == .idle || phase == .error)
+        teachCorrectionMenuItem?.isEnabled =
+            connected
+            && !correctionPromptActive
+            && !correctionChangePending
+            && (phase == .idle || phase == .error)
     }
 
     private var recoveryMessage: String? {
@@ -699,6 +720,48 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         )
     }
 
+    @objc private func teachFromLatestDictation() {
+        guard !correctionPromptActive,
+              !correctionChangePending,
+              connected,
+              phase == .idle || phase == .error,
+              let entry = historyStore.history.entries.first
+        else {
+            return
+        }
+
+        correctionPromptActive = true
+        updateMenuActions()
+        let returnApplication = applicationBeforeMenu
+        let prompt = DictationCorrectionPrompt(entry: entry)
+        let correction = prompt.run()
+        correctionPromptActive = false
+        restoreFocus(to: returnApplication)
+
+        guard let correction else {
+            updateMenuActions()
+            return
+        }
+        correctionChangePending = true
+        updateStatus("Saving correction…")
+        refreshHistoryMenu()
+        updateMenuActions()
+        client.send(DictateRequest(vocabularyCorrection: correction))
+    }
+
+    private func restoreFocus(to application: NSRunningApplication?) {
+        guard let application,
+              !application.isTerminated,
+              application.processIdentifier != ProcessInfo.processInfo
+                .processIdentifier
+        else {
+            return
+        }
+        DispatchQueue.main.async {
+            application.activate(options: [.activateIgnoringOtherApps])
+        }
+    }
+
     private func copyHistoryText(
         _ text: String,
         successMessage: String
@@ -796,6 +859,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private func refreshHistoryMenu() {
         historyMenu.removeAllItems()
+        teachCorrectionMenuItem = nil
         let entries = historyStore.history.entries
 
         if entries.isEmpty {
@@ -852,6 +916,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
 
         historyMenu.addItem(.separator())
+        if !entries.isEmpty {
+            let teach = NSMenuItem(
+                title: "Teach Parloq From Latest Dictation…",
+                action: #selector(teachFromLatestDictation),
+                keyEquivalent: ""
+            )
+            teach.target = self
+            teach.toolTip =
+                "Add an exact phrase correction without monitoring other apps."
+            teach.isEnabled =
+                connected
+                && !correctionPromptActive
+                && !correctionChangePending
+                && (phase == .idle || phase == .error)
+            teachCorrectionMenuItem = teach
+            historyMenu.addItem(teach)
+            historyMenu.addItem(.separator())
+        }
         let clear = NSMenuItem(
             title: entries.isEmpty && historyStore.loadError != nil
                 ? "Reset Dictation History…"
@@ -1191,6 +1273,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         statusMenuIsOpen = true
+        applicationBeforeMenu = nil
+        let frontmost = NSWorkspace.shared.frontmostApplication
+        if frontmost?.processIdentifier != ProcessInfo.processInfo
+            .processIdentifier
+        {
+            applicationBeforeMenu = frontmost
+        }
         hotKey?.setTargetActivityMonitoringEnabled(false)
         if connected {
             client.send(.devices)

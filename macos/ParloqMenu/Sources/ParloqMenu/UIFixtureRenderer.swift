@@ -237,6 +237,7 @@ enum UIFixtureRenderer {
         rendered.append(try renderCopyFailed(to: directory))
         rendered.append(try renderRecovery(to: directory))
         rendered.append(try renderStatusIcons(to: directory))
+        rendered.append(try renderCorrectionPrompt(to: directory))
         return rendered
     }
 
@@ -519,6 +520,24 @@ enum UIFixtureRenderer {
         view.layoutSubtreeIfNeeded()
 
         let url = directory.appendingPathComponent("status-icons.png")
+        try write(view, to: url)
+        return url
+    }
+
+    private static func renderCorrectionPrompt(
+        to directory: URL
+    ) throws -> URL {
+        let prompt = DictationCorrectionPrompt(entry: TranscriptHistoryEntry(
+            text: "Parloq should remember that name for the next dictation.",
+            rawText: "Par lock should remember that name for the next dictation."
+        ))
+        let view = prompt.fixtureView(
+            heard: "par lock",
+            replacement: "Parloq"
+        )
+        let url = directory.appendingPathComponent(
+            "teach-parloq-prompt.png"
+        )
         try write(view, to: url)
         return url
     }

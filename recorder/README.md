@@ -132,6 +132,11 @@ Matching rules, in plain terms:
 - Rules apply top to bottom, so order matters if two rules could touch the same
   text.
 
+The Parloq menu app can append a validated rule through **Dictation History >
+Teach Parloq From Latest Dictation…**. The daemon remains the only writer: it
+rejects duplicates and conflicts, preserves existing comments and ordering, and
+reloads the effective rules before confirming the change.
+
 Where it comes from: by default the daemon reads `~/recordings/.vocab.txt` if
 that file exists (a missing file is simply a no-op). Point it elsewhere with
 `--vocab /path/to/file` or the `$DICTATE_VOCAB` environment variable.

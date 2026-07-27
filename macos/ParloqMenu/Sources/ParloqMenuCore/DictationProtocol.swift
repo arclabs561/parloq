@@ -65,23 +65,67 @@ public struct DictationDevice: Codable, Equatable, Hashable, Sendable {
     }
 }
 
+public struct DictationVocabularyCorrection:
+    Encodable, Equatable, Sendable
+{
+    public let heard: String
+    public let replacement: String
+
+    public init?(heard: String, replacement: String) {
+        guard !heard.contains(where: \.isNewline),
+              !replacement.contains(where: \.isNewline)
+        else {
+            return nil
+        }
+        let normalizedHeard = Self.normalize(heard)
+        let normalizedReplacement = Self.normalize(replacement)
+        guard !normalizedHeard.isEmpty,
+              !normalizedReplacement.isEmpty,
+              normalizedHeard.count <= 200,
+              normalizedReplacement.count <= 200,
+              !normalizedHeard.contains("="),
+              normalizedHeard != normalizedReplacement
+        else {
+            return nil
+        }
+        self.heard = normalizedHeard
+        self.replacement = normalizedReplacement
+    }
+
+    private static func normalize(_ value: String) -> String {
+        value
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+    }
+}
+
 public struct DictationSettings: Encodable, Sendable {
     public let device: DictationDevice?
     public let saveRecordings: Bool?
+    public let vocabularyCorrection: DictationVocabularyCorrection?
 
     public init(device: DictationDevice) {
         self.device = device
         self.saveRecordings = nil
+        self.vocabularyCorrection = nil
     }
 
     public init(saveRecordings: Bool) {
         self.device = nil
         self.saveRecordings = saveRecordings
+        self.vocabularyCorrection = nil
+    }
+
+    public init(vocabularyCorrection: DictationVocabularyCorrection) {
+        self.device = nil
+        self.saveRecordings = nil
+        self.vocabularyCorrection = vocabularyCorrection
     }
 
     enum CodingKeys: String, CodingKey {
         case device
         case saveRecordings = "save_recordings"
+        case vocabularyCorrection = "vocabulary_correction"
     }
 }
 
@@ -107,6 +151,14 @@ public struct DictateRequest: Encodable, Sendable {
         self.command = .configure
         self.settings = DictationSettings(
             saveRecordings: saveRecordings
+        )
+    }
+
+    public init(vocabularyCorrection: DictationVocabularyCorrection) {
+        self.version = dictateProtocolVersion
+        self.command = .configure
+        self.settings = DictationSettings(
+            vocabularyCorrection: vocabularyCorrection
         )
     }
 }
