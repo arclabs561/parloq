@@ -199,6 +199,7 @@ final class LiveTranscriptPanel {
 
         let material: NSView
         let contentHost: NSView
+        let usesNativeGlass: Bool
         // NSGlassEffectView's compositor does not participate in an offscreen
         // cacheDisplay pass. Fixtures use the same content hierarchy over the
         // established material fallback; the installed panel uses native glass.
@@ -211,6 +212,7 @@ final class LiveTranscriptPanel {
             glass.contentView = content
             material = glass
             contentHost = content
+            usesNativeGlass = true
         } else {
             let fallback = NSVisualEffectView()
             fallback.material = .hudWindow
@@ -218,15 +220,18 @@ final class LiveTranscriptPanel {
             fallback.state = .active
             contentHost = fallback
             material = fallback
+            usesNativeGlass = false
         }
         material.wantsLayer = true
-        material.layer?.cornerRadius = PanelMetrics.cornerRadius
-        material.layer?.cornerCurve = .continuous
-        material.layer?.masksToBounds = true
-        material.layer?.borderWidth = 0.5
-        material.layer?.borderColor = NSColor.white
-            .withAlphaComponent(0.18)
-            .cgColor
+        if !usesNativeGlass {
+            material.layer?.cornerRadius = PanelMetrics.cornerRadius
+            material.layer?.cornerCurve = .continuous
+            material.layer?.masksToBounds = true
+            material.layer?.borderWidth = 0.5
+            material.layer?.borderColor = NSColor.white
+                .withAlphaComponent(0.18)
+                .cgColor
+        }
         panel.contentView = material
         if contentHost !== material {
             contentHost.frame = material.bounds
@@ -239,7 +244,7 @@ final class LiveTranscriptPanel {
             .withAlphaComponent(
                 NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
                     ? 0.96
-                    : 0.34
+                    : (usesNativeGlass ? 0.18 : 0.34)
             )
             .cgColor
         tint.translatesAutoresizingMaskIntoConstraints = false
