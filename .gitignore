@@ -14,4 +14,5 @@ __pycache__/
 .venv/
 .build/
 test-results/
+.agents/
 # large model caches live in ~/.cache/huggingface, not here

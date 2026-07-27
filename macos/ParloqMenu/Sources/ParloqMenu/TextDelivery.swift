@@ -46,6 +46,7 @@ final class TextDeliverySession {
     private(set) var lastTranscript = ""
     private(set) var warning: String?
     let hudTargetApplication: String?
+    let hudTargetApplicationIcon: NSImage?
 
     var hudDeliveryMode: DictationDeliveryMode {
         if targetChanged {
@@ -83,7 +84,9 @@ final class TextDeliverySession {
     }
 
     init() {
-        hudTargetApplication = FocusedTargetApplication.capture()
+        let targetApplication = FocusedTargetApplication.capture()
+        hudTargetApplication = targetApplication?.localizedName
+        hudTargetApplicationIcon = targetApplication?.icon
 
         if !AXIsProcessTrusted() {
             target = .unavailable

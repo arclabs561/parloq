@@ -235,8 +235,44 @@ enum UIFixtureRenderer {
                 deliveryMode: .keyboardFallback,
                 elapsedSeconds: elapsedSeconds
             ),
+            targetApplicationIcon: fixtureTargetApplicationIcon(),
             presentsWindow: false
         )
+    }
+
+    private static func fixtureTargetApplicationIcon() -> NSImage {
+        let image = NSImage(
+            size: NSSize(width: 32, height: 32),
+            flipped: false
+        ) { rect in
+            NSColor(
+                srgbRed: 0.12,
+                green: 0.33,
+                blue: 0.76,
+                alpha: 1
+            ).setFill()
+            NSBezierPath(
+                roundedRect: rect.insetBy(dx: 1, dy: 1),
+                xRadius: 7,
+                yRadius: 7
+            ).fill()
+
+            NSColor.white.withAlphaComponent(0.94).setStroke()
+            let prompt = NSBezierPath()
+            prompt.lineWidth = 2.6
+            prompt.lineCapStyle = .round
+            prompt.lineJoinStyle = .round
+            prompt.move(to: NSPoint(x: 8, y: 11))
+            prompt.line(to: NSPoint(x: 13, y: 16))
+            prompt.line(to: NSPoint(x: 8, y: 21))
+            prompt.move(to: NSPoint(x: 16, y: 21))
+            prompt.line(to: NSPoint(x: 24, y: 21))
+            prompt.stroke()
+            return true
+        }
+        image.isTemplate = false
+        image.accessibilityDescription = "Fixture target application"
+        return image
     }
 
     private static func write(

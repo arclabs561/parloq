@@ -43,7 +43,7 @@ enum FocusedElement {
 }
 
 enum FocusedTargetApplication {
-    static func capture() -> String? {
+    static func capture() -> NSRunningApplication? {
         if AXIsProcessTrusted(),
            let element = FocusedElement.capture()
         {
@@ -55,10 +55,10 @@ enum FocusedTargetApplication {
             let application = NSRunningApplication(
                 processIdentifier: processIdentifier
             ) {
-                return application.localizedName
+                return application
             }
         }
-        return NSWorkspace.shared.frontmostApplication?.localizedName
+        return NSWorkspace.shared.frontmostApplication
     }
 }
 

@@ -18,7 +18,7 @@ import Testing
 
     #expect(
         metadata.contextLabel
-            == "NOTES · TARGET CHANGED · COPIES FINAL"
+            == "FOCUS CHANGED · COPIES FINAL"
     )
 }
 

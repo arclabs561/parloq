@@ -205,7 +205,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 targetApplication: session.hudTargetApplication,
                 deliveryMode: session.hudDeliveryMode
             )
-            let panel = LiveTranscriptPanel(metadata: metadata)
+            let panel = LiveTranscriptPanel(
+                metadata: metadata,
+                targetApplicationIcon: session.hudTargetApplicationIcon
+            )
             liveTranscriptPanel = panel
             panel.showListening()
             hotKey?.setEscapeEnabled(true)

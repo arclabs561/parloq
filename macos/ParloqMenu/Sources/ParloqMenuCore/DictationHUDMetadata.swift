@@ -15,7 +15,7 @@ public enum DictationDeliveryMode: Equatable, Sendable {
         case .clipboardFallback:
             return "COPIES FINAL"
         case .targetChanged:
-            return "TARGET CHANGED · COPIES FINAL"
+            return "FOCUS CHANGED · COPIES FINAL"
         }
     }
 }
@@ -37,6 +37,9 @@ public struct DictationHUDMetadata: Equatable, Sendable {
     }
 
     public var contextLabel: String {
+        if deliveryMode == .targetChanged {
+            return deliveryMode.displayName
+        }
         let target = targetApplication
             .flatMap { $0.isEmpty ? nil : $0.uppercased() }
         return [target, deliveryMode.displayName]

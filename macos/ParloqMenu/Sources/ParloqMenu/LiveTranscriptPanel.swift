@@ -38,6 +38,10 @@ enum ParloqVisuals {
 @MainActor
 private final class InputSpectrumView: NSView {
     private let bars: [CALayer]
+    private var displayedBands = Array(
+        repeating: 0.0,
+        count: InputSpectrum.bandCount
+    )
 
     override init(frame frameRect: NSRect) {
         bars = (0..<InputSpectrum.bandCount).map { _ in CALayer() }
@@ -57,11 +61,14 @@ private final class InputSpectrumView: NSView {
 
     override func layout() {
         super.layout()
-        let width: CGFloat = 2.2
-        let gap: CGFloat = 1.7
+        let width: CGFloat = 2.4
+        let gap: CGFloat = 1.8
+        let contentWidth = CGFloat(bars.count) * width
+            + CGFloat(max(0, bars.count - 1)) * gap
+        let leading = max(0, (bounds.width - contentWidth) / 2)
         for (index, bar) in bars.enumerated() {
             bar.frame = CGRect(
-                x: CGFloat(index) * (width + gap),
+                x: leading + CGFloat(index) * (width + gap),
                 y: 0,
                 width: width,
                 height: max(1.5, bar.frame.height)
@@ -76,14 +83,32 @@ private final class InputSpectrumView: NSView {
         let normalized = spectrum.hasTelemetry
             ? spectrum.normalizedBands
             : fallbackBands(for: level)
+        let hasSignal = spectrum.hasTelemetry || level != nil
+        for index in displayedBands.indices {
+            guard hasSignal else {
+                displayedBands[index] = 0
+                continue
+            }
+            let target = normalized[index]
+            let response = target > displayedBands[index] ? 0.58 : 0.24
+            displayedBands[index] += (
+                target - displayedBands[index]
+            ) * response
+        }
+
         CATransaction.begin()
-        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+            || !hasSignal
+        {
             CATransaction.setDisableActions(true)
         } else {
-            CATransaction.setAnimationDuration(0.14)
+            CATransaction.setAnimationDuration(0.11)
+            CATransaction.setAnimationTimingFunction(
+                CAMediaTimingFunction(name: .easeOut)
+            )
         }
         for (index, bar) in bars.enumerated() {
-            let value = normalized[index]
+            let value = displayedBands[index]
             let availableHeight = max(bounds.height, 11)
             let height = 1.5 + CGFloat(value) * (availableHeight - 1.5)
             bar.frame = CGRect(
@@ -93,11 +118,11 @@ private final class InputSpectrumView: NSView {
                 height: height
             )
             bar.backgroundColor = ParloqVisuals.listening
-                .withAlphaComponent(0.18 + 0.82 * value)
+                .withAlphaComponent(0.22 + 0.78 * value)
                 .cgColor
         }
         CATransaction.commit()
-        let audibleBands = normalized.filter { $0 >= 0.18 }.count
+        let audibleBands = displayedBands.filter { $0 >= 0.18 }.count
         setAccessibilityValue("\(audibleBands) active frequency bands")
     }
 
@@ -126,9 +151,9 @@ final class LiveTranscriptPanel {
     private let stateLabel: NSTextField
     private let hintLabel: NSTextField
     private let transcriptLabel: NSTextField
+    private let targetApplicationIconView: NSImageView
     private let contextLabel: NSTextField
     private let inputSpectrumView: InputSpectrumView
-    private let inputLabel: NSTextField
     private let elapsedLabel: NSTextField
     private let presentsWindow: Bool
     private var metadata: DictationHUDMetadata
@@ -136,6 +161,7 @@ final class LiveTranscriptPanel {
 
     init(
         metadata: DictationHUDMetadata,
+        targetApplicationIcon: NSImage? = nil,
         presentsWindow: Bool = true
     ) {
         self.metadata = metadata
@@ -215,8 +241,23 @@ final class LiveTranscriptPanel {
         transcriptLabel.translatesAutoresizingMaskIntoConstraints = false
         transcriptLabel.setAccessibilityLabel("Live transcription")
 
+        targetApplicationIconView = NSImageView()
+        targetApplicationIconView.image = targetApplicationIcon
+        targetApplicationIconView.imageScaling = .scaleProportionallyUpOrDown
+        targetApplicationIconView.isHidden = targetApplicationIcon == nil
+        targetApplicationIconView.translatesAutoresizingMaskIntoConstraints =
+            false
+        targetApplicationIconView.setAccessibilityLabel(
+            "Dictation target application"
+        )
+        targetApplicationIconView.setAccessibilityValue(
+            metadata.targetApplication ?? "Unknown"
+        )
+
         contextLabel = NSTextField(labelWithString: "")
-        contextLabel.lineBreakMode = .byTruncatingMiddle
+        contextLabel.lineBreakMode = .byTruncatingTail
+        contextLabel.maximumNumberOfLines = 1
+        contextLabel.usesSingleLineMode = true
         contextLabel.setContentCompressionResistancePriority(
             .defaultLow,
             for: .horizontal
@@ -225,21 +266,6 @@ final class LiveTranscriptPanel {
 
         inputSpectrumView = InputSpectrumView()
         inputSpectrumView.translatesAutoresizingMaskIntoConstraints = false
-
-        inputLabel = NSTextField(labelWithString: "SPECTRUM")
-        inputLabel.attributedStringValue = NSAttributedString(
-            string: "SPECTRUM",
-            attributes: [
-                .font: NSFont.monospacedSystemFont(
-                    ofSize: 7.5,
-                    weight: .medium
-                ),
-                .foregroundColor:
-                    ParloqVisuals.text.withAlphaComponent(0.38),
-                .kern: 0.55,
-            ]
-        )
-        inputLabel.translatesAutoresizingMaskIntoConstraints = false
 
         elapsedLabel = NSTextField(labelWithString: "")
         elapsedLabel.alignment = .right
@@ -255,10 +281,23 @@ final class LiveTranscriptPanel {
         material.addSubview(stateLabel)
         material.addSubview(hintLabel)
         material.addSubview(transcriptLabel)
+        material.addSubview(targetApplicationIconView)
         material.addSubview(contextLabel)
         material.addSubview(inputSpectrumView)
-        material.addSubview(inputLabel)
         material.addSubview(elapsedLabel)
+
+        let contextLeadingConstraint: NSLayoutConstraint
+        if targetApplicationIcon == nil {
+            contextLeadingConstraint = contextLabel.leadingAnchor.constraint(
+                equalTo: material.leadingAnchor,
+                constant: PanelMetrics.horizontalInset
+            )
+        } else {
+            contextLeadingConstraint = contextLabel.leadingAnchor.constraint(
+                equalTo: targetApplicationIconView.trailingAnchor,
+                constant: 6
+            )
+        }
         NSLayoutConstraint.activate([
             tint.leadingAnchor.constraint(equalTo: material.leadingAnchor),
             tint.trailingAnchor.constraint(equalTo: material.trailingAnchor),
@@ -312,33 +351,39 @@ final class LiveTranscriptPanel {
                 lessThanOrEqualTo: contextLabel.topAnchor,
                 constant: -8
             ),
-            contextLabel.leadingAnchor.constraint(
+            targetApplicationIconView.leadingAnchor.constraint(
                 equalTo: material.leadingAnchor,
                 constant: PanelMetrics.horizontalInset
             ),
+            targetApplicationIconView.centerYAnchor.constraint(
+                equalTo: contextLabel.centerYAnchor
+            ),
+            targetApplicationIconView.widthAnchor.constraint(
+                equalToConstant: 13
+            ),
+            targetApplicationIconView.heightAnchor.constraint(
+                equalToConstant: 13
+            ),
+            contextLeadingConstraint,
             contextLabel.trailingAnchor.constraint(
                 lessThanOrEqualTo: inputSpectrumView.leadingAnchor,
-                constant: -14
+                constant: -16
             ),
             contextLabel.bottomAnchor.constraint(
                 equalTo: material.bottomAnchor,
                 constant: -12
             ),
-            inputSpectrumView.widthAnchor.constraint(equalToConstant: 34),
-            inputSpectrumView.heightAnchor.constraint(equalToConstant: 11),
+            inputSpectrumView.widthAnchor.constraint(equalToConstant: 40),
+            inputSpectrumView.heightAnchor.constraint(equalToConstant: 12),
+            inputSpectrumView.centerXAnchor.constraint(
+                equalTo: material.centerXAnchor
+            ),
             inputSpectrumView.centerYAnchor.constraint(
                 equalTo: contextLabel.centerYAnchor
             ),
-            inputSpectrumView.trailingAnchor.constraint(
-                equalTo: inputLabel.leadingAnchor,
-                constant: -6
-            ),
-            inputLabel.trailingAnchor.constraint(
-                equalTo: elapsedLabel.leadingAnchor,
-                constant: -16
-            ),
-            inputLabel.firstBaselineAnchor.constraint(
-                equalTo: contextLabel.firstBaselineAnchor
+            elapsedLabel.leadingAnchor.constraint(
+                greaterThanOrEqualTo: inputSpectrumView.trailingAnchor,
+                constant: 16
             ),
             elapsedLabel.trailingAnchor.constraint(
                 equalTo: material.trailingAnchor,
@@ -353,6 +398,7 @@ final class LiveTranscriptPanel {
 
     func showListening() {
         latestSnapshot = nil
+        inputSpectrumView.isHidden = false
         accentRail.layer?.backgroundColor = ParloqVisuals.listening.cgColor
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.listening
@@ -373,6 +419,7 @@ final class LiveTranscriptPanel {
     ) {
         guard !snapshot.text.isEmpty else { return }
         latestSnapshot = snapshot
+        inputSpectrumView.isHidden = false
         metadata.updateElapsed(elapsedSeconds)
         accentRail.layer?.backgroundColor = ParloqVisuals.listening.cgColor
         iconView.contentTintColor = ParloqVisuals.listening
@@ -410,6 +457,7 @@ final class LiveTranscriptPanel {
 
     func showFinishing() {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
+        inputSpectrumView.isHidden = true
         accentRail.layer?.backgroundColor = ParloqVisuals.cyan.cgColor
         iconView.contentTintColor = ParloqVisuals.cyan
         iconView.image = StatusIcon.finishing
@@ -430,6 +478,7 @@ final class LiveTranscriptPanel {
         message: String
     ) {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
+        inputSpectrumView.isHidden = true
         latestSnapshot = snapshot
         accentRail.layer?.backgroundColor = ParloqVisuals.coral.cgColor
         iconView.contentTintColor = ParloqVisuals.coral
