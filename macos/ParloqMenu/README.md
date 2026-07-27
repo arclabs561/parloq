@@ -100,6 +100,7 @@ for an ad-hoc development build on a machine without that identity.
 ```sh
 swift test --package-path macos/ParloqMenu
 just ui-fixtures
+just ui-native-fixture
 just check
 ```
 
@@ -111,7 +112,15 @@ the real AppKit hierarchy without showing a window, activating Parloq, arming
 shortcuts, or opening the microphone, so visual changes can be inspected
 without interrupting another app. The compatibility material stands in for
 native glass in these offscreen renders; WindowServer-owned refraction and
-optical merging still require a final installed-panel check.
+optical merging require a native capture.
+
+`just ui-native-fixture` briefly presents a synthetic, nonactivating HUD over a
+bounded gradient-and-grid backdrop, captures it to
+`test-results/ui-fixtures/native-glass.png`, and verifies that the frontmost
+application did not change. It preflights Screen Recording access but never
+opens a permission prompt, global shortcut, daemon connection, or microphone.
+Use it to inspect the real macOS 26 glass compositor without starting a
+dictation or asking for a manual screenshot.
 
 Set `RECORDER_DICTATE_SOCK` for an isolated daemon socket. The production
 default is `/tmp/recorder-dictate-$UID.sock`.

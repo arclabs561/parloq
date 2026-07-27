@@ -1,9 +1,193 @@
 import AppKit
+import CoreGraphics
 import ParloqMenuCore
 import QuartzCore
 
 @MainActor
 enum UIFixtureRenderer {
+    static func captureNative(to url: URL) throws {
+        guard #available(macOS 26.0, *) else {
+            throw fixtureError("native glass capture requires macOS 26")
+        }
+        guard CGPreflightScreenCaptureAccess() else {
+            throw fixtureError(
+                "screen capture access is unavailable; no permission was requested"
+            )
+        }
+
+        let frontmostBefore =
+            NSWorkspace.shared.frontmostApplication?.processIdentifier
+        let panel = makePanel(elapsedSeconds: 12, presentsWindow: true)
+        panel.showListening()
+        panel.update(
+            snapshot: LiveTranscriptSnapshot(
+                text:
+                    "Native glass should bend the desktop through this live transcript.",
+                settledText: "",
+                activeText:
+                    "Native glass should bend the desktop through this live transcript."
+            ),
+            elapsedSeconds: 12
+        )
+        panel.updateInput(
+            spectrum: InputSpectrum(dbFS: [
+                -62, -47, -29, -16, -22, -34, -45, -58, -70,
+            ]),
+            level: InputLevelMeter(dbFS: -16)
+        )
+        defer { panel.hide() }
+
+        let windowNumber = panel.nativeFixtureWindowNumber
+        guard windowNumber > 0 else {
+            throw fixtureError("native fixture did not receive a window number")
+        }
+        let captureFrame = panel.nativeFixtureWindowFrame.insetBy(
+            dx: -24,
+            dy: -24
+        )
+        guard let screenFrame = panel.nativeFixtureScreenFrame else {
+            throw fixtureError("native fixture is not assigned to a screen")
+        }
+        let backdrop = makeNativeBackdrop(frame: captureFrame)
+        backdrop.order(.below, relativeTo: windowNumber)
+        defer { backdrop.orderOut(nil) }
+
+        // Give WindowServer two display turns to resolve glass, merge the
+        // nearby islands, and sample the controlled backdrop behind the panel.
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.18))
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.18))
+
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        if FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+        process.arguments = [
+            "-x",
+            "-t",
+            "png",
+            "-R\(Int(floor(captureFrame.minX))),"
+                + "\(Int(floor(screenFrame.maxY - captureFrame.maxY))),"
+                + "\(Int(ceil(captureFrame.width))),"
+                + "\(Int(ceil(captureFrame.height)))",
+            url.path,
+        ]
+        let errorPipe = Pipe()
+        process.standardError = errorPipe
+        try process.run()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            let message = String(
+                data: errorPipe.fileHandleForReading.readDataToEndOfFile(),
+                encoding: .utf8
+            )?.trimmingCharacters(in: .whitespacesAndNewlines)
+            throw fixtureError(
+                "native fixture capture failed"
+                    + (message.map { ": \($0)" } ?? "")
+            )
+        }
+
+        panel.hide()
+        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.05))
+        let frontmostAfter =
+            NSWorkspace.shared.frontmostApplication?.processIdentifier
+        guard frontmostBefore == frontmostAfter else {
+            throw fixtureError(
+                "native fixture changed the frontmost application"
+            )
+        }
+
+        let data = try Data(contentsOf: url)
+        guard let bitmap = NSBitmapImageRep(data: data),
+              bitmap.pixelsWide >= 200,
+              bitmap.pixelsHigh >= 100,
+              data.count >= 1_000
+        else {
+            throw fixtureError("native fixture image is empty or implausibly small")
+        }
+    }
+
+    private static func makeNativeBackdrop(frame: NSRect) -> NSPanel {
+        let panel = NSPanel(
+            contentRect: frame,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.isReleasedWhenClosed = false
+        panel.level = .statusBar
+        panel.collectionBehavior = [
+            .canJoinAllSpaces,
+            .fullScreenAuxiliary,
+            .ignoresCycle,
+            .stationary,
+        ]
+
+        let view = NSView(
+            frame: NSRect(origin: .zero, size: frame.size)
+        )
+        view.wantsLayer = true
+        let gradient = CAGradientLayer()
+        gradient.frame = view.bounds
+        gradient.startPoint = CGPoint(x: 0.04, y: 0.90)
+        gradient.endPoint = CGPoint(x: 0.96, y: 0.10)
+        gradient.colors = [
+            NSColor(
+                srgbRed: 0.94,
+                green: 0.95,
+                blue: 0.97,
+                alpha: 1
+            ).cgColor,
+            NSColor(
+                srgbRed: 0.66,
+                green: 0.70,
+                blue: 0.78,
+                alpha: 1
+            ).cgColor,
+            NSColor(
+                srgbRed: 0.16,
+                green: 0.20,
+                blue: 0.27,
+                alpha: 1
+            ).cgColor,
+        ]
+        gradient.locations = [0, 0.52, 1]
+        view.layer?.addSublayer(gradient)
+
+        let grid = CAShapeLayer()
+        let path = CGMutablePath()
+        let spacing: CGFloat = 56
+        var x: CGFloat = spacing
+        while x < view.bounds.width {
+            path.move(to: CGPoint(x: x, y: 0))
+            path.addLine(to: CGPoint(x: x, y: view.bounds.height))
+            x += spacing
+        }
+        var y: CGFloat = spacing
+        while y < view.bounds.height {
+            path.move(to: CGPoint(x: 0, y: y))
+            path.addLine(to: CGPoint(x: view.bounds.width, y: y))
+            y += spacing
+        }
+        grid.path = path
+        grid.fillColor = nil
+        grid.strokeColor = NSColor.black.withAlphaComponent(0.20).cgColor
+        grid.lineWidth = 0.75
+        view.layer?.addSublayer(grid)
+
+        panel.contentView = view
+        return panel
+    }
+
     static func render(to directory: URL) throws -> [URL] {
         try FileManager.default.createDirectory(
             at: directory,
@@ -603,7 +787,8 @@ enum UIFixtureRenderer {
 
     private static func makePanel(
         elapsedSeconds: Double = 0,
-        details: DictationDetails = fixtureDetails()
+        details: DictationDetails = fixtureDetails(),
+        presentsWindow: Bool = false
     ) -> LiveTranscriptPanel {
         LiveTranscriptPanel(
             metadata: DictationHUDMetadata(
@@ -613,7 +798,7 @@ enum UIFixtureRenderer {
             ),
             details: details,
             targetApplicationIcon: fixtureTargetApplicationIcon(),
-            presentsWindow: false
+            presentsWindow: presentsWindow
         )
     }
 

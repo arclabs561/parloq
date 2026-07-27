@@ -3,6 +3,27 @@ import ApplicationServices
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 
+if arguments.first == "--capture-native-ui-fixture" {
+    guard arguments.count == 2 else {
+        fputs(
+            "usage: ParloqMenu --capture-native-ui-fixture OUTPUT_PNG\n",
+            stderr
+        )
+        exit(EXIT_FAILURE)
+    }
+    let application = NSApplication.shared
+    application.setActivationPolicy(.prohibited)
+    do {
+        let url = URL(fileURLWithPath: arguments[1]).standardizedFileURL
+        try UIFixtureRenderer.captureNative(to: url)
+        print(url.path)
+        exit(EXIT_SUCCESS)
+    } catch {
+        fputs("native fixture capture failed: \(error)\n", stderr)
+        exit(EXIT_FAILURE)
+    }
+}
+
 if arguments.first == "--render-ui-fixtures" {
     guard arguments.count == 2 else {
         fputs(

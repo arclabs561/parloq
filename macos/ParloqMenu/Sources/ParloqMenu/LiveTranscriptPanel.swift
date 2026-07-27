@@ -154,13 +154,15 @@ private func makePanelSurfaceGroup(
     // visual-effect fallbacks; the installed panel uses native glass.
     if #available(macOS 26.0, *), presentsWindow {
         let container = NSGlassEffectContainerView()
-        container.spacing = 12
+        // The state lens intersects the transcript capsule and should merge.
+        // The diagnostic shelf stays optically detached across its 8 pt gap.
+        container.spacing = 4
         let rootContent = NSView()
         container.contentView = rootContent
 
         func glass(
             radius: CGFloat,
-            style: NSGlassEffectView.Style = .regular,
+            style: NSGlassEffectView.Style = .clear,
             tint: NSColor? = nil
         ) -> (NSGlassEffectView, NSView) {
             let surface = NSGlassEffectView()
@@ -172,10 +174,16 @@ private func makePanelSurfaceGroup(
             return (surface, content)
         }
 
-        let (main, mainContent) = glass(radius: 27)
-        let (shelf, shelfContent) = glass(radius: 18, style: .clear)
+        let (main, mainContent) = glass(
+            radius: 45,
+            tint: NSColor.white.withAlphaComponent(0.06)
+        )
+        let (shelf, shelfContent) = glass(
+            radius: 26,
+            tint: NSColor.white.withAlphaComponent(0.035)
+        )
         let (state, stateContent) = glass(
-            radius: 28,
+            radius: 38,
             tint: ParloqVisuals.listening.withAlphaComponent(0.22)
         )
         rootContent.addSubview(main)
@@ -214,9 +222,9 @@ private func makePanelSurfaceGroup(
         return surface
     }
 
-    let main = fallback(radius: 27)
-    let shelf = fallback(radius: 18)
-    let state = fallback(radius: 28)
+    let main = fallback(radius: 45)
+    let shelf = fallback(radius: 26)
+    let state = fallback(radius: 38)
     root.addSubview(main)
     root.addSubview(shelf)
     root.addSubview(state)
@@ -248,11 +256,13 @@ private func makeTintView(
 }
 
 private enum PanelMetrics {
-    static let width: CGFloat = 640
-    static let minimumHeight: CGFloat = 154
-    static let maximumHeight: CGFloat = 236
-    static let verticalChrome: CGFloat = 136
-    static let transcriptWidth: CGFloat = width - 88
+    static let contentWidth: CGFloat = 640
+    static let outerPadding: CGFloat = 8
+    static let width: CGFloat = contentWidth + 2 * outerPadding
+    static let minimumHeight: CGFloat = 154 + 2 * outerPadding
+    static let maximumHeight: CGFloat = 236 + 2 * outerPadding
+    static let verticalChrome: CGFloat = 136 + 2 * outerPadding
+    static let transcriptWidth: CGFloat = contentWidth - 118
 }
 
 @MainActor
@@ -457,13 +467,15 @@ final class LiveTranscriptPanel {
         NSLayoutConstraint.activate([
             surfaces.main.leadingAnchor.constraint(
                 equalTo: surfaces.rootContent.leadingAnchor,
-                constant: 18
+                constant: PanelMetrics.outerPadding + 64
             ),
             surfaces.main.trailingAnchor.constraint(
-                equalTo: surfaces.rootContent.trailingAnchor
+                equalTo: surfaces.rootContent.trailingAnchor,
+                constant: -PanelMetrics.outerPadding
             ),
             surfaces.main.topAnchor.constraint(
-                equalTo: surfaces.rootContent.topAnchor
+                equalTo: surfaces.rootContent.topAnchor,
+                constant: PanelMetrics.outerPadding
             ),
             surfaces.main.bottomAnchor.constraint(
                 equalTo: surfaces.shelf.topAnchor,
@@ -471,25 +483,27 @@ final class LiveTranscriptPanel {
             ),
             surfaces.shelf.leadingAnchor.constraint(
                 equalTo: surfaces.rootContent.leadingAnchor,
-                constant: 30
+                constant: PanelMetrics.outerPadding + 50
             ),
             surfaces.shelf.trailingAnchor.constraint(
                 equalTo: surfaces.rootContent.trailingAnchor,
-                constant: -12
+                constant: -(PanelMetrics.outerPadding + 50)
             ),
             surfaces.shelf.bottomAnchor.constraint(
-                equalTo: surfaces.rootContent.bottomAnchor
+                equalTo: surfaces.rootContent.bottomAnchor,
+                constant: -PanelMetrics.outerPadding
             ),
-            surfaces.shelf.heightAnchor.constraint(equalToConstant: 58),
+            surfaces.shelf.heightAnchor.constraint(equalToConstant: 52),
             surfaces.state.leadingAnchor.constraint(
-                equalTo: surfaces.rootContent.leadingAnchor
+                equalTo: surfaces.rootContent.leadingAnchor,
+                constant: PanelMetrics.outerPadding
             ),
             surfaces.state.topAnchor.constraint(
                 equalTo: surfaces.main.topAnchor,
-                constant: 12
+                constant: 9
             ),
-            surfaces.state.widthAnchor.constraint(equalToConstant: 56),
-            surfaces.state.heightAnchor.constraint(equalToConstant: 56),
+            surfaces.state.widthAnchor.constraint(equalToConstant: 76),
+            surfaces.state.heightAnchor.constraint(equalToConstant: 76),
 
             mainTintView.leadingAnchor.constraint(
                 equalTo: surfaces.mainContent.leadingAnchor
@@ -534,10 +548,10 @@ final class LiveTranscriptPanel {
                 equalTo: surfaces.stateContent.centerXAnchor
             ),
             iconView.widthAnchor.constraint(equalToConstant: 24),
-            iconView.heightAnchor.constraint(equalToConstant: 22),
+            iconView.heightAnchor.constraint(equalToConstant: 24),
             stateLabel.leadingAnchor.constraint(
                 equalTo: surfaces.mainContent.leadingAnchor,
-                constant: 54
+                constant: 32
             ),
             stateLabel.topAnchor.constraint(
                 equalTo: surfaces.mainContent.topAnchor,
@@ -556,7 +570,7 @@ final class LiveTranscriptPanel {
             ),
             transcriptLabel.leadingAnchor.constraint(
                 equalTo: surfaces.mainContent.leadingAnchor,
-                constant: 48
+                constant: 32
             ),
             transcriptLabel.trailingAnchor.constraint(
                 equalTo: surfaces.mainContent.trailingAnchor,
@@ -816,6 +830,18 @@ final class LiveTranscriptPanel {
             throw CocoaError(.fileWriteUnknown)
         }
         try data.write(to: url, options: .atomic)
+    }
+
+    var nativeFixtureWindowNumber: Int {
+        panel.windowNumber
+    }
+
+    var nativeFixtureWindowFrame: NSRect {
+        panel.frame
+    }
+
+    var nativeFixtureScreenFrame: NSRect? {
+        panel.screen?.frame
     }
 
     private func render(
