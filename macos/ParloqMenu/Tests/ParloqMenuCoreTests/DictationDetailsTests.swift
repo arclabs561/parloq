@@ -12,6 +12,11 @@ import Testing
           "sequence": 1,
           "device": ":2",
           "device_name": "Studio Display Microphone",
+          "device_available": true,
+          "available_devices": [
+            {"id": ":0", "name": "MacBook Pro Microphone"},
+            {"id": ":2", "name": "Studio Display Microphone"}
+          ],
           "model": "mlx-community/parakeet-tdt-0.6b-v3",
           "prosody_enabled": true,
           "prosody_baseline_count": 3,
@@ -33,6 +38,11 @@ import Testing
         """))
 
     #expect(details.device == ":2")
+    #expect(details.deviceAvailable == true)
+    #expect(details.availableDevices == [
+        DictationDevice(id: ":0", name: "MacBook Pro Microphone"),
+        DictationDevice(id: ":2", name: "Studio Display Microphone"),
+    ])
     #expect(details.polishEnabled == true)
     #expect(details.vocabCount == 7)
     #expect(details.lastAudioSeconds == nil)
@@ -61,6 +71,58 @@ import Testing
     #expect(details.latestProsodyEnergyZ == 1.25)
     #expect(details.prosodyBaselineCount == 4)
     #expect(details.latestProsodyRMSDB == -24.5)
+}
+
+@Test func detailsClearConfigurationWarningOnConfirmedDeviceStatus() throws {
+    var details = DictationDetails()
+    details.update(from: try decodeEvent("""
+        {
+          "version": 1,
+          "type": "status",
+          "phase": "idle",
+          "sequence": 1,
+          "device": ":7",
+          "device_name": "Missing Microphone",
+          "device_available": false,
+          "configuration_warning": "Saved microphone is not connected"
+        }
+        """))
+    #expect(details.deviceAvailable == false)
+    #expect(details.configurationWarning == "Saved microphone is not connected")
+
+    details.update(from: try decodeEvent("""
+        {
+          "version": 1,
+          "type": "ack",
+          "phase": "idle",
+          "sequence": 2,
+          "device": ":0",
+          "device_name": "MacBook Pro Microphone",
+          "device_available": true
+        }
+        """))
+    #expect(details.deviceAvailable == true)
+    #expect(details.configurationWarning == nil)
+}
+
+@Test func configureRequestEncodesTypedMicrophoneSetting() throws {
+    let request = DictateRequest(device: DictationDevice(
+        id: ":2",
+        name: "Studio Display Microphone"
+    ))
+    let object = try #require(
+        JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(request)
+        ) as? [String: Any]
+    )
+    #expect(object["version"] as? Int == 1)
+    #expect(object["command"] as? String == "configure")
+    let settings = try #require(object["settings"] as? [String: Any])
+    let device = try #require(settings["device"] as? [String: String])
+    #expect(device == [
+        "id": ":2",
+        "name": "Studio Display Microphone",
+    ])
 }
 
 private func decodeEvent(_ json: String) throws -> DictateEvent {

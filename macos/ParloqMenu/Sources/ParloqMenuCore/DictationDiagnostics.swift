@@ -23,6 +23,21 @@ public enum DictationDiagnostics {
             .compactMap(nonempty)
             .joined(separator: " · ")
         append("Microphone", microphone, to: &lines)
+        append(
+            "Microphone available",
+            details.deviceAvailable.map { $0 ? "yes" : "no" },
+            to: &lines
+        )
+        append(
+            "Microphone warning",
+            details.configurationWarning,
+            to: &lines
+        )
+        append(
+            "Audio inputs found",
+            details.availableDevices.map { String($0.count) },
+            to: &lines
+        )
         append("Model", details.model, to: &lines)
 
         append(

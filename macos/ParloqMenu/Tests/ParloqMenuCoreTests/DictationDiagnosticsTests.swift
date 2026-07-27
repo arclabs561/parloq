@@ -11,6 +11,13 @@ import Testing
         details: DictationDetails(
             device: ":2",
             deviceName: "Studio Display Microphone",
+            deviceAvailable: true,
+            availableDevices: [
+                DictationDevice(
+                    id: ":2",
+                    name: "Studio Display Microphone"
+                ),
+            ],
             model: "mlx-community/parakeet-tdt-0.6b-v3",
             prosodyEnabled: true,
             latestProsodyState: .baseline,
@@ -33,6 +40,8 @@ import Testing
             "Microphone: Studio Display Microphone · :2"
         )
     )
+    #expect(diagnostics.contains("Microphone available: yes"))
+    #expect(diagnostics.contains("Audio inputs found: 1"))
     #expect(diagnostics.contains("Latest voice state: typical"))
     #expect(diagnostics.contains("Latest ASR speed: 0.18× realtime"))
     #expect(!diagnostics.localizedCaseInsensitiveContains("transcript"))

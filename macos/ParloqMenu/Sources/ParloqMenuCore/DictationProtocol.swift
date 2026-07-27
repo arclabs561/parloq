@@ -4,6 +4,8 @@ public let dictateProtocolVersion = 1
 
 public enum DictateCommand: String, Encodable, Sendable {
     case status
+    case devices
+    case configure
     case start
     case stop
     case cancel
@@ -53,13 +55,39 @@ extension DictationProsodyState: Decodable {
     }
 }
 
+public struct DictationDevice: Codable, Equatable, Hashable, Sendable {
+    public let id: String
+    public let name: String
+
+    public init(id: String, name: String) {
+        self.id = id
+        self.name = name
+    }
+}
+
+public struct DictationSettings: Encodable, Sendable {
+    public let device: DictationDevice
+
+    public init(device: DictationDevice) {
+        self.device = device
+    }
+}
+
 public struct DictateRequest: Encodable, Sendable {
     public let version: Int
     public let command: DictateCommand
+    public let settings: DictationSettings?
 
     public init(command: DictateCommand) {
         self.version = dictateProtocolVersion
         self.command = command
+        self.settings = nil
+    }
+
+    public init(device: DictationDevice) {
+        self.version = dictateProtocolVersion
+        self.command = .configure
+        self.settings = DictationSettings(device: device)
     }
 }
 
@@ -79,6 +107,9 @@ public struct DictateEvent: Decodable, Sendable {
     public let asrSeconds: Double?
     public let device: String?
     public let deviceName: String?
+    public let deviceAvailable: Bool?
+    public let availableDevices: [DictationDevice]?
+    public let configurationWarning: String?
     public let model: String?
     public let prosodyEnabled: Bool?
     public let prosodyState: DictationProsodyState?
@@ -107,6 +138,9 @@ public struct DictateEvent: Decodable, Sendable {
         case asrSeconds = "asr_seconds"
         case device
         case deviceName = "device_name"
+        case deviceAvailable = "device_available"
+        case availableDevices = "available_devices"
+        case configurationWarning = "configuration_warning"
         case model
         case prosodyEnabled = "prosody_enabled"
         case prosodyState = "prosody_state"
@@ -150,6 +184,12 @@ public struct DictateEvent: Decodable, Sendable {
         device = try values.decodeIfPresent(String.self, forKey: .device)
         deviceName = try values.decodeIfPresent(
             String.self, forKey: .deviceName)
+        deviceAvailable = try values.decodeIfPresent(
+            Bool.self, forKey: .deviceAvailable)
+        availableDevices = try values.decodeIfPresent(
+            [DictationDevice].self, forKey: .availableDevices)
+        configurationWarning = try values.decodeIfPresent(
+            String.self, forKey: .configurationWarning)
         model = try values.decodeIfPresent(String.self, forKey: .model)
         prosodyEnabled = try values.decodeIfPresent(
             Bool.self, forKey: .prosodyEnabled)

@@ -27,6 +27,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var statusMenuItem: NSMenuItem?
     private var toggleMenuItem: NSMenuItem?
     private var cancelMenuItem: NSMenuItem?
+    private var microphoneMenuItem: NSMenuItem?
+    private let microphoneMenu = NSMenu()
     private let detailsMenu = NSMenu()
     private var historyMenuItem: NSMenuItem?
     private let historyMenu = NSMenu()
@@ -44,6 +46,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var iconState: IconState?
     private var details = DictationDetails()
     private var statusMenuIsOpen = false
+    private var microphoneChangePending = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -82,12 +85,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.cancelRequested = false
                 self.cancellationWarning = nil
                 self.details = DictationDetails()
+                self.microphoneChangePending = false
                 let failure = message ?? "Daemon unavailable"
                 if !self.recoverTranscript(message: failure) {
                     self.clearOverlay()
                     self.updateStatus(failure)
                 }
             }
+            self.refreshMicrophoneMenu()
             self.refreshDetailsMenu()
             self.updateIcon()
         }
@@ -127,6 +132,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(cancel)
 
         menu.addItem(.separator())
+        let microphone = NSMenuItem(
+            title: "Microphone",
+            action: nil,
+            keyEquivalent: ""
+        )
+        microphone.submenu = microphoneMenu
+        microphoneMenuItem = microphone
+        menu.addItem(microphone)
+        refreshMicrophoneMenu()
+
         let details = NSMenuItem(
             title: "Dictation Details",
             action: nil,
@@ -183,6 +198,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         cancelOrDismiss()
     }
 
+    @objc private func selectMicrophone(_ sender: NSMenuItem) {
+        guard !microphoneChangePending,
+              phase == .idle || phase == .error,
+              let identifier = sender.representedObject as? String,
+              let device = details.availableDevices?.first(where: {
+                  $0.id == identifier
+              })
+        else {
+            return
+        }
+        microphoneChangePending = true
+        updateStatus("Changing microphone…")
+        refreshMicrophoneMenu()
+        updateMenuActions()
+        client.send(DictateRequest(device: device))
+    }
+
     private func toggleDictation() {
         guard connected else {
             updateStatus("Daemon unavailable")
@@ -226,9 +258,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func handle(_ event: DictateEvent) {
         guard event.sequence > lastSequence else { return }
         lastSequence = event.sequence
+        if microphoneChangePending,
+           event.type == .error
+            || (
+                event.type == .ack
+                && event.message?.hasPrefix("Microphone set to ") == true
+            )
+        {
+            microphoneChangePending = false
+        }
         let previousDetails = details
         details.update(from: event)
         if details != previousDetails {
+            refreshMicrophoneMenu()
             refreshDetailsMenu()
             liveTranscriptPanel?.updateDetails(details)
         }
@@ -402,7 +444,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .warming:
             return "Warming model…"
         case .idle:
-            return hotKeyWarning ?? "Ready — ⌥Space or Microphone key"
+            return event.configurationWarning
+                ?? event.message
+                ?? hotKeyWarning
+                ?? "Ready — ⌥Space or Microphone key"
         case .recording:
             return "Recording…"
         case .finalizing:
@@ -482,11 +527,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         case .recording:
             toggleMenuItem?.title =
                 "Finish Dictation (⌥Space or Microphone key)"
+            toggleMenuItem?.isEnabled = connected
         case .finalizing, .polishing:
             toggleMenuItem?.title = "Finishing Dictation…"
+            toggleMenuItem?.isEnabled = false
         default:
             toggleMenuItem?.title =
                 "Start Dictation (⌥Space or Microphone key)"
+            toggleMenuItem?.isEnabled =
+                connected && details.deviceAvailable != false
+        }
+        let canChangeMicrophone =
+            connected
+            && !microphoneChangePending
+            && (phase == .idle || phase == .error)
+        for item in microphoneMenu.items
+        where item.representedObject is String {
+            item.isEnabled = canChangeMicrophone
         }
     }
 
@@ -691,6 +748,70 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         historyMenuItem?.isEnabled = true
     }
 
+    private func refreshMicrophoneMenu() {
+        microphoneMenu.removeAllItems()
+        guard connected else {
+            addMicrophoneMessage("Waiting for dictation daemon…")
+            microphoneMenuItem?.isEnabled = false
+            return
+        }
+        microphoneMenuItem?.isEnabled = true
+
+        if let warning = details.configurationWarning {
+            addMicrophoneMessage(warning)
+            microphoneMenu.addItem(.separator())
+        } else if details.deviceAvailable == false {
+            addMicrophoneMessage("Selected microphone is unavailable")
+            microphoneMenu.addItem(.separator())
+        }
+
+        guard let devices = details.availableDevices else {
+            addMicrophoneMessage("Loading microphones…")
+            return
+        }
+        guard !devices.isEmpty else {
+            addMicrophoneMessage("No audio inputs found")
+            return
+        }
+
+        let canChange =
+            !microphoneChangePending
+            && (phase == .idle || phase == .error)
+        let duplicateNames = Dictionary(
+            grouping: devices,
+            by: \.name
+        ).filter { $0.value.count > 1 }.keys
+        for device in devices {
+            let item = NSMenuItem(
+                title: duplicateNames.contains(device.name)
+                    ? "\(device.name) (\(device.id))"
+                    : device.name,
+                action: #selector(selectMicrophone(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = device.id
+            item.toolTip = "AVFoundation input \(device.id)"
+            item.state = (
+                details.device == device.id
+                && details.deviceName == device.name
+                && details.deviceAvailable != false
+            ) ? .on : .off
+            item.isEnabled = canChange
+            microphoneMenu.addItem(item)
+        }
+    }
+
+    private func addMicrophoneMessage(_ title: String) {
+        let item = NSMenuItem(
+            title: title,
+            action: nil,
+            keyEquivalent: ""
+        )
+        item.isEnabled = false
+        microphoneMenu.addItem(item)
+    }
+
     private func refreshDetailsMenu() {
         detailsMenu.removeAllItems()
         guard connected else {
@@ -701,6 +822,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         if let device = details.deviceName ?? details.device {
             addDetail("Microphone: \(device)")
+        }
+        if let warning = details.configurationWarning {
+            addDetail("Microphone warning: \(warning)")
         }
         if let model = details.model {
             addDetail(
@@ -903,6 +1027,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuWillOpen(_ menu: NSMenu) {
         statusMenuIsOpen = true
         hotKey?.setTargetActivityMonitoringEnabled(false)
+        if connected {
+            client.send(.devices)
+        }
     }
 
     func menuDidClose(_ menu: NSMenu) {

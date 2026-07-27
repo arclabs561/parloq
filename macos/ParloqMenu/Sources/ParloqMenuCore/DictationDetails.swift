@@ -1,6 +1,9 @@
 public struct DictationDetails: Equatable, Sendable {
     public private(set) var device: String?
     public private(set) var deviceName: String?
+    public private(set) var deviceAvailable: Bool?
+    public private(set) var availableDevices: [DictationDevice]?
+    public private(set) var configurationWarning: String?
     public private(set) var model: String?
     public private(set) var prosodyEnabled: Bool?
     public private(set) var latestProsodyState: DictationProsodyState?
@@ -18,6 +21,9 @@ public struct DictationDetails: Equatable, Sendable {
     public init(
         device: String? = nil,
         deviceName: String? = nil,
+        deviceAvailable: Bool? = nil,
+        availableDevices: [DictationDevice]? = nil,
+        configurationWarning: String? = nil,
         model: String? = nil,
         prosodyEnabled: Bool? = nil,
         latestProsodyState: DictationProsodyState? = nil,
@@ -34,6 +40,9 @@ public struct DictationDetails: Equatable, Sendable {
     ) {
         self.device = device
         self.deviceName = deviceName
+        self.deviceAvailable = deviceAvailable
+        self.availableDevices = availableDevices
+        self.configurationWarning = configurationWarning
         self.model = model
         self.prosodyEnabled = prosodyEnabled
         self.latestProsodyState = latestProsodyState
@@ -62,6 +71,11 @@ public struct DictationDetails: Equatable, Sendable {
     public mutating func update(from event: DictateEvent) {
         device = event.device ?? device
         deviceName = event.deviceName ?? deviceName
+        if event.deviceAvailable != nil {
+            deviceAvailable = event.deviceAvailable
+            configurationWarning = event.configurationWarning
+        }
+        availableDevices = event.availableDevices ?? availableDevices
         model = event.model ?? model
         prosodyEnabled = event.prosodyEnabled ?? prosodyEnabled
         latestProsodyState = event.prosodyState ?? latestProsodyState

@@ -73,12 +73,16 @@ final class UnixSocketClient: @unchecked Sendable {
     }
 
     func send(_ command: DictateCommand) {
+        send(DictateRequest(command: command))
+    }
+
+    func send(_ request: DictateRequest) {
         commandQueue.async { [weak self] in
             guard let self else { return }
             do {
                 let descriptor = try self.connectSocket()
                 defer { Darwin.close(descriptor) }
-                try self.sendRequest(command, to: descriptor)
+                try self.sendRequest(request, to: descriptor)
                 guard let line = try self.readLine(from: descriptor) else {
                     throw DictateClientError.invalidResponse
                 }
@@ -101,7 +105,10 @@ final class UnixSocketClient: @unchecked Sendable {
                 let descriptor = try connectSocket()
                 setSubscriptionDescriptor(descriptor)
                 defer { clearAndCloseSubscription(descriptor) }
-                try sendRequest(.subscribe, to: descriptor)
+                try sendRequest(
+                    DictateRequest(command: .subscribe),
+                    to: descriptor
+                )
                 Task { @MainActor [weak self] in
                     self?.onConnectionChange?(true, nil)
                 }
@@ -211,10 +218,10 @@ final class UnixSocketClient: @unchecked Sendable {
     }
 
     private func sendRequest(
-        _ command: DictateCommand,
+        _ request: DictateRequest,
         to descriptor: Int32
     ) throws {
-        var data = try JSONEncoder().encode(DictateRequest(command: command))
+        var data = try JSONEncoder().encode(request)
         data.append(0x0A)
         try data.withUnsafeBytes { rawBuffer in
             guard let base = rawBuffer.baseAddress else { return }
