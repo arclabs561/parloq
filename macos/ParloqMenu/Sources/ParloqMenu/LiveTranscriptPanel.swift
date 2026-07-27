@@ -856,7 +856,8 @@ final class LiveTranscriptPanel {
 
     func showCompleted(
         snapshot: LiveTranscriptSnapshot,
-        details: DictationDetails
+        details: DictationDetails,
+        clipboardPublished: Bool
     ) {
         latestSnapshot = snapshot
         telemetry.updateTranscript(
@@ -870,14 +871,17 @@ final class LiveTranscriptPanel {
         setCenterMetric(
             telemetry.completionPerformanceLabel ?? "Processed locally"
         )
-        iconView.contentTintColor = ParloqVisuals.listening
+        let completionColor = clipboardPublished
+            ? ParloqVisuals.listening
+            : ParloqVisuals.caution
+        iconView.contentTintColor = completionColor
         iconView.image = StatusIcon.ready
-        let copied = metadata.deliveryMode == .clipboardFallback
-            || metadata.deliveryMode == .targetChanged
         setMode(
-            title: copied ? "Copied" : "Complete",
+            title: clipboardPublished
+                ? "Complete · Copied"
+                : "Complete · Copy failed",
             hint: "⌥ Space  Dictate again",
-            color: ParloqVisuals.listening
+            color: completionColor
         )
         renderMetadata()
         renderTelemetry()

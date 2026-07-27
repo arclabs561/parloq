@@ -68,7 +68,9 @@ The Python daemon remains the speech engine.
   cancellations, and audio are never stored there.
 - Each non-empty final transcript is also published once to the system
   pasteboard, regardless of insertion mode, so clipboard managers such as
-  Maccy can retain it and the latest dictation remains ready to paste.
+  Maccy can retain it and the latest dictation remains ready to paste. The
+  completion HUD says **Complete · Copied** only after that write succeeds and
+  changes to **Complete · Copy failed** when it does not.
 - **Dictation Details** reports effective microphone, model, quality/privacy
   modes, vocabulary count, live-update cadence, and latest capture/ASR timing
   from the running daemon, including the latest ASR-to-audio realtime factor.

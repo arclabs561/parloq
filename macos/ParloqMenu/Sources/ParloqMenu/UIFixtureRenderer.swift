@@ -234,6 +234,7 @@ enum UIFixtureRenderer {
         rendered.append(try renderTargetChanged(to: directory))
         rendered.append(try renderFinalizing(to: directory))
         rendered.append(try renderCompleted(to: directory))
+        rendered.append(try renderCopyFailed(to: directory))
         rendered.append(try renderRecovery(to: directory))
         rendered.append(try renderStatusIcons(to: directory))
         return rendered
@@ -391,10 +392,43 @@ enum UIFixtureRenderer {
         )
         panel.showListening()
         panel.update(snapshot: snapshot, elapsedSeconds: 24)
-        panel.showCompleted(snapshot: snapshot, details: details)
+        panel.showCompleted(
+            snapshot: snapshot,
+            details: details,
+            clipboardPublished: true
+        )
         return try write(
             panel,
             name: "hud-completed.png",
+            to: directory
+        )
+    }
+
+    private static func renderCopyFailed(
+        to directory: URL
+    ) throws -> URL {
+        let details = fixtureDetails(
+            lastAudioSeconds: 9,
+            lastASRSeconds: 1.1
+        )
+        let panel = makePanel(elapsedSeconds: 9, details: details)
+        let snapshot = LiveTranscriptSnapshot(
+            text:
+                "The text was inserted, but clipboard history could not be updated.",
+            settledText:
+                "The text was inserted, but clipboard history could not be updated.",
+            activeText: ""
+        )
+        panel.showListening()
+        panel.update(snapshot: snapshot, elapsedSeconds: 9)
+        panel.showCompleted(
+            snapshot: snapshot,
+            details: details,
+            clipboardPublished: false
+        )
+        return try write(
+            panel,
+            name: "hud-copy-failed.png",
             to: directory
         )
     }

@@ -259,10 +259,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         case .final:
             deliverySession?.deliver(event: event)
+            let hasFinalText = event.text?.isEmpty == false
+            let clipboardPublished =
+                hasFinalText
+                && deliverySession?.publishFinalToPasteboard() == true
             var clipboardWarning: String?
-            if let text = event.text, !text.isEmpty,
-               deliverySession?.publishFinalToPasteboard() != true
-            {
+            if hasFinalText, !clipboardPublished {
                 clipboardWarning =
                     "Dictation complete; clipboard could not be updated"
             }
@@ -281,12 +283,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             if let message = event.message {
                 lastDeliveryWarning = message
                 updateStatus(message)
-            } else if let warning = deliverySession?.warning {
-                lastDeliveryWarning = warning
-                updateStatus(warning)
             } else if let clipboardWarning {
                 lastDeliveryWarning = clipboardWarning
                 updateStatus(clipboardWarning)
+            } else if let warning = deliverySession?.warning {
+                lastDeliveryWarning = warning
+                updateStatus(warning)
             } else if let historyWarning {
                 updateStatus(historyWarning)
             } else {
@@ -303,7 +305,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                         settledText: text,
                         activeText: ""
                     ),
-                    details: details
+                    details: details,
+                    clipboardPublished: clipboardPublished
                 )
                 scheduleCompletionDismissal()
                 updateMenuActions()
