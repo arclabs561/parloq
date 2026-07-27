@@ -9,6 +9,8 @@ from __future__ import annotations
 import importlib.machinery
 import importlib.util
 import json
+import stat
+import tempfile
 from pathlib import Path
 
 
@@ -35,12 +37,28 @@ def expect_protocol_error(rec, line: str, message: str) -> None:
 def main() -> int:
     rec = load_recorder()
 
-    for command in ("status", "start", "stop", "cancel", "subscribe"):
+    for command in (
+        "status", "devices", "start", "stop", "cancel", "subscribe",
+    ):
         request = rec.DictateRequest.parse(json.dumps({
             "version": 1,
             "command": command,
         }))
         assert request.command.value == command
+
+    configure = rec.DictateRequest.parse(json.dumps({
+        "version": 1,
+        "command": "configure",
+        "settings": {
+            "device": {
+                "id": ":2",
+                "name": "Studio Display Microphone",
+            },
+        },
+    }))
+    assert configure.command == rec.DictateCommand.CONFIGURE
+    assert configure.device.identifier == ":2"
+    assert configure.device.name == "Studio Display Microphone"
 
     expect_protocol_error(rec, "[]", "JSON object")
     expect_protocol_error(
@@ -48,6 +66,34 @@ def main() -> int:
     expect_protocol_error(
         rec, '{"version":1,"command":"toggle"}', "unsupported command")
     expect_protocol_error(rec, "{", "invalid JSON")
+    expect_protocol_error(
+        rec,
+        '{"version":1,"command":"status","settings":{}}',
+        "cannot contain settings",
+    )
+    expect_protocol_error(
+        rec,
+        '{"version":1,"command":"configure","settings":{}}',
+        "exactly 'device'",
+    )
+    expect_protocol_error(
+        rec,
+        json.dumps({
+            "version": 1,
+            "command": "configure",
+            "settings": {"device": {"id": "2", "name": "Mic"}},
+        }),
+        "AVFoundation audio index",
+    )
+    expect_protocol_error(
+        rec,
+        json.dumps({
+            "version": 1,
+            "command": "configure",
+            "settings": {"device": {"id": ":2", "name": ""}},
+        }),
+        "non-empty",
+    )
 
     event = rec.DictateEvent(
         rec.DictateEventType.TRANSCRIPT,
@@ -73,6 +119,12 @@ def main() -> int:
         vocab_count=3,
         stream_interval_seconds=0.5,
         device_name="Studio Display Microphone",
+        device_available=True,
+        available_devices=[
+            rec.DictationDevice(":0", "MacBook Pro Microphone"),
+            rec.DictationDevice(":2", "Studio Display Microphone"),
+        ],
+        configuration_warning="example warning",
         prosody_state="elevated",
         prosody_energy_z=1.4,
         prosody_baseline_count=8,
@@ -106,6 +158,12 @@ def main() -> int:
         "vocab_count": 3,
         "stream_interval_seconds": 0.5,
         "device_name": "Studio Display Microphone",
+        "device_available": True,
+        "available_devices": [
+            {"id": ":0", "name": "MacBook Pro Microphone"},
+            {"id": ":2", "name": "Studio Display Microphone"},
+        ],
+        "configuration_warning": "example warning",
         "prosody_state": "elevated",
         "prosody_energy_z": 1.4,
         "prosody_baseline_count": 8,
@@ -169,6 +227,49 @@ def main() -> int:
         assert rec.device_name("Custom Input") == "Custom Input"
     finally:
         rec.avfoundation_devices = original_devices
+
+    saved = rec.DictationDevice(":7", "Studio Display Microphone")
+    resolved, warning = rec._resolve_saved_dictation_device(
+        saved,
+        [
+            rec.DictationDevice(":0", "MacBook Pro Microphone"),
+            rec.DictationDevice(":2", "Studio Display Microphone"),
+        ],
+    )
+    assert warning is None
+    assert resolved.identifier == ":2"
+    assert resolved.name == saved.name
+
+    resolved, warning = rec._resolve_saved_dictation_device(
+        saved,
+        [rec.DictationDevice(":0", "MacBook Pro Microphone")],
+    )
+    assert resolved is None
+    assert "not connected" in warning
+
+    resolved, warning = rec._resolve_saved_dictation_device(
+        saved,
+        [
+            rec.DictationDevice(":1", saved.name),
+            rec.DictationDevice(":2", saved.name),
+        ],
+    )
+    assert resolved is None
+    assert "Multiple microphones" in warning
+
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        config_path = Path(temporary_directory) / "Parloq" / "config.json"
+        rec._write_dictate_device_config(config_path, saved)
+        loaded, warning = rec._load_dictate_device_config(config_path)
+        assert warning is None
+        assert loaded.identifier == saved.identifier
+        assert loaded.name == saved.name
+        assert stat.S_IMODE(config_path.stat().st_mode) == 0o600
+
+        config_path.write_text('{"version":2}\n', encoding="utf-8")
+        loaded, warning = rec._load_dictate_device_config(config_path)
+        assert loaded is None
+        assert "unsupported format" in warning
 
     print("PASS: dictate JSONL protocol and bounded subscriber fan-out")
     return 0

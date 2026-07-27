@@ -183,6 +183,12 @@ def main() -> int:
     subscriber = broker.subscribe()
     engine = ThreadPoolExecutor(max_workers=1)
     model = engine.submit(FakeModel).result()
+    config_directory = tempfile.TemporaryDirectory()
+    config_path = Path(config_directory.name) / "dictation-config.json"
+    available_devices = [
+        rec.DictationDevice(":0", "MacBook Pro Microphone"),
+        rec.DictationDevice(":2", "Studio Display Microphone"),
+    ]
     controller = rec.DictateSessionController(
         args=args,
         model=model,
@@ -192,12 +198,41 @@ def main() -> int:
         out_dir=Path("/unused"),
         broker=broker,
         session_submit=engine.submit,
+        config_path=config_path,
+        device_provider=lambda: available_devices,
     )
 
     try:
+        devices = controller.devices_event()
+        assert [device.to_dict() for device in devices.available_devices] == [
+            {"id": ":0", "name": "MacBook Pro Microphone"},
+            {"id": ":2", "name": "Studio Display Microphone"},
+        ]
+
+        event, error = controller.configure_device(
+            rec.DictationDevice(":9", "Missing Microphone"))
+        assert event is None
+        assert "no longer available" in error
+        assert not config_path.exists()
+
+        selected = rec.DictationDevice(
+            ":2", "Studio Display Microphone")
+        event, error = controller.configure_device(selected)
+        assert error is None
+        assert event.event_type == rec.DictateEventType.ACK
+        assert event.device == ":2"
+        assert event.device_name == selected.name
+        assert event.device_available is True
+        assert config_path.exists()
+
         session_id, error = controller.start(legacy=False)
         assert error is None
         assert session_id
+
+        event, error = controller.configure_device(
+            rec.DictationDevice(":0", "MacBook Pro Microphone"))
+        assert event is None
+        assert error == "microphone cannot change during dictation"
 
         meter = next_meter(subscriber)
         assert meter.phase == rec.DictatePhase.RECORDING
@@ -233,7 +268,9 @@ def main() -> int:
         idle = next_type(subscriber, "status")
         while idle.phase != rec.DictatePhase.IDLE:
             idle = next_type(subscriber, "status")
-        assert idle.device == args.device
+        assert idle.device == selected.identifier
+        assert idle.device_name == selected.name
+        assert idle.device_available is True
         assert idle.model == args.model
         assert idle.prosody_enabled is True
         assert idle.prosody_baseline_count == 1
@@ -276,6 +313,7 @@ def main() -> int:
         rec._write_dictate_flac = original_write_flac
         broker.unsubscribe(subscriber)
         engine.shutdown()
+        config_directory.cleanup()
 
     print("PASS: streaming session finalizes or cancels without a final event")
     return 0

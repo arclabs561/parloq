@@ -1,5 +1,5 @@
 ---
-status: proposal
+status: accepted
 scope: Parloq's native dictation surface and the recorder capabilities behind it
 grounded-in:
   - docs/design/parloq-recorder-roadmap.md
@@ -9,7 +9,7 @@ grounded-in:
   - docs/design/dictation-tui.md
   - recorder/recorder
   - macos/ParloqMenu/Sources/ParloqMenu/AppDelegate.swift
-review-trigger: choose a configuration authority before implementing mutable native settings, and choose a product surface before integrating meeting workflows
+review-trigger: choose a product surface before integrating meeting workflows, or revisit configuration ownership if a second runtime client needs to mutate settings
 ---
 
 # Native Feature Integration Roadmap
@@ -99,38 +99,38 @@ Gate:
 Reversibility: high. Read-only protocol fields can remain backward compatible
 and unknown fields are ignored.
 
-## Decision fork A: configuration authority
+## Decision: the daemon owns runtime configuration
 
-Mutable native settings need one owner. Choose before Phase 2.
+Mutable native settings have one authority: the running dictation daemon. The
+native app sends typed configuration requests, the daemon validates and
+persists them, and status events report the effective values back to every
+client.
 
-### A. Runtime daemon configuration
+The versioned configuration lives at
+`~/Library/Application Support/Parloq/dictation-config.json`. Writes are atomic
+and user-only. Launch-agent and CLI arguments remain bootstrap defaults; a
+field appears in the configuration only after the user explicitly saves it,
+and that saved field then overrides the corresponding bootstrap default.
+Neither the app nor another client rewrites the launch-agent property list.
 
-Add a typed `configure` command, validate changes in the daemon, persist a
-versioned local configuration, and report effective values through `status`.
-Settings that require reloading capture or inference do so explicitly.
+Configuration changes are accepted only while the daemon is idle. A successful
+request persists before mutating runtime state and returns the resulting status.
+An invalid or unavailable value leaves both the file and current state
+unchanged.
 
-This gives the cleanest native experience and one source of truth, but expands
-the protocol and daemon lifecycle.
+Microphone identity needs more than AVFoundation's session-local numeric index.
+The saved microphone is an `(index, name)` pair. At startup the daemon
+re-resolves a unique matching name to its current index, which survives ordinary
+device reordering. If the saved name is absent or ambiguous, it does not
+silently substitute a different input: status reports the unavailable
+selection and recording remains blocked until the user chooses an available
+microphone. A newly selected pair is validated against fresh device discovery
+before it is persisted.
 
-### B. App-managed launch configuration
-
-Have the app rewrite the launch-agent invocation and restart the daemon.
-
-This is smaller initially, but makes the UI responsible for process
-configuration and risks drift between CLI installation and app-owned state.
-
-### C. CLI-owned configuration
-
-Keep the CLI authoritative. The app exposes current values and offers focused
-actions such as `Edit Vocabulary…` or `Copy Configuration Command`.
-
-This preserves the simplest architecture but leaves microphone and privacy
-changes less immediate.
-
-Recommendation: use runtime daemon configuration if native microphone and
-privacy controls are wanted as first-class features. Otherwise keep CLI
-authority and add only the vocabulary affordance. Do not maintain both mutable
-paths.
+This decision favors one truthful runtime source over the initially smaller
+alternatives of app-managed launch configuration or CLI-only configuration.
+It also keeps the protocol additive: typed fields can be introduced one at a
+time without exposing every recorder flag as a preference.
 
 ## Phase 2: integrate the settings that earn their place
 

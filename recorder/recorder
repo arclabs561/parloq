@@ -3119,6 +3119,7 @@ def _dispatch_subcommand(verb: str, rest: list[str]) -> int:
 
 DICTATE_SOCK_ENV = "RECORDER_DICTATE_SOCK"
 DICTATE_SOCK = Path("/tmp") / f"recorder-dictate-{os.getuid()}.sock"
+DICTATE_CONFIG_ENV = "RECORDER_DICTATE_CONFIG"
 DICTATE_PROTOCOL_VERSION = 1
 DICTATE_STREAM_SECONDS = 0.5
 DICTATE_METER_SECONDS = 0.1
@@ -3135,6 +3136,8 @@ class DictatePhase(str, Enum):
 
 class DictateCommand(str, Enum):
     STATUS = "status"
+    DEVICES = "devices"
+    CONFIGURE = "configure"
     START = "start"
     STOP = "stop"
     CANCEL = "cancel"
@@ -3153,13 +3156,48 @@ class DictateProtocolError(ValueError):
     """A malformed or unsupported dictation protocol request."""
 
 
+class DictationDevice:
+    """A validated AVFoundation input identity at one point in time."""
+
+    __slots__ = ("identifier", "name")
+
+    def __init__(self, identifier: str, name: str):
+        if (
+            not isinstance(identifier, str)
+            or not re.fullmatch(r":\d+", identifier)
+        ):
+            raise DictateProtocolError(
+                "device id must be an AVFoundation audio index like ':0'")
+        if not isinstance(name, str) or not name.strip():
+            raise DictateProtocolError("device name must be a non-empty string")
+        self.identifier = identifier
+        self.name = name.strip()
+
+    @classmethod
+    def from_dict(cls, body) -> "DictationDevice":
+        if not isinstance(body, dict):
+            raise DictateProtocolError("device setting must be an object")
+        if set(body) != {"id", "name"}:
+            raise DictateProtocolError(
+                "device setting must contain exactly 'id' and 'name'")
+        return cls(body["id"], body["name"])
+
+    def to_dict(self) -> dict[str, str]:
+        return {"id": self.identifier, "name": self.name}
+
+
 class DictateRequest:
     """Validated v1 JSON Lines request from a native dictation client."""
 
-    __slots__ = ("command",)
+    __slots__ = ("command", "device")
 
-    def __init__(self, command: DictateCommand):
+    def __init__(
+        self,
+        command: DictateCommand,
+        device: DictationDevice | None = None,
+    ):
         self.command = command
+        self.device = device
 
     @classmethod
     def parse(cls, line: str) -> "DictateRequest":
@@ -3178,6 +3216,15 @@ class DictateRequest:
         except (TypeError, ValueError) as e:
             raise DictateProtocolError(
                 f"unsupported command: {raw_command!r}") from e
+        settings = body.get("settings")
+        if command == DictateCommand.CONFIGURE:
+            if not isinstance(settings, dict) or set(settings) != {"device"}:
+                raise DictateProtocolError(
+                    "configure settings must contain exactly 'device'")
+            return cls(command, DictationDevice.from_dict(settings["device"]))
+        if settings is not None:
+            raise DictateProtocolError(
+                f"{command.value} request cannot contain settings")
         return cls(command)
 
 
@@ -3190,6 +3237,7 @@ class DictateEvent:
         "input_peak_db", "input_spectrum_db", "asr_seconds", "device", "model",
         "prosody_enabled", "polish_enabled", "chime_enabled", "save_enabled",
         "vocab_count", "stream_interval_seconds", "device_name",
+        "device_available", "available_devices", "configuration_warning",
         "prosody_state", "prosody_energy_z", "prosody_baseline_count",
         "prosody_rms_db",
     )
@@ -3218,6 +3266,9 @@ class DictateEvent:
         vocab_count: int | None = None,
         stream_interval_seconds: float | None = None,
         device_name: str | None = None,
+        device_available: bool | None = None,
+        available_devices: list[DictationDevice] | None = None,
+        configuration_warning: str | None = None,
         prosody_state: str | None = None,
         prosody_energy_z: float | None = None,
         prosody_baseline_count: int | None = None,
@@ -3244,6 +3295,9 @@ class DictateEvent:
         self.vocab_count = vocab_count
         self.stream_interval_seconds = stream_interval_seconds
         self.device_name = device_name
+        self.device_available = device_available
+        self.available_devices = available_devices
+        self.configuration_warning = configuration_warning
         self.prosody_state = prosody_state
         self.prosody_energy_z = prosody_energy_z
         self.prosody_baseline_count = prosody_baseline_count
@@ -3275,6 +3329,16 @@ class DictateEvent:
             ("vocab_count", self.vocab_count),
             ("stream_interval_seconds", self.stream_interval_seconds),
             ("device_name", self.device_name),
+            ("device_available", self.device_available),
+            (
+                "available_devices",
+                (
+                    [device.to_dict() for device in self.available_devices]
+                    if self.available_devices is not None
+                    else None
+                ),
+            ),
+            ("configuration_warning", self.configuration_warning),
             ("prosody_state", self.prosody_state),
             ("prosody_energy_z", self.prosody_energy_z),
             ("prosody_baseline_count", self.prosody_baseline_count),
@@ -3327,6 +3391,94 @@ class DictateEventBroker:
 
 def _dictate_sock() -> Path:
     return Path(os.environ.get(DICTATE_SOCK_ENV, str(DICTATE_SOCK)))
+
+
+def _dictate_config_path() -> Path:
+    override = os.environ.get(DICTATE_CONFIG_ENV)
+    if override:
+        return Path(override)
+    return (
+        Path.home()
+        / "Library"
+        / "Application Support"
+        / "Parloq"
+        / "dictation-config.json"
+    )
+
+
+def _load_dictate_device_config(
+    path: Path,
+) -> tuple[DictationDevice | None, str | None]:
+    """Load the selected microphone without making daemon startup fragile."""
+    try:
+        body = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return None, None
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        return None, f"Saved microphone settings could not be read: {error}"
+    if not isinstance(body, dict) or body.get("version") != 1:
+        return None, "Saved microphone settings use an unsupported format"
+    try:
+        return DictationDevice.from_dict(body.get("device")), None
+    except DictateProtocolError as error:
+        return None, f"Saved microphone settings are invalid: {error}"
+
+
+def _write_dictate_device_config(
+    path: Path,
+    device: DictationDevice,
+) -> None:
+    """Atomically persist a user-only, versioned microphone selection."""
+    path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+    temporary_path = path.with_name(
+        f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    descriptor = os.open(
+        temporary_path,
+        os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+        0o600,
+    )
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            json.dump(
+                {"version": 1, "device": device.to_dict()},
+                stream,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary_path, path)
+    finally:
+        temporary_path.unlink(missing_ok=True)
+
+
+def _available_dictation_devices() -> list[DictationDevice]:
+    return [
+        DictationDevice(f":{identifier}", name)
+        for identifier, name in avfoundation_devices()
+    ]
+
+
+def _resolve_saved_dictation_device(
+    saved: DictationDevice,
+    available: list[DictationDevice],
+) -> tuple[DictationDevice | None, str | None]:
+    """Resolve a saved device by stable-enough name, never a stale index."""
+    name_matches = [
+        device for device in available if device.name == saved.name
+    ]
+    if len(name_matches) == 1:
+        return name_matches[0], None
+    if not name_matches:
+        return (
+            None,
+            f"Saved microphone “{saved.name}” is not connected",
+        )
+    return (
+        None,
+        f"Multiple microphones are named “{saved.name}”; choose one again",
+    )
 
 
 def _dictate_trigger(rest: list[str]) -> int:
@@ -3786,6 +3938,11 @@ class DictateSessionController:
     def __init__(
         self, args, model, mx, decoding_config, vocab, out_dir: Path,
         broker: DictateEventBroker, session_submit,
+        *,
+        config_path: Path | None = None,
+        saved_device: DictationDevice | None = None,
+        configuration_warning: str | None = None,
+        device_provider=None,
     ):
         self._args = args
         self._model = model
@@ -3795,6 +3952,8 @@ class DictateSessionController:
         self._out_dir = out_dir
         self._broker = broker
         self._session_submit = session_submit
+        self._config_path = config_path
+        self._device_provider = device_provider or _available_dictation_devices
         self._lock = threading.Lock()
         self._sequence_lock = threading.Lock()
         self._sequence = 0
@@ -3808,7 +3967,27 @@ class DictateSessionController:
         self._legacy_mode = False
         self._legacy_paste = False
         self._energy_hist: list[float] = []
+        self._capture_device: str | None = args.device
+        self._display_device = args.device
         self._device_name = device_name(args.device)
+        self._device_available = True
+        self._configuration_warning = configuration_warning
+        if saved_device is not None:
+            resolved, resolution_warning = _resolve_saved_dictation_device(
+                saved_device,
+                self._device_provider(),
+            )
+            self._display_device = saved_device.identifier
+            self._device_name = saved_device.name
+            if resolved is None:
+                self._capture_device = None
+                self._device_available = False
+            else:
+                self._capture_device = resolved.identifier
+                self._display_device = resolved.identifier
+                self._device_name = resolved.name
+            self._configuration_warning = (
+                resolution_warning or configuration_warning)
 
     def _next_sequence(self) -> int:
         with self._sequence_lock:
@@ -3819,10 +3998,15 @@ class DictateSessionController:
         self,
         event_type: DictateEventType = DictateEventType.STATUS,
         message: str | None = None,
+        available_devices: list[DictationDevice] | None = None,
     ) -> DictateEvent:
         with self._lock:
             phase = self._phase
             session_id = self._session_id
+            display_device = self._display_device
+            device_name_value = self._device_name
+            device_available = self._device_available
+            configuration_warning = self._configuration_warning
             elapsed = (
                 time.time() - self._started_at
                 if phase in (
@@ -3839,8 +4023,11 @@ class DictateSessionController:
             session_id=session_id,
             message=message,
             elapsed_seconds=elapsed,
-            device=self._args.device,
-            device_name=self._device_name,
+            device=display_device,
+            device_name=device_name_value,
+            device_available=device_available,
+            available_devices=available_devices,
+            configuration_warning=configuration_warning,
             model=self._args.model,
             prosody_enabled=bool(getattr(self._args, "prosody", False)),
             polish_enabled=bool(self._args.polish),
@@ -3859,7 +4046,7 @@ class DictateSessionController:
         event = self.status_event()
         parts = [
             f"phase={event.phase.value}",
-            f"device={self._args.device}",
+            f"device={event.device}",
             f"model={self._args.model}",
             f"prosody={'on' if getattr(self._args, 'prosody', False) else 'off'}",
             f"polish={'on' if self._args.polish else 'off'}",
@@ -3870,7 +4057,52 @@ class DictateSessionController:
         ]
         if event.elapsed_seconds is not None:
             parts.insert(1, f"elapsed={event.elapsed_seconds:.1f}s")
+        if event.configuration_warning:
+            parts.append(f"warning={event.configuration_warning!r}")
         return " ".join(parts)
+
+    def devices_event(self) -> DictateEvent:
+        devices = self._device_provider()
+        return self.status_event(available_devices=devices)
+
+    def configure_device(
+        self,
+        requested: DictationDevice,
+    ) -> tuple[DictateEvent | None, str | None]:
+        with self._lock:
+            if self._phase not in (DictatePhase.IDLE, DictatePhase.ERROR):
+                return None, "microphone cannot change during dictation"
+            available = self._device_provider()
+            matching = [
+                device
+                for device in available
+                if (
+                    device.identifier == requested.identifier
+                    and device.name == requested.name
+                )
+            ]
+            if len(matching) != 1:
+                return None, (
+                    f"microphone “{requested.name}” is no longer available"
+                )
+            if self._config_path is None:
+                return None, "runtime configuration is unavailable"
+            selected = matching[0]
+            try:
+                _write_dictate_device_config(self._config_path, selected)
+            except OSError as error:
+                return None, f"microphone setting could not be saved: {error}"
+            self._capture_device = selected.identifier
+            self._display_device = selected.identifier
+            self._device_name = selected.name
+            self._device_available = True
+            self._configuration_warning = None
+        event = self.status_event(
+            event_type=DictateEventType.ACK,
+            message=f"Microphone set to {selected.name}",
+        )
+        self._broker.publish(event)
+        return event, None
 
     def phase(self) -> DictatePhase:
         with self._lock:
@@ -3880,6 +4112,12 @@ class DictateSessionController:
         with self._lock:
             if self._phase not in (DictatePhase.IDLE, DictatePhase.ERROR):
                 return None, f"already {self._phase.value}"
+            if self._capture_device is None:
+                return None, (
+                    self._configuration_warning
+                    or f"microphone “{self._device_name}” is unavailable"
+                )
+            capture_device = self._capture_device
             session_id = uuid.uuid4().hex
             stop_event = threading.Event()
             cancel_event = threading.Event()
@@ -3899,6 +4137,7 @@ class DictateSessionController:
             _play_sound(_CHIME_START)
         self._session_submit(
             self._run_session, session_id, stop_event, cancel_event, completion,
+            capture_device,
         )
         return session_id, None
 
@@ -4099,6 +4338,7 @@ class DictateSessionController:
         self, session_id: str, stop_event: threading.Event,
         cancel_event: threading.Event,
         completion: DictateCompletion,
+        capture_device: str,
     ) -> None:
         flac_tmp = (
             Path("/tmp") / f"_dictate_daemon_{os.getpid()}_{session_id[:8]}.flac"
@@ -4109,7 +4349,7 @@ class DictateSessionController:
         asr_s = 0.0
         final_published = False
         try:
-            cmd = build_dictate_ffmpeg_cmd(self._args.device)
+            cmd = build_dictate_ffmpeg_cmd(capture_device)
             ffmpeg = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             with self._lock:
@@ -4355,6 +4595,12 @@ def _dictate_daemon(args) -> int:
             return 1
 
     engine = ThreadPoolExecutor(max_workers=1, thread_name_prefix="dictate-engine")
+    config_path = _dictate_config_path()
+    saved_device, configuration_warning = _load_dictate_device_config(
+        config_path)
+    if configuration_warning:
+        print(f"dictation configuration: {configuration_warning}",
+              file=sys.stderr)
 
     def load_engine():
         import mlx.core as mx
@@ -4384,7 +4630,18 @@ def _dictate_daemon(args) -> int:
 
     broker = DictateEventBroker()
     controller = DictateSessionController(
-        args, model, mx, decoding_config, vocab, out_dir, broker, engine.submit)
+        args,
+        model,
+        mx,
+        decoding_config,
+        vocab,
+        out_dir,
+        broker,
+        engine.submit,
+        config_path=config_path,
+        saved_device=saved_device,
+        configuration_warning=configuration_warning,
+    )
 
     # Listen on the unix socket
     srv = _sock.socket(_sock.AF_UNIX, _sock.SOCK_STREAM)
@@ -4455,6 +4712,18 @@ def _dictate_daemon(args) -> int:
 
         if request.command == DictateCommand.STATUS:
             conn.sendall(controller.status_event().to_line())
+            return
+
+        if request.command == DictateCommand.DEVICES:
+            conn.sendall(controller.devices_event().to_line())
+            return
+
+        if request.command == DictateCommand.CONFIGURE:
+            event, error = controller.configure_device(request.device)
+            if event is None:
+                send_json_error(conn, error or "microphone could not change")
+                return
+            conn.sendall(event.to_line())
             return
 
         if request.command == DictateCommand.START:
