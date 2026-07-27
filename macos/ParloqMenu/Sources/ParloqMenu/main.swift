@@ -31,6 +31,11 @@ if CommandLine.arguments.dropFirst() == ["--check-hotkey"] {
     }
 }
 
+if CommandLine.arguments.dropFirst() == ["--diagnose-text-target"] {
+    print(TextDeliverySession.focusedTargetDiagnostics)
+    exit(EXIT_SUCCESS)
+}
+
 let application = NSApplication.shared
 let delegate = AppDelegate()
 application.delegate = delegate

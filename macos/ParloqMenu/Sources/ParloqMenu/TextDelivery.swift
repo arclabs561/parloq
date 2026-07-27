@@ -38,6 +38,20 @@ final class TextDeliverySession {
     private(set) var lastTranscript = ""
     private(set) var warning: String?
 
+    static var focusedTargetDiagnostics: String {
+        guard AXIsProcessTrusted() else {
+            return "target=unavailable accessibility=missing"
+        }
+        let secureInput = IsSecureEventInputEnabled() ? "on" : "off"
+        if OwnedTextRange.capture() != nil {
+            return "target=range-replacement secure-input=\(secureInput)"
+        }
+        if FocusedTextTarget.capture() != nil {
+            return "target=keyboard-fallback secure-input=\(secureInput)"
+        }
+        return "target=unavailable secure-input=\(secureInput)"
+    }
+
     init() {
         if !AXIsProcessTrusted() {
             target = .unavailable
@@ -125,42 +139,57 @@ final class TextDeliverySession {
 }
 
 private final class FocusedTextTarget {
-    private let systemWide = AXUIElementCreateSystemWide()
-    private let element: AXUIElement
+    private enum Identity {
+        case element(AXUIElement)
+        case application(pid_t)
+    }
 
-    private init(element: AXUIElement) {
-        self.element = element
+    private let systemWide = AXUIElementCreateSystemWide()
+    private let identity: Identity
+
+    private init(identity: Identity) {
+        self.identity = identity
     }
 
     static func capture() -> FocusedTextTarget? {
         let systemWide = AXUIElementCreateSystemWide()
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
+        if AXUIElementCopyAttributeValue(
             systemWide,
             kAXFocusedUIElementAttribute as CFString,
             &value
         ) == .success,
         let value,
-        CFGetTypeID(value) == AXUIElementGetTypeID()
-        else {
+        CFGetTypeID(value) == AXUIElementGetTypeID() {
+            return FocusedTextTarget(
+                identity: .element(value as! AXUIElement))
+        }
+        guard let application = NSWorkspace.shared.frontmostApplication else {
             return nil
         }
-        return FocusedTextTarget(element: value as! AXUIElement)
+        return FocusedTextTarget(
+            identity: .application(application.processIdentifier))
     }
 
     var isStillFocused: Bool {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            systemWide,
-            kAXFocusedUIElementAttribute as CFString,
-            &value
-        ) == .success,
-        let value,
-        CFGetTypeID(value) == AXUIElementGetTypeID()
-        else {
-            return false
+        switch identity {
+        case let .element(element):
+            var value: CFTypeRef?
+            guard AXUIElementCopyAttributeValue(
+                systemWide,
+                kAXFocusedUIElementAttribute as CFString,
+                &value
+            ) == .success,
+            let value,
+            CFGetTypeID(value) == AXUIElementGetTypeID()
+            else {
+                return false
+            }
+            return CFEqual(value, element)
+        case let .application(processIdentifier):
+            return NSWorkspace.shared.frontmostApplication?
+                .processIdentifier == processIdentifier
         }
-        return CFEqual(value, element)
     }
 }
 

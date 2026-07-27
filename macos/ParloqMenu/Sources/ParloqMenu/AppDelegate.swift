@@ -71,8 +71,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func buildMenu() {
         let item = NSStatusBar.system.statusItem(
             withLength: NSStatusItem.squareLength)
+        item.autosaveName = "Parloq.StatusItem"
         statusItem = item
-        item.button?.image = StatusIcon.parloq
+        item.button?.image = StatusIcon.ready
 
         let menu = NSMenu()
         let status = NSMenuItem(title: "Connecting…", action: nil, keyEquivalent: "")
@@ -212,35 +213,44 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateIcon() {
         let state: IconState
-        let tint: NSColor?
         if !connected {
             state = .offline
-            tint = .secondaryLabelColor
         } else {
             switch phase {
             case .recording:
                 state = .listening
-                tint = .systemRed
             case .finalizing, .polishing:
                 state = .finishing
-                tint = .systemOrange
             case .error:
                 state = .error
-                tint = .systemRed
             default:
                 state = .idle
-                tint = nil
             }
         }
         guard iconState != state else { return }
         iconState = state
         guard let button = statusItem?.button else { return }
-        button.image = StatusIcon.parloq
+        button.image = statusIcon(for: state)
         button.imagePosition = .imageOnly
-        button.contentTintColor = tint
+        button.contentTintColor = nil
         button.title = ""
         button.setAccessibilityLabel("Parloq")
         button.setAccessibilityValue(accessibilityValue(for: state))
+    }
+
+    private func statusIcon(for state: IconState) -> NSImage {
+        switch state {
+        case .idle:
+            return StatusIcon.ready
+        case .offline:
+            return StatusIcon.offline
+        case .listening:
+            return StatusIcon.listening
+        case .finishing:
+            return StatusIcon.finishing
+        case .error:
+            return StatusIcon.error
+        }
     }
 
     private func accessibilityValue(for state: IconState) -> String {
