@@ -3186,6 +3186,46 @@ class DictationDevice:
         return {"id": self.identifier, "name": self.name}
 
 
+class DictationCorrection:
+    """An explicit deterministic vocabulary correction from a native client."""
+
+    __slots__ = ("heard", "replacement")
+
+    def __init__(self, heard: str, replacement: str):
+        self.heard = self._normalize(heard, field="heard")
+        self.replacement = self._normalize(
+            replacement,
+            field="replacement",
+        )
+        if "=" in self.heard:
+            raise DictateProtocolError("heard phrase cannot contain '='")
+        if self.heard == self.replacement:
+            raise DictateProtocolError(
+                "heard phrase and replacement must be different")
+
+    @staticmethod
+    def _normalize(value, *, field: str) -> str:
+        if not isinstance(value, str) or not value.strip():
+            raise DictateProtocolError(f"{field} must be a non-empty string")
+        if "\n" in value or "\r" in value:
+            raise DictateProtocolError(f"{field} must be a single line")
+        normalized = " ".join(value.split())
+        if len(normalized) > 200:
+            raise DictateProtocolError(f"{field} must be at most 200 characters")
+        return normalized
+
+    @classmethod
+    def from_dict(cls, body) -> "DictationCorrection":
+        if not isinstance(body, dict):
+            raise DictateProtocolError(
+                "vocabulary correction must be an object")
+        if set(body) != {"heard", "replacement"}:
+            raise DictateProtocolError(
+                "vocabulary correction must contain exactly "
+                "'heard' and 'replacement'")
+        return cls(body["heard"], body["replacement"])
+
+
 class DictationRuntimeConfig:
     """Versioned settings explicitly saved by a dictation client."""
 
@@ -3235,17 +3275,21 @@ class DictationRuntimeConfig:
 class DictateRequest:
     """Validated v1 JSON Lines request from a native dictation client."""
 
-    __slots__ = ("command", "device", "save_recordings")
+    __slots__ = (
+        "command", "device", "save_recordings", "vocabulary_correction",
+    )
 
     def __init__(
         self,
         command: DictateCommand,
         device: DictationDevice | None = None,
         save_recordings: bool | None = None,
+        vocabulary_correction: DictationCorrection | None = None,
     ):
         self.command = command
         self.device = device
         self.save_recordings = save_recordings
+        self.vocabulary_correction = vocabulary_correction
 
     @classmethod
     def parse(cls, line: str) -> "DictateRequest":
@@ -3280,6 +3324,12 @@ class DictateRequest:
                     raise DictateProtocolError(
                         "save_recordings must be true or false")
                 return cls(command, save_recordings=save_recordings)
+            if set(settings) == {"vocabulary_correction"}:
+                return cls(
+                    command,
+                    vocabulary_correction=DictationCorrection.from_dict(
+                        settings["vocabulary_correction"]),
+                )
             raise DictateProtocolError(
                 f"unsupported setting: {next(iter(settings))!r}")
         if settings is not None:
@@ -3660,6 +3710,60 @@ def _load_vocab(path=None) -> "list[tuple[str, str]]":
     return pairs
 
 
+def _append_vocab_correction(
+    path: Path,
+    correction: DictationCorrection,
+) -> tuple[list[tuple[str, str]] | None, str | None]:
+    """Append one validated correction without rewriting user-authored content."""
+    try:
+        existing = _load_vocab(path)
+    except (OSError, UnicodeError) as error:
+        return None, f"vocabulary could not be read: {error}"
+
+    heard_key = correction.heard.casefold()
+    matches = [
+        (heard, replacement)
+        for heard, replacement in existing
+        if heard.casefold() == heard_key
+    ]
+    if any(
+        replacement == correction.replacement
+        for _, replacement in matches
+    ):
+        return existing, "correction already exists"
+    if matches:
+        return None, (
+            f"“{correction.heard}” already maps to “{matches[-1][1]}”"
+        )
+
+    try:
+        path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        prefix = ""
+        if path.exists() and path.stat().st_size > 0:
+            with path.open("rb") as stream:
+                stream.seek(-1, os.SEEK_END)
+                if stream.read(1) != b"\n":
+                    prefix = "\n"
+        line = (
+            f"{prefix}{correction.heard} = "
+            f"{correction.replacement}\n"
+        ).encode("utf-8")
+        descriptor = os.open(
+            path,
+            os.O_WRONLY | os.O_APPEND | os.O_CREAT,
+            0o600,
+        )
+        try:
+            os.write(descriptor, line)
+            os.fsync(descriptor)
+        finally:
+            os.close(descriptor)
+        os.chmod(path, 0o600)
+        return _load_vocab(path), None
+    except (OSError, UnicodeError) as error:
+        return None, f"correction could not be saved: {error}"
+
+
 def _apply_vocab(text: str, pairs) -> str:
     """Apply deterministic whole-word, case-insensitive replacements.
 
@@ -3672,7 +3776,10 @@ def _apply_vocab(text: str, pairs) -> str:
         return text
     import re
     for wrong, right in pairs:
-        pat = re.compile(r"\b" + re.escape(wrong) + r"\b", re.IGNORECASE)
+        pat = re.compile(
+            r"(?<!\w)" + re.escape(wrong) + r"(?!\w)",
+            re.IGNORECASE,
+        )
 
         def _sub(m, right=right):
             tok = m.group(0)
@@ -4295,6 +4402,33 @@ class DictateSessionController:
         event = self.status_event(
             event_type=DictateEventType.ACK,
             message=f"Save Audio & Transcript turned {state}",
+        )
+        self._broker.publish(event)
+        return event, None
+
+    def configure_vocabulary_correction(
+        self,
+        correction: DictationCorrection,
+    ) -> tuple[DictateEvent | None, str | None]:
+        with self._lock:
+            if self._phase not in (DictatePhase.IDLE, DictatePhase.ERROR):
+                return None, "corrections cannot change during dictation"
+            updated, outcome = _append_vocab_correction(
+                self._vocab_path,
+                correction,
+            )
+            if updated is None:
+                return None, outcome or "correction could not be saved"
+            self._vocab = updated
+            self._vocab_warning = None
+        message = (
+            "Correction already exists"
+            if outcome
+            else "Correction saved for the next dictation"
+        )
+        event = self.status_event(
+            event_type=DictateEventType.ACK,
+            message=message,
         )
         self._broker.publish(event)
         return event, None
@@ -4940,11 +5074,14 @@ def _dictate_daemon(args) -> int:
         if request.command == DictateCommand.CONFIGURE:
             if request.device is not None:
                 event, error = controller.configure_device(request.device)
+            elif request.vocabulary_correction is not None:
+                event, error = controller.configure_vocabulary_correction(
+                    request.vocabulary_correction)
             else:
                 event, error = controller.configure_save_recordings(
                     request.save_recordings)
             if event is None:
-                send_json_error(conn, error or "microphone could not change")
+                send_json_error(conn, error or "setting could not change")
                 return
             conn.sendall(event.to_line())
             return

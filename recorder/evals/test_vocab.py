@@ -51,6 +51,9 @@ def main():
     assert av("run clod code now", pairs) == "run Claude Code now"
     # punctuation-adjacent token still matches
     assert av("deploy to kubernetes.", pairs) == "deploy to Kubernetes."
+    # punctuation is allowed inside or at the edge of a standalone technical term
+    assert av("write see plus plus", [("see plus plus", "C++")]) == "write C++"
+    assert av("use C++ here", [("C++", "C plus plus")]) == "use C plus plus here"
     # empty vocab and empty text are no-ops
     assert av("anything", []) == "anything"
     assert av("", pairs) == ""
@@ -69,6 +72,29 @@ def main():
     assert len(loaded) == 2, f"comment/blank/no-equals not skipped: {loaded}"
     # missing file is a no-op, not an error
     assert lv("/nonexistent/path/.vocab.txt") == []
+
+    with tempfile.TemporaryDirectory() as directory:
+        managed = pathlib.Path(directory) / "nested" / ".vocab.txt"
+        correction = rec.DictationCorrection("par lock", "Parloq")
+        updated, error = rec._append_vocab_correction(managed, correction)
+        assert error is None
+        assert updated == [("par lock", "Parloq")]
+        assert managed.read_text(encoding="utf-8") == "par lock = Parloq\n"
+        assert managed.stat().st_mode & 0o777 == 0o600
+
+        updated, outcome = rec._append_vocab_correction(managed, correction)
+        assert outcome == "correction already exists"
+        assert updated == [("par lock", "Parloq")]
+        assert managed.read_text(encoding="utf-8") == "par lock = Parloq\n"
+
+        conflicting = rec.DictationCorrection("Par Lock", "Parlock")
+        updated, error = rec._append_vocab_correction(
+            managed,
+            conflicting,
+        )
+        assert updated is None
+        assert "already maps to" in error
+        assert managed.read_text(encoding="utf-8") == "par lock = Parloq\n"
 
     print("PASS: vocab corrections are whole-word, case-aware, file-parsed")
 

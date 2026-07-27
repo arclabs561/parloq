@@ -69,6 +69,20 @@ def main() -> int:
     assert save_configure.device is None
     assert save_configure.save_recordings is True
 
+    correction_configure = rec.DictateRequest.parse(json.dumps({
+        "version": 1,
+        "command": "configure",
+        "settings": {
+            "vocabulary_correction": {
+                "heard": "  par   lock ",
+                "replacement": "Parloq",
+            },
+        },
+    }))
+    assert correction_configure.command == rec.DictateCommand.CONFIGURE
+    assert correction_configure.vocabulary_correction.heard == "par lock"
+    assert correction_configure.vocabulary_correction.replacement == "Parloq"
+
     expect_protocol_error(rec, "[]", "JSON object")
     expect_protocol_error(
         rec, '{"version":2,"command":"status"}', "protocol version")
@@ -111,6 +125,34 @@ def main() -> int:
             "settings": {"save_recordings": "yes"},
         }),
         "true or false",
+    )
+    expect_protocol_error(
+        rec,
+        json.dumps({
+            "version": 1,
+            "command": "configure",
+            "settings": {
+                "vocabulary_correction": {
+                    "heard": "same",
+                    "replacement": "same",
+                },
+            },
+        }),
+        "must be different",
+    )
+    expect_protocol_error(
+        rec,
+        json.dumps({
+            "version": 1,
+            "command": "configure",
+            "settings": {
+                "vocabulary_correction": {
+                    "heard": "two\nlines",
+                    "replacement": "one line",
+                },
+            },
+        }),
+        "single line",
     )
 
     event = rec.DictateEvent(

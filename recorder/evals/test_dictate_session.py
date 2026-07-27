@@ -238,6 +238,7 @@ def main() -> int:
         assert event.event_type == rec.DictateEventType.ACK
         assert event.save_enabled is True
 
+        candidate_correction = rec.DictationCorrection("par lock", "Parloq")
         session_id, error = controller.start(legacy=False)
         assert error is None
         assert session_id
@@ -249,6 +250,10 @@ def main() -> int:
         event, error = controller.configure_save_recordings(False)
         assert event is None
         assert error == "recording retention cannot change during dictation"
+        event, error = controller.configure_vocabulary_correction(
+            candidate_correction)
+        assert event is None
+        assert error == "corrections cannot change during dictation"
 
         meter = next_meter(subscriber)
         assert meter.phase == rec.DictatePhase.RECORDING
@@ -382,6 +387,26 @@ def main() -> int:
         ), cancelled_events
         assert controller.phase() == rec.DictatePhase.IDLE
         assert controller.status_event().vocab_count == 2
+
+        event, error = controller.configure_vocabulary_correction(
+            candidate_correction)
+        assert error is None
+        assert event.event_type == rec.DictateEventType.ACK
+        assert event.message == "Correction saved for the next dictation"
+        assert event.vocab_count == 3
+        assert ("par lock", "Parloq") in rec._load_vocab(vocab_path)
+
+        event, error = controller.configure_vocabulary_correction(
+            candidate_correction)
+        assert error is None
+        assert event.message == "Correction already exists"
+        assert event.vocab_count == 3
+
+        conflict = rec.DictationCorrection("Par Lock", "Parlock")
+        event, error = controller.configure_vocabulary_correction(conflict)
+        assert event is None
+        assert "already maps to" in error
+        assert ("par lock", "Parloq") in rec._load_vocab(vocab_path)
     finally:
         rec.subprocess.Popen = original_popen
         rec._write_dictate_flac = original_write_flac
