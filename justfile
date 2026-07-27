@@ -26,6 +26,9 @@ recorder-eval-smoke output="test-results/recorder-eval-smoke.md":
     mkdir -p test-results
     uv run recorder/evals/run_eval.py --skip-live --clip L1-clean --output {{output}}
 
+ui-fixtures output="test-results/ui-fixtures":
+    swift run --package-path macos/ParloqMenu ParloqMenu --render-ui-fixtures "{{output}}"
+
 macos-app:
     swift build -c release --package-path macos/ParloqMenu
     mkdir -p "$HOME/Library/Caches/Parloq/Parloq.app/Contents/MacOS" "$HOME/Library/Caches/Parloq/Parloq.app/Contents/Resources"

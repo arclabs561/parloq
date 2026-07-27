@@ -36,19 +36,19 @@ enum ParloqVisuals {
 }
 
 @MainActor
-private final class InputLevelView: NSView {
+private final class InputSpectrumView: NSView {
     private let bars: [CALayer]
 
     override init(frame frameRect: NSRect) {
-        bars = (0..<5).map { _ in CALayer() }
+        bars = (0..<InputSpectrum.bandCount).map { _ in CALayer() }
         super.init(frame: frameRect)
         wantsLayer = true
         for bar in bars {
-            bar.cornerRadius = 0.8
+            bar.cornerRadius = 1
             layer?.addSublayer(bar)
         }
-        setAccessibilityLabel("Microphone input level")
-        update(InputLevelMeter(dbFS: nil))
+        setAccessibilityLabel("Live microphone frequency spectrum")
+        update(InputSpectrum(dbFS: nil), fallback: nil)
     }
 
     required init?(coder: NSCoder) {
@@ -57,37 +57,56 @@ private final class InputLevelView: NSView {
 
     override func layout() {
         super.layout()
-        let heights: [CGFloat] = [4, 7, 10, 7, 4]
-        let width: CGFloat = 2.4
-        let gap: CGFloat = 2.2
+        let width: CGFloat = 2.2
+        let gap: CGFloat = 1.7
         for (index, bar) in bars.enumerated() {
-            let height = heights[index]
             bar.frame = CGRect(
                 x: CGFloat(index) * (width + gap),
-                y: (bounds.height - height) / 2,
+                y: 0,
                 width: width,
-                height: height
+                height: max(1.5, bar.frame.height)
             )
         }
     }
 
-    func update(_ level: InputLevelMeter) {
-        let activeBars = level.activeBars
+    func update(
+        _ spectrum: InputSpectrum,
+        fallback level: InputLevelMeter?
+    ) {
+        let normalized = spectrum.hasTelemetry
+            ? spectrum.normalizedBands
+            : fallbackBands(for: level)
         CATransaction.begin()
         if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
             CATransaction.setDisableActions(true)
         } else {
-            CATransaction.setAnimationDuration(0.16)
+            CATransaction.setAnimationDuration(0.14)
         }
         for (index, bar) in bars.enumerated() {
-            bar.backgroundColor = (
-                index < activeBars
-                    ? ParloqVisuals.listening
-                    : ParloqVisuals.text.withAlphaComponent(0.14)
-            ).cgColor
+            let value = normalized[index]
+            let availableHeight = max(bounds.height, 11)
+            let height = 1.5 + CGFloat(value) * (availableHeight - 1.5)
+            bar.frame = CGRect(
+                x: bar.frame.minX,
+                y: 0,
+                width: bar.frame.width,
+                height: height
+            )
+            bar.backgroundColor = ParloqVisuals.listening
+                .withAlphaComponent(0.18 + 0.82 * value)
+                .cgColor
         }
         CATransaction.commit()
-        setAccessibilityValue("\(activeBars) of 5")
+        let audibleBands = normalized.filter { $0 >= 0.18 }.count
+        setAccessibilityValue("\(audibleBands) active frequency bands")
+    }
+
+    private func fallbackBands(for level: InputLevelMeter?) -> [Double] {
+        guard let level, level.normalizedLevel > 0 else {
+            return Array(repeating: 0, count: InputSpectrum.bandCount)
+        }
+        let contour = [0.25, 0.42, 0.72, 1.0, 0.86, 0.64, 0.44, 0.28, 0.18]
+        return contour.map { $0 * level.normalizedLevel }
     }
 }
 
@@ -108,14 +127,19 @@ final class LiveTranscriptPanel {
     private let hintLabel: NSTextField
     private let transcriptLabel: NSTextField
     private let contextLabel: NSTextField
-    private let inputLevelView: InputLevelView
+    private let inputSpectrumView: InputSpectrumView
     private let inputLabel: NSTextField
     private let elapsedLabel: NSTextField
+    private let presentsWindow: Bool
     private var metadata: DictationHUDMetadata
     private var latestSnapshot: LiveTranscriptSnapshot?
 
-    init(metadata: DictationHUDMetadata) {
+    init(
+        metadata: DictationHUDMetadata,
+        presentsWindow: Bool = true
+    ) {
         self.metadata = metadata
+        self.presentsWindow = presentsWindow
         panel = NSPanel(
             contentRect: NSRect(
                 x: 0,
@@ -199,15 +223,15 @@ final class LiveTranscriptPanel {
         )
         contextLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        inputLevelView = InputLevelView()
-        inputLevelView.translatesAutoresizingMaskIntoConstraints = false
+        inputSpectrumView = InputSpectrumView()
+        inputSpectrumView.translatesAutoresizingMaskIntoConstraints = false
 
-        inputLabel = NSTextField(labelWithString: "MIC")
+        inputLabel = NSTextField(labelWithString: "SPECTRUM")
         inputLabel.attributedStringValue = NSAttributedString(
-            string: "MIC",
+            string: "SPECTRUM",
             attributes: [
                 .font: NSFont.monospacedSystemFont(
-                    ofSize: 8.5,
+                    ofSize: 7.5,
                     weight: .medium
                 ),
                 .foregroundColor:
@@ -232,7 +256,7 @@ final class LiveTranscriptPanel {
         material.addSubview(hintLabel)
         material.addSubview(transcriptLabel)
         material.addSubview(contextLabel)
-        material.addSubview(inputLevelView)
+        material.addSubview(inputSpectrumView)
         material.addSubview(inputLabel)
         material.addSubview(elapsedLabel)
         NSLayoutConstraint.activate([
@@ -293,19 +317,19 @@ final class LiveTranscriptPanel {
                 constant: PanelMetrics.horizontalInset
             ),
             contextLabel.trailingAnchor.constraint(
-                lessThanOrEqualTo: inputLevelView.leadingAnchor,
+                lessThanOrEqualTo: inputSpectrumView.leadingAnchor,
                 constant: -14
             ),
             contextLabel.bottomAnchor.constraint(
                 equalTo: material.bottomAnchor,
                 constant: -12
             ),
-            inputLevelView.widthAnchor.constraint(equalToConstant: 21),
-            inputLevelView.heightAnchor.constraint(equalToConstant: 10),
-            inputLevelView.centerYAnchor.constraint(
+            inputSpectrumView.widthAnchor.constraint(equalToConstant: 34),
+            inputSpectrumView.heightAnchor.constraint(equalToConstant: 11),
+            inputSpectrumView.centerYAnchor.constraint(
                 equalTo: contextLabel.centerYAnchor
             ),
-            inputLevelView.trailingAnchor.constraint(
+            inputSpectrumView.trailingAnchor.constraint(
                 equalTo: inputLabel.leadingAnchor,
                 constant: -6
             ),
@@ -337,11 +361,10 @@ final class LiveTranscriptPanel {
             hint: "ESC CANCEL · ⌥SPACE FINISH",
             color: ParloqVisuals.listening
         )
-        inputLevelView.update(InputLevelMeter(dbFS: nil))
+        inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         renderMetadata()
         renderPlaceholder("Start speaking")
-        positionNearFocusedTarget()
-        panel.orderFrontRegardless()
+        presentIfNeeded()
     }
 
     func update(
@@ -361,10 +384,7 @@ final class LiveTranscriptPanel {
         )
         renderMetadata()
         render(snapshot: snapshot, showCursor: true)
-        if !panel.isVisible {
-            positionNearFocusedTarget()
-            panel.orderFrontRegardless()
-        }
+        presentIfNeeded()
     }
 
     func updateElapsed(_ elapsedSeconds: Double?) {
@@ -377,13 +397,19 @@ final class LiveTranscriptPanel {
         renderMetadata()
     }
 
-    func updateInputLevel(_ level: InputLevelMeter) {
-        inputLevelView.update(level)
-        iconView.image = StatusIcon.listening(level: level)
+    func updateInput(
+        spectrum: InputSpectrum,
+        level: InputLevelMeter
+    ) {
+        inputSpectrumView.update(spectrum, fallback: level)
+        iconView.image = StatusIcon.listening(
+            level: level,
+            spectrum: spectrum
+        )
     }
 
     func showFinishing() {
-        inputLevelView.update(InputLevelMeter(dbFS: nil))
+        inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         accentRail.layer?.backgroundColor = ParloqVisuals.cyan.cgColor
         iconView.contentTintColor = ParloqVisuals.cyan
         iconView.image = StatusIcon.finishing
@@ -403,7 +429,7 @@ final class LiveTranscriptPanel {
         snapshot: LiveTranscriptSnapshot,
         message: String
     ) {
-        inputLevelView.update(InputLevelMeter(dbFS: nil))
+        inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         latestSnapshot = snapshot
         accentRail.layer?.backgroundColor = ParloqVisuals.coral.cgColor
         iconView.contentTintColor = ParloqVisuals.coral
@@ -415,15 +441,34 @@ final class LiveTranscriptPanel {
             toolTip: message
         )
         render(snapshot: snapshot, showCursor: false)
-        if !panel.isVisible {
-            positionNearFocusedTarget()
-            panel.orderFrontRegardless()
-        }
+        presentIfNeeded()
     }
 
     func hide() {
         latestSnapshot = nil
         panel.orderOut(nil)
+    }
+
+    func writeFixturePNG(to url: URL) throws {
+        guard !presentsWindow, let contentView = panel.contentView else {
+            throw CocoaError(.featureUnsupported)
+        }
+        panel.layoutIfNeeded()
+        contentView.layoutSubtreeIfNeeded()
+        panel.displayIfNeeded()
+        guard let bitmap = contentView.bitmapImageRepForCachingDisplay(
+            in: contentView.bounds
+        ) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        contentView.cacheDisplay(in: contentView.bounds, to: bitmap)
+        guard let data = bitmap.representation(
+            using: .png,
+            properties: [:]
+        ) else {
+            throw CocoaError(.fileWriteUnknown)
+        }
+        try data.write(to: url, options: .atomic)
     }
 
     private func render(
@@ -611,5 +656,11 @@ final class LiveTranscriptPanel {
             y: visibleFrame.minY + 88
         )
         panel.setFrameOrigin(origin)
+    }
+
+    private func presentIfNeeded() {
+        guard presentsWindow, !panel.isVisible else { return }
+        positionNearFocusedTarget()
+        panel.orderFrontRegardless()
     }
 }

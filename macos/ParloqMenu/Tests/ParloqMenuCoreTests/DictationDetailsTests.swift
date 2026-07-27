@@ -64,9 +64,13 @@ private func decodeEvent(_ json: String) throws -> DictateEvent {
           "phase": "recording",
           "sequence": 4,
           "elapsed_seconds": 2.0,
-          "input_peak_db": -18.5
+          "input_peak_db": -18.5,
+          "input_spectrum_db": [-55, -43, -29, -18.5, -24, -38, -52, -65, -74]
         }
         """)
 
     #expect(event.inputPeakDB == -18.5)
+    #expect(event.inputSpectrumDB == [
+        -55, -43, -29, -18.5, -24, -38, -52, -65, -74,
+    ])
 }

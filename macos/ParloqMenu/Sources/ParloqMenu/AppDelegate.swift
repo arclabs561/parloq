@@ -387,9 +387,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
         let level = InputLevelMeter(dbFS: inputPeakDB)
-        liveTranscriptPanel?.updateInputLevel(level)
+        let spectrum = InputSpectrum(dbFS: event.inputSpectrumDB)
+        liveTranscriptPanel?.updateInput(
+            spectrum: spectrum,
+            level: level
+        )
         if iconState == .listening {
-            statusItem?.button?.image = StatusIcon.listening(level: level)
+            statusItem?.button?.image = StatusIcon.listening(
+                level: level,
+                spectrum: spectrum
+            )
         }
     }
 

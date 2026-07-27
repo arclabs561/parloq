@@ -3179,9 +3179,9 @@ class DictateEvent:
     __slots__ = (
         "event_type", "phase", "sequence", "session_id", "text",
         "finalized_text", "draft_text", "message", "elapsed_seconds",
-        "input_peak_db", "asr_seconds", "device", "model", "prosody_enabled",
-        "polish_enabled", "chime_enabled", "save_enabled", "vocab_count",
-        "stream_interval_seconds",
+        "input_peak_db", "input_spectrum_db", "asr_seconds", "device", "model",
+        "prosody_enabled", "polish_enabled", "chime_enabled", "save_enabled",
+        "vocab_count", "stream_interval_seconds",
     )
 
     def __init__(
@@ -3197,6 +3197,7 @@ class DictateEvent:
         message: str | None = None,
         elapsed_seconds: float | None = None,
         input_peak_db: float | None = None,
+        input_spectrum_db: list[float] | None = None,
         asr_seconds: float | None = None,
         device: str | None = None,
         model: str | None = None,
@@ -3217,6 +3218,7 @@ class DictateEvent:
         self.message = message
         self.elapsed_seconds = elapsed_seconds
         self.input_peak_db = input_peak_db
+        self.input_spectrum_db = input_spectrum_db
         self.asr_seconds = asr_seconds
         self.device = device
         self.model = model
@@ -3242,6 +3244,7 @@ class DictateEvent:
             ("message", self.message),
             ("elapsed_seconds", self.elapsed_seconds),
             ("input_peak_db", self.input_peak_db),
+            ("input_spectrum_db", self.input_spectrum_db),
             ("asr_seconds", self.asr_seconds),
             ("device", self.device),
             ("model", self.model),
@@ -3524,6 +3527,40 @@ def _peak_dbfs(samples) -> float:
         return -120.0
     peak = float(np.max(np.abs(samples)))
     return 20.0 * float(np.log10(peak)) if peak > 1e-6 else -120.0
+
+
+def _spectrum_dbfs(samples, band_count: int = 9) -> list[float]:
+    """Return log-spaced input spectrum bands in dBFS from 80 Hz to Nyquist."""
+    if band_count < 1:
+        raise ValueError("band_count must be positive")
+    if samples.size < 2 or not np.any(samples):
+        return [-120.0] * band_count
+
+    signal = samples.astype(np.float64, copy=False)
+    signal = signal - float(np.mean(signal))
+    window = np.hanning(signal.size)
+    window_sum = float(np.sum(window))
+    if window_sum <= 0:
+        return [-120.0] * band_count
+
+    magnitudes = np.abs(np.fft.rfft(signal * window)) * (2.0 / window_sum)
+    frequencies = np.fft.rfftfreq(signal.size, d=1.0 / SAMPLE_RATE)
+    edges = np.geomspace(80.0, SAMPLE_RATE / 2.0, band_count + 1)
+    bands: list[float] = []
+    for index in range(band_count):
+        upper_inclusive = index == band_count - 1
+        mask = (
+            (frequencies >= edges[index])
+            & (
+                (frequencies <= edges[index + 1])
+                if upper_inclusive
+                else (frequencies < edges[index + 1])
+            )
+        )
+        peak = float(np.max(magnitudes[mask])) if np.any(mask) else 0.0
+        dbfs = 20.0 * float(np.log10(peak)) if peak > 1e-6 else -120.0
+        bands.append(max(-120.0, min(0.0, dbfs)))
+    return bands
 
 
 def _write_dictate_flac(path: Path, audio: bytes | bytearray) -> None:
@@ -3879,7 +3916,11 @@ class DictateSessionController:
         ))
 
     def _publish_meter(
-        self, session_id: str, elapsed: float, input_peak_db: float,
+        self,
+        session_id: str,
+        elapsed: float,
+        input_peak_db: float,
+        input_spectrum_db: list[float],
     ) -> None:
         self._broker.publish(DictateEvent(
             DictateEventType.STATUS,
@@ -3888,6 +3929,7 @@ class DictateSessionController:
             session_id=session_id,
             elapsed_seconds=elapsed,
             input_peak_db=input_peak_db,
+            input_spectrum_db=input_spectrum_db,
         ))
 
     @staticmethod
@@ -4037,6 +4079,7 @@ class DictateSessionController:
                             session_id,
                             elapsed,
                             _peak_dbfs(samples_np),
+                            _spectrum_dbfs(samples_np),
                         )
 
                         finalized_tokens = tx.finalized_tokens

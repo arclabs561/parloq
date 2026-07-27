@@ -1,13 +1,39 @@
 import AppKit
 import ApplicationServices
 
-if CommandLine.arguments.dropFirst() == ["--check-accessibility"] {
+let arguments = Array(CommandLine.arguments.dropFirst())
+
+if arguments.first == "--render-ui-fixtures" {
+    guard arguments.count == 2 else {
+        fputs(
+            "usage: ParloqMenu --render-ui-fixtures OUTPUT_DIRECTORY\n",
+            stderr
+        )
+        exit(EXIT_FAILURE)
+    }
+    let application = NSApplication.shared
+    application.setActivationPolicy(.prohibited)
+    do {
+        let directory = URL(fileURLWithPath: arguments[1])
+            .standardizedFileURL
+        let rendered = try UIFixtureRenderer.render(to: directory)
+        for url in rendered {
+            print(url.path)
+        }
+        exit(EXIT_SUCCESS)
+    } catch {
+        fputs("fixture rendering failed: \(error)\n", stderr)
+        exit(EXIT_FAILURE)
+    }
+}
+
+if arguments == ["--check-accessibility"] {
     let trusted = AXIsProcessTrusted()
     print("accessibility=\(trusted ? "granted" : "missing")")
     exit(trusted ? EXIT_SUCCESS : EXIT_FAILURE)
 }
 
-if CommandLine.arguments.dropFirst() == ["--request-accessibility"] {
+if arguments == ["--request-accessibility"] {
     _ = NSApplication.shared
     _ = requestAccessibilityPermission(prompt: true)
     let deadline = Date(timeIntervalSinceNow: 120)
@@ -19,7 +45,7 @@ if CommandLine.arguments.dropFirst() == ["--request-accessibility"] {
     exit(granted ? EXIT_SUCCESS : EXIT_FAILURE)
 }
 
-if CommandLine.arguments.dropFirst() == ["--check-hotkey"] {
+if arguments == ["--check-hotkey"] {
     _ = NSApplication.shared
     do {
         try GlobalHotKey.checkAvailability()
@@ -31,7 +57,7 @@ if CommandLine.arguments.dropFirst() == ["--check-hotkey"] {
     }
 }
 
-if CommandLine.arguments.dropFirst() == ["--diagnose-text-target"] {
+if arguments == ["--diagnose-text-target"] {
     print(TextDeliverySession.focusedTargetDiagnostics)
     exit(EXIT_SUCCESS)
 }

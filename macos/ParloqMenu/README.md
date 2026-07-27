@@ -19,10 +19,11 @@ The Python daemon remains the speech engine.
   or window's display, with the pointer display only as a fallback.
 - The menu-bar icon uses a different silhouette for ready, listening,
   finalizing, unavailable, and error states. Listening adds a visible status
-  dot and green tint; its waveform and the HUD's five-bar **MIC** meter respond
-  to real input peaks from the daemon. Finalizing is cyan and errors are coral.
-  Shape and accessible state text remain authoritative when color or motion is
-  reduced.
+  dot and green tint; its waveform and the HUD's nine-band **SPECTRUM**
+  visualization respond to real FFT telemetry from the daemon. Peak dBFS
+  remains available as a compatibility fallback. Finalizing is cyan and errors
+  are coral. Shape and accessible state text remain authoritative when color or
+  motion is reduced.
 - **Escape** cancels while a dictation is active. Parloq consumes the key before
   the focused app sees it, stops without creating a final/history item, and
   restores live text when it still owns that text safely.
@@ -85,8 +86,14 @@ for an ad-hoc development build on a machine without that identity.
 
 ```sh
 swift test --package-path macos/ParloqMenu
+just ui-fixtures
 just check
 ```
+
+`just ui-fixtures` renders representative HUD and status-icon states to
+`test-results/ui-fixtures/`. It uses the real AppKit views without showing a
+window, activating Parloq, arming shortcuts, or opening the microphone, so
+visual changes can be inspected without interrupting another app.
 
 Set `RECORDER_DICTATE_SOCK` for an isolated daemon socket. The production
 default is `/tmp/recorder-dictate-$UID.sock`.

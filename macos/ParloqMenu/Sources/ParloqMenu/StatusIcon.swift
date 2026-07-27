@@ -7,10 +7,14 @@ enum StatusIcon {
 
     static let listening = makeListening(description: "Parloq listening")
 
-    static func listening(level: InputLevelMeter) -> NSImage {
+    static func listening(
+        level: InputLevelMeter,
+        spectrum: InputSpectrum
+    ) -> NSImage {
         makeListening(
             description: "Parloq listening",
-            normalizedLevel: level.normalizedLevel
+            normalizedLevel: level.normalizedLevel,
+            spectrum: spectrum.hasTelemetry ? spectrum.iconBands : nil
         )
     }
 
@@ -100,7 +104,8 @@ enum StatusIcon {
 
     private static func makeListening(
         description: String,
-        normalizedLevel: Double = 0.18
+        normalizedLevel: Double = 0.18,
+        spectrum: [Double]? = nil
     ) -> NSImage {
         let image = NSImage(
             size: NSSize(width: 20, height: 18),
@@ -119,9 +124,10 @@ enum StatusIcon {
                 (11.2, 3.0, 9.0),
                 (14.3, 2.6, 5.5),
             ]
-            for bar in bars {
+            for (index, bar) in bars.enumerated() {
+                let bandLevel = spectrum?[index] ?? normalizedLevel
                 let height = bar.minimum
-                    + (bar.maximum - bar.minimum) * normalizedLevel
+                    + (bar.maximum - bar.minimum) * bandLevel
                 NSBezierPath(
                     roundedRect: NSRect(
                         x: bar.x,

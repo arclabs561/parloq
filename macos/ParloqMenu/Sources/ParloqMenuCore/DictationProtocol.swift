@@ -49,6 +49,7 @@ public struct DictateEvent: Decodable, Sendable {
     public let message: String?
     public let elapsedSeconds: Double?
     public let inputPeakDB: Double?
+    public let inputSpectrumDB: [Double]?
     public let asrSeconds: Double?
     public let device: String?
     public let model: String?
@@ -71,6 +72,7 @@ public struct DictateEvent: Decodable, Sendable {
         case message
         case elapsedSeconds = "elapsed_seconds"
         case inputPeakDB = "input_peak_db"
+        case inputSpectrumDB = "input_spectrum_db"
         case asrSeconds = "asr_seconds"
         case device
         case model
@@ -105,6 +107,8 @@ public struct DictateEvent: Decodable, Sendable {
             Double.self, forKey: .elapsedSeconds)
         inputPeakDB = try values.decodeIfPresent(
             Double.self, forKey: .inputPeakDB)
+        inputSpectrumDB = try values.decodeIfPresent(
+            [Double].self, forKey: .inputSpectrumDB)
         asrSeconds = try values.decodeIfPresent(
             Double.self, forKey: .asrSeconds)
         device = try values.decodeIfPresent(String.self, forKey: .device)
