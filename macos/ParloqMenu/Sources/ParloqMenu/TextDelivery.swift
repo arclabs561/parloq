@@ -9,6 +9,7 @@ enum DeliveryError: LocalizedError {
     case ownershipLost
     case cancelOwnershipLost
     case secureInput
+    case commandCharacter
     case keyboardEventFailed
 
     var errorDescription: String? {
@@ -23,6 +24,8 @@ enum DeliveryError: LocalizedError {
             return "Cancelled; live text could not be removed safely"
         case .secureInput:
             return "Secure input is active; final transcript copied"
+        case .commandCharacter:
+            return "Line breaks or controls cannot be typed safely; final transcript copied"
         case .keyboardEventFailed:
             return "macOS could not create a text event"
         }
@@ -148,10 +151,13 @@ final class TextDeliverySession {
 
         case let .copy(text):
             copyToPasteboard(text)
-            if case .unavailable = target {
-                warning = DeliveryError.accessibilityNotTrusted.localizedDescription
-            } else {
-                warning = DeliveryError.ownershipLost.localizedDescription
+            if warning == nil {
+                if case .unavailable = target {
+                    warning = DeliveryError.accessibilityNotTrusted
+                        .localizedDescription
+                } else {
+                    warning = DeliveryError.ownershipLost.localizedDescription
+                }
             }
 
         case .none:
@@ -430,11 +436,10 @@ private final class OwnedTextRange {
 
 private enum KeyboardWriter {
     static func write(_ text: String) throws {
-        let units = Array(text.utf16)
-        let chunkSize = 20
-        for offset in stride(from: 0, to: units.count, by: chunkSize) {
-            let end = min(offset + chunkSize, units.count)
-            let chunk = Array(units[offset..<end])
+        guard KeyboardEventText.isSafeForBlindTyping(text) else {
+            throw DeliveryError.commandCharacter
+        }
+        for chunk in KeyboardEventText.utf16Chunks(for: text) {
             guard let down = CGEvent(
                 keyboardEventSource: nil,
                 virtualKey: 0,
