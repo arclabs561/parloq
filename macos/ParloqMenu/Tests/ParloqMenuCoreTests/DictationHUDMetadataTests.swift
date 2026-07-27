@@ -13,6 +13,13 @@ import Testing
     metadata.updateElapsed(65.9)
 
     #expect(metadata.elapsedLabel == "1:05")
+
+    metadata.updateDeliveryMode(.targetChanged)
+
+    #expect(
+        metadata.contextLabel
+            == "NOTES · TARGET CHANGED · COPIES FINAL"
+    )
 }
 
 @Test func hudMetadataHandlesFallbackAndMonotonicElapsedUpdates() {

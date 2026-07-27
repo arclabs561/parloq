@@ -4,6 +4,7 @@ public enum DictationDeliveryMode: Equatable, Sendable {
     case directInsertion
     case keyboardFallback
     case clipboardFallback
+    case targetChanged
 
     public var displayName: String {
         switch self {
@@ -13,13 +14,15 @@ public enum DictationDeliveryMode: Equatable, Sendable {
             return "TYPE ON FINISH"
         case .clipboardFallback:
             return "COPIES FINAL"
+        case .targetChanged:
+            return "TARGET CHANGED · COPIES FINAL"
         }
     }
 }
 
 public struct DictationHUDMetadata: Equatable, Sendable {
     public let targetApplication: String?
-    public let deliveryMode: DictationDeliveryMode
+    public private(set) var deliveryMode: DictationDeliveryMode
     public private(set) var elapsedSeconds: Double
 
     public init(
@@ -53,5 +56,9 @@ public struct DictationHUDMetadata: Equatable, Sendable {
     public mutating func updateElapsed(_ seconds: Double?) {
         guard let seconds, seconds.isFinite else { return }
         elapsedSeconds = max(elapsedSeconds, max(0, seconds))
+    }
+
+    public mutating func updateDeliveryMode(_ mode: DictationDeliveryMode) {
+        deliveryMode = mode
     }
 }

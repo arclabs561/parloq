@@ -12,6 +12,16 @@ public struct DictationDetails: Equatable, Sendable {
 
     public init() {}
 
+    public var latestRealtimeFactor: Double? {
+        guard let audio = lastAudioSeconds,
+              audio > 0,
+              let asr = lastASRSeconds
+        else {
+            return nil
+        }
+        return asr / audio
+    }
+
     public mutating func update(from event: DictateEvent) {
         device = event.device ?? device
         model = event.model ?? model

@@ -9,7 +9,7 @@ private let appLogger = Logger(
 )
 
 @MainActor
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private enum IconState: Equatable {
         case idle
         case offline
@@ -42,6 +42,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyWarning: String?
     private var iconState: IconState?
     private var details = DictationDetails()
+    private var statusMenuIsOpen = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -98,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.image = StatusIcon.ready
 
         let menu = NSMenu()
+        menu.delegate = self
         let status = NSMenuItem(title: "Connecting…", action: nil, keyEquivalent: "")
         status.isEnabled = false
         statusMenuItem = status
@@ -207,6 +209,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             liveTranscriptPanel = panel
             panel.showListening()
             hotKey?.setEscapeEnabled(true)
+            hotKey?.setTargetActivityMonitoringEnabled(
+                session.needsTargetActivityMonitoring
+            )
             client.send(.start)
             updateMenuActions()
         }
@@ -218,6 +223,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         details.update(from: event)
         refreshDetailsMenu()
         liveTranscriptPanel?.updateElapsed(event.elapsedSeconds)
+        updateInputLevel(from: event)
         if cancelRequested {
             handleCancellationEvent(event)
             updateIcon()
@@ -374,6 +380,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.button?.toolTip = "Parloq — \(text)"
     }
 
+    private func updateInputLevel(from event: DictateEvent) {
+        guard event.phase == .recording,
+              let inputPeakDB = event.inputPeakDB
+        else {
+            return
+        }
+        let level = InputLevelMeter(dbFS: inputPeakDB)
+        liveTranscriptPanel?.updateInputLevel(level)
+        if iconState == .listening {
+            statusItem?.button?.image = StatusIcon.listening(level: level)
+        }
+    }
+
     private func updateIcon() {
         let state: IconState
         if !connected {
@@ -454,6 +473,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func clearOverlay() {
         overlay.complete()
         hotKey?.setEscapeEnabled(false)
+        hotKey?.setTargetActivityMonitoringEnabled(false)
         liveTranscriptPanel?.hide()
         liveTranscriptPanel = nil
         updateMenuActions()
@@ -629,8 +649,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let asr = details.lastASRSeconds.map {
                 " · \(Self.seconds($0)) s ASR"
             } ?? ""
+            let realtime = details.latestRealtimeFactor.map {
+                " · \(Self.multiplier($0))× realtime"
+            } ?? ""
             addDetail(
-                "Latest: \(Self.seconds(audio)) s audio\(asr)"
+                "Latest: \(Self.seconds(audio)) s audio\(asr)\(realtime)"
             )
         }
         if detailsMenu.items.isEmpty {
@@ -675,6 +698,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         value.formatted(.number.precision(.fractionLength(1)))
     }
 
+    private static func multiplier(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(2)))
+    }
+
     private static func historyTitle(_ text: String) -> String {
         let compact = text
             .split(whereSeparator: \.isWhitespace)
@@ -702,10 +729,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 },
                 cancelAction: { [weak self] in
                     self?.cancelOrDismiss()
+                },
+                targetActivityAction: { [weak self] in
+                    self?.invalidateFinalOnlyTarget()
                 }
             )
             hotKey = installedHotKey
             installedHotKey.setEscapeEnabled(deliverySession != nil)
+            installedHotKey.setTargetActivityMonitoringEnabled(
+                deliverySession?.needsTargetActivityMonitoring == true
+            )
             hotKeyWarning = installedHotKey.warning
             updateStatus(
                 connected
@@ -733,6 +766,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 execute: retry
             )
         }
+    }
+
+    private func invalidateFinalOnlyTarget() {
+        guard !statusMenuIsOpen else { return }
+        guard deliverySession?.invalidateFinalOnlyTarget() == true else {
+            return
+        }
+        hotKey?.setTargetActivityMonitoringEnabled(false)
+        liveTranscriptPanel?.updateDeliveryMode(.targetChanged)
+        updateStatus("Target changed; final transcript will be copied")
+    }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        statusMenuIsOpen = true
+        hotKey?.setTargetActivityMonitoringEnabled(false)
+    }
+
+    func menuDidClose(_ menu: NSMenu) {
+        statusMenuIsOpen = false
+        hotKey?.setTargetActivityMonitoringEnabled(
+            deliverySession?.needsTargetActivityMonitoring == true
+        )
     }
 
     @objc private func toggleLaunchAtLogin() {

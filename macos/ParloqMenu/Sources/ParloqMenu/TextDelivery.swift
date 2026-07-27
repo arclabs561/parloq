@@ -42,11 +42,15 @@ final class TextDeliverySession {
     private let target: Target
     private var planner: DeliveryPlanner
     private var didDeliverText = false
+    private var targetChanged = false
     private(set) var lastTranscript = ""
     private(set) var warning: String?
     let hudTargetApplication: String?
 
     var hudDeliveryMode: DictationDeliveryMode {
+        if targetChanged {
+            return .targetChanged
+        }
         switch target {
         case .accessibility:
             return .directInsertion
@@ -55,6 +59,13 @@ final class TextDeliverySession {
         case .unavailable:
             return .clipboardFallback
         }
+    }
+
+    var needsTargetActivityMonitoring: Bool {
+        if case .keyboard = target {
+            return !targetChanged
+        }
+        return false
     }
 
     static var focusedTargetDiagnostics: String {
@@ -82,7 +93,7 @@ final class TextDeliverySession {
             planner = DeliveryPlanner(strategy: .rangeReplacement)
         } else if let focusedTarget = FocusedTextTarget.capture() {
             target = .keyboard(focusedTarget)
-            planner = DeliveryPlanner(strategy: .finalizedAppend)
+            planner = DeliveryPlanner(strategy: .finalOnly)
         } else {
             target = .unavailable
             planner = DeliveryPlanner(strategy: .disabled)
@@ -123,6 +134,14 @@ final class TextDeliverySession {
                 copyToPasteboard(text)
             }
         }
+    }
+
+    func invalidateFinalOnlyTarget() -> Bool {
+        guard planner.invalidateFinalOnly() else {
+            return false
+        }
+        targetChanged = true
+        return true
     }
 
     func cancel() -> String? {

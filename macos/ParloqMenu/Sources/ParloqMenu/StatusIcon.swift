@@ -1,10 +1,18 @@
 import AppKit
+import ParloqMenuCore
 
 @MainActor
 enum StatusIcon {
     static let ready = makeReady(description: "Parloq ready")
 
     static let listening = makeListening(description: "Parloq listening")
+
+    static func listening(level: InputLevelMeter) -> NSImage {
+        makeListening(
+            description: "Parloq listening",
+            normalizedLevel: level.normalizedLevel
+        )
+    }
 
     static let finishing = makeFinishing(description: "Parloq finishing")
 
@@ -90,7 +98,10 @@ enum StatusIcon {
         return image
     }
 
-    private static func makeListening(description: String) -> NSImage {
+    private static func makeListening(
+        description: String,
+        normalizedLevel: Double = 0.18
+    ) -> NSImage {
         let image = NSImage(
             size: NSSize(width: 20, height: 18),
             flipped: false
@@ -102,19 +113,21 @@ enum StatusIcon {
                 ovalIn: NSRect(x: 0.6, y: 7.2, width: 3.6, height: 3.6)
             ).fill()
 
-            let bars: [(x: CGFloat, height: CGFloat)] = [
-                (5.0, 6.0),
-                (8.1, 12.5),
-                (11.2, 9.0),
-                (14.3, 5.5),
+            let bars: [(x: CGFloat, minimum: CGFloat, maximum: CGFloat)] = [
+                (5.0, 2.8, 6.0),
+                (8.1, 3.4, 12.5),
+                (11.2, 3.0, 9.0),
+                (14.3, 2.6, 5.5),
             ]
             for bar in bars {
+                let height = bar.minimum
+                    + (bar.maximum - bar.minimum) * normalizedLevel
                 NSBezierPath(
                     roundedRect: NSRect(
                         x: bar.x,
-                        y: 9 - bar.height / 2,
+                        y: 9 - height / 2,
                         width: 2.1,
-                        height: bar.height
+                        height: height
                     ),
                     xRadius: 1.05,
                     yRadius: 1.05

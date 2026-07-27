@@ -35,6 +35,62 @@ enum ParloqVisuals {
     )
 }
 
+@MainActor
+private final class InputLevelView: NSView {
+    private let bars: [CALayer]
+
+    override init(frame frameRect: NSRect) {
+        bars = (0..<5).map { _ in CALayer() }
+        super.init(frame: frameRect)
+        wantsLayer = true
+        for bar in bars {
+            bar.cornerRadius = 0.8
+            layer?.addSublayer(bar)
+        }
+        setAccessibilityLabel("Microphone input level")
+        update(InputLevelMeter(dbFS: nil))
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func layout() {
+        super.layout()
+        let heights: [CGFloat] = [4, 7, 10, 7, 4]
+        let width: CGFloat = 2.4
+        let gap: CGFloat = 2.2
+        for (index, bar) in bars.enumerated() {
+            let height = heights[index]
+            bar.frame = CGRect(
+                x: CGFloat(index) * (width + gap),
+                y: (bounds.height - height) / 2,
+                width: width,
+                height: height
+            )
+        }
+    }
+
+    func update(_ level: InputLevelMeter) {
+        let activeBars = level.activeBars
+        CATransaction.begin()
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            CATransaction.setDisableActions(true)
+        } else {
+            CATransaction.setAnimationDuration(0.16)
+        }
+        for (index, bar) in bars.enumerated() {
+            bar.backgroundColor = (
+                index < activeBars
+                    ? ParloqVisuals.listening
+                    : ParloqVisuals.text.withAlphaComponent(0.14)
+            ).cgColor
+        }
+        CATransaction.commit()
+        setAccessibilityValue("\(activeBars) of 5")
+    }
+}
+
 private enum PanelMetrics {
     static let width: CGFloat = 574
     static let minimumHeight: CGFloat = 104
@@ -52,6 +108,8 @@ final class LiveTranscriptPanel {
     private let hintLabel: NSTextField
     private let transcriptLabel: NSTextField
     private let contextLabel: NSTextField
+    private let inputLevelView: InputLevelView
+    private let inputLabel: NSTextField
     private let elapsedLabel: NSTextField
     private var metadata: DictationHUDMetadata
     private var latestSnapshot: LiveTranscriptSnapshot?
@@ -141,6 +199,24 @@ final class LiveTranscriptPanel {
         )
         contextLabel.translatesAutoresizingMaskIntoConstraints = false
 
+        inputLevelView = InputLevelView()
+        inputLevelView.translatesAutoresizingMaskIntoConstraints = false
+
+        inputLabel = NSTextField(labelWithString: "MIC")
+        inputLabel.attributedStringValue = NSAttributedString(
+            string: "MIC",
+            attributes: [
+                .font: NSFont.monospacedSystemFont(
+                    ofSize: 8.5,
+                    weight: .medium
+                ),
+                .foregroundColor:
+                    ParloqVisuals.text.withAlphaComponent(0.38),
+                .kern: 0.55,
+            ]
+        )
+        inputLabel.translatesAutoresizingMaskIntoConstraints = false
+
         elapsedLabel = NSTextField(labelWithString: "")
         elapsedLabel.alignment = .right
         elapsedLabel.setContentCompressionResistancePriority(
@@ -156,6 +232,8 @@ final class LiveTranscriptPanel {
         material.addSubview(hintLabel)
         material.addSubview(transcriptLabel)
         material.addSubview(contextLabel)
+        material.addSubview(inputLevelView)
+        material.addSubview(inputLabel)
         material.addSubview(elapsedLabel)
         NSLayoutConstraint.activate([
             tint.leadingAnchor.constraint(equalTo: material.leadingAnchor),
@@ -215,12 +293,28 @@ final class LiveTranscriptPanel {
                 constant: PanelMetrics.horizontalInset
             ),
             contextLabel.trailingAnchor.constraint(
-                lessThanOrEqualTo: elapsedLabel.leadingAnchor,
-                constant: -12
+                lessThanOrEqualTo: inputLevelView.leadingAnchor,
+                constant: -14
             ),
             contextLabel.bottomAnchor.constraint(
                 equalTo: material.bottomAnchor,
                 constant: -12
+            ),
+            inputLevelView.widthAnchor.constraint(equalToConstant: 21),
+            inputLevelView.heightAnchor.constraint(equalToConstant: 10),
+            inputLevelView.centerYAnchor.constraint(
+                equalTo: contextLabel.centerYAnchor
+            ),
+            inputLevelView.trailingAnchor.constraint(
+                equalTo: inputLabel.leadingAnchor,
+                constant: -6
+            ),
+            inputLabel.trailingAnchor.constraint(
+                equalTo: elapsedLabel.leadingAnchor,
+                constant: -16
+            ),
+            inputLabel.firstBaselineAnchor.constraint(
+                equalTo: contextLabel.firstBaselineAnchor
             ),
             elapsedLabel.trailingAnchor.constraint(
                 equalTo: material.trailingAnchor,
@@ -243,7 +337,7 @@ final class LiveTranscriptPanel {
             hint: "ESC CANCEL · ⌥SPACE FINISH",
             color: ParloqVisuals.listening
         )
-        startListeningPulse()
+        inputLevelView.update(InputLevelMeter(dbFS: nil))
         renderMetadata()
         renderPlaceholder("Start speaking")
         positionNearFocusedTarget()
@@ -265,7 +359,6 @@ final class LiveTranscriptPanel {
             hint: "ESC CANCEL · ⌥SPACE FINISH",
             color: ParloqVisuals.listening
         )
-        startListeningPulse()
         renderMetadata()
         render(snapshot: snapshot, showCursor: true)
         if !panel.isVisible {
@@ -279,8 +372,18 @@ final class LiveTranscriptPanel {
         renderMetadata()
     }
 
+    func updateDeliveryMode(_ mode: DictationDeliveryMode) {
+        metadata.updateDeliveryMode(mode)
+        renderMetadata()
+    }
+
+    func updateInputLevel(_ level: InputLevelMeter) {
+        inputLevelView.update(level)
+        iconView.image = StatusIcon.listening(level: level)
+    }
+
     func showFinishing() {
-        stopListeningPulse()
+        inputLevelView.update(InputLevelMeter(dbFS: nil))
         accentRail.layer?.backgroundColor = ParloqVisuals.cyan.cgColor
         iconView.contentTintColor = ParloqVisuals.cyan
         iconView.image = StatusIcon.finishing
@@ -300,7 +403,7 @@ final class LiveTranscriptPanel {
         snapshot: LiveTranscriptSnapshot,
         message: String
     ) {
-        stopListeningPulse()
+        inputLevelView.update(InputLevelMeter(dbFS: nil))
         latestSnapshot = snapshot
         accentRail.layer?.backgroundColor = ParloqVisuals.coral.cgColor
         iconView.contentTintColor = ParloqVisuals.coral
@@ -319,7 +422,6 @@ final class LiveTranscriptPanel {
     }
 
     func hide() {
-        stopListeningPulse()
         latestSnapshot = nil
         panel.orderOut(nil)
     }
@@ -404,6 +506,11 @@ final class LiveTranscriptPanel {
 
     private func renderMetadata() {
         let context = metadata.contextLabel
+        let contextColor = (
+            metadata.deliveryMode == .targetChanged
+                ? ParloqVisuals.coral.withAlphaComponent(0.82)
+                : ParloqVisuals.text.withAlphaComponent(0.38)
+        )
         contextLabel.attributedStringValue = NSAttributedString(
             string: context,
             attributes: [
@@ -411,8 +518,7 @@ final class LiveTranscriptPanel {
                     ofSize: 8.5,
                     weight: .medium
                 ),
-                .foregroundColor:
-                    ParloqVisuals.text.withAlphaComponent(0.38),
+                .foregroundColor: contextColor,
                 .kern: 0.55,
             ]
         )
@@ -433,40 +539,6 @@ final class LiveTranscriptPanel {
         )
         elapsedLabel.setAccessibilityLabel("Elapsed dictation time")
         elapsedLabel.setAccessibilityValue(metadata.elapsedLabel)
-    }
-
-    private func startListeningPulse() {
-        guard !NSWorkspace.shared
-            .accessibilityDisplayShouldReduceMotion
-        else {
-            iconView.layer?.opacity = 1
-            return
-        }
-        guard iconView.layer?.animation(
-            forKey: "parloq.listeningPulse"
-        ) == nil else {
-            return
-        }
-        let pulse = CABasicAnimation(keyPath: "opacity")
-        pulse.fromValue = 1.0
-        pulse.toValue = 0.58
-        pulse.duration = 0.72
-        pulse.autoreverses = true
-        pulse.repeatCount = .infinity
-        pulse.timingFunction = CAMediaTimingFunction(
-            name: .easeInEaseOut
-        )
-        iconView.layer?.add(
-            pulse,
-            forKey: "parloq.listeningPulse"
-        )
-    }
-
-    private func stopListeningPulse() {
-        iconView.layer?.removeAnimation(
-            forKey: "parloq.listeningPulse"
-        )
-        iconView.layer?.opacity = 1
     }
 
     private func growToFitTranscript() {

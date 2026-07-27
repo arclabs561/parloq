@@ -16,39 +16,19 @@ import Testing
     ) == .replace("hello world"))
 }
 
-@Test func fallbackAppendsOnlyNewFinalizedText() {
-    var planner = DeliveryPlanner(strategy: .finalizedAppend)
+@Test func fallbackWaitsForTheCompleteFinalText() {
+    var planner = DeliveryPlanner(strategy: .finalOnly)
 
     #expect(planner.plan(
         text: "hello dr",
         finalizedText: "hello",
         isFinal: false
-    ) == .append("hello"))
-    #expect(planner.plan(
-        text: "hello draft changed",
-        finalizedText: "hello",
-        isFinal: false
     ) == .none)
-    #expect(planner.plan(
-        text: "hello world",
-        finalizedText: "hello world",
-        isFinal: false
-    ) == .append(" world"))
-}
-
-@Test func fallbackCopiesARevisedOfflineFinal() {
-    var planner = DeliveryPlanner(strategy: .finalizedAppend)
-
-    #expect(planner.plan(
-        text: "live words",
-        finalizedText: "live words",
-        isFinal: false
-    ) == .append("live words"))
     #expect(planner.plan(
         text: "corrected wording",
         finalizedText: "corrected wording",
         isFinal: true
-    ) == .copy("corrected wording"))
+    ) == .append("corrected wording"))
 }
 
 @Test func lostOwnershipCopiesOnlyTheFinal() {
@@ -65,4 +45,29 @@ import Testing
         finalizedText: "final",
         isFinal: true
     ) == .copy("final"))
+}
+
+@Test func userActivityInvalidatesOnlyFinalDelivery() {
+    var fallback = DeliveryPlanner(strategy: .finalOnly)
+    let invalidatedFallback = fallback.invalidateFinalOnly()
+    #expect(invalidatedFallback)
+    #expect(fallback.plan(
+        text: "draft",
+        finalizedText: "",
+        isFinal: false
+    ) == .none)
+    #expect(fallback.plan(
+        text: "final",
+        finalizedText: "final",
+        isFinal: true
+    ) == .copy("final"))
+
+    var live = DeliveryPlanner(strategy: .rangeReplacement)
+    let invalidatedLive = live.invalidateFinalOnly()
+    #expect(!invalidatedLive)
+    #expect(live.plan(
+        text: "still live",
+        finalizedText: "",
+        isFinal: false
+    ) == .replace("still live"))
 }

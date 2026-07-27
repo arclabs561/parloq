@@ -49,8 +49,24 @@ import Testing
     #expect(details.model == "mlx-community/parakeet-tdt-0.6b-v3")
     #expect(details.lastAudioSeconds == 4.25)
     #expect(details.lastASRSeconds == 0.75)
+    #expect(details.latestRealtimeFactor == 0.75 / 4.25)
 }
 
 private func decodeEvent(_ json: String) throws -> DictateEvent {
     try JSONDecoder().decode(DictateEvent.self, from: Data(json.utf8))
+}
+
+@Test func protocolDecodesInputPeakTelemetry() throws {
+    let event = try decodeEvent("""
+        {
+          "version": 1,
+          "type": "status",
+          "phase": "recording",
+          "sequence": 4,
+          "elapsed_seconds": 2.0,
+          "input_peak_db": -18.5
+        }
+        """)
+
+    #expect(event.inputPeakDB == -18.5)
 }

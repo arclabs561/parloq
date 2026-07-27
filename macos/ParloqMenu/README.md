@@ -19,8 +19,10 @@ The Python daemon remains the speech engine.
   or window's display, with the pointer display only as a fallback.
 - The menu-bar icon uses a different silhouette for ready, listening,
   finalizing, unavailable, and error states. Listening adds a visible status
-  dot and green tint; finalizing is cyan and errors are coral. Shape and
-  accessible state text remain authoritative when color or motion is reduced.
+  dot and green tint; its waveform and the HUD's five-bar **MIC** meter respond
+  to real input peaks from the daemon. Finalizing is cyan and errors are coral.
+  Shape and accessible state text remain authoritative when color or motion is
+  reduced.
 - **Escape** cancels while a dictation is active. Parloq consumes the key before
   the focused app sees it, stops without creating a final/history item, and
   restores live text when it still owns that text safely.
@@ -29,9 +31,12 @@ The Python daemon remains the speech engine.
   Accessibility range.
 - If focus, selection, or the inserted text changes, Parloq stops replacing it
   and copies the accurate final transcript instead of overwriting user input.
-- Controls without writable Accessibility ranges receive finalized text only.
-  The HUD still provides live feedback, while unstable draft text is never
-  appended where it cannot be revised safely. Blind keyboard delivery keeps
+- Controls without writable Accessibility ranges receive the complete final
+  transcript only after dictation stops. The HUD still provides live feedback,
+  while unstable draft text is never appended where it cannot be revised
+  safely. Any ordinary click or keystroke before delivery changes the HUD to
+  **TARGET CHANGED · COPIES FINAL** and prevents Parloq from guessing at a new
+  insertion point. Blind keyboard delivery keeps
   Unicode surrogate pairs intact and refuses line breaks or control characters
   that could act as terminal commands; the full final is copied instead.
 - The daemon runs a higher-quality offline pass after stop; that result replaces
@@ -47,7 +52,8 @@ The Python daemon remains the speech engine.
   cancellations, and audio are never stored there.
 - **Dictation Details** reports effective microphone, model, quality/privacy
   modes, vocabulary count, live-update cadence, and latest capture/ASR timing
-  from the running daemon. These values are diagnostic and read-only.
+  from the running daemon, including the latest ASR-to-audio realtime factor.
+  These values are diagnostic and read-only.
 
 ## Build and install
 

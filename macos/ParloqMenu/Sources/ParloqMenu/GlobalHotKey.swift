@@ -58,17 +58,23 @@ final class GlobalHotKey: @unchecked Sendable {
     private var keyOverride: DictationKeyOverride?
     private let toggleActionBox: HotKeyActionBox
     private let cancelActionBox: HotKeyActionBox
+    private let targetActivityActionBox: HotKeyActionBox
     private var pressedTriggers: Set<Trigger> = []
     private var escapeEnabled = false
+    private var targetActivityMonitoringEnabled = false
     private(set) var warning: String?
 
     init(
         installKeyOverride: Bool = true,
         action: @escaping Action,
-        cancelAction: @escaping Action = {}
+        cancelAction: @escaping Action = {},
+        targetActivityAction: @escaping Action = {}
     ) throws {
         toggleActionBox = HotKeyActionBox(action: action)
         cancelActionBox = HotKeyActionBox(action: cancelAction)
+        targetActivityActionBox = HotKeyActionBox(
+            action: targetActivityAction
+        )
 
         guard AXIsProcessTrusted() else {
             throw GlobalHotKeyError.accessibilityMissing
@@ -87,6 +93,9 @@ final class GlobalHotKey: @unchecked Sendable {
         let eventMask =
             (CGEventMask(1) << CGEventType.keyDown.rawValue)
             | (CGEventMask(1) << CGEventType.keyUp.rawValue)
+            | (CGEventMask(1) << CGEventType.leftMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.rightMouseDown.rawValue)
+            | (CGEventMask(1) << CGEventType.otherMouseDown.rawValue)
         guard let eventTap = CGEvent.tapCreate(
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
@@ -145,7 +154,20 @@ final class GlobalHotKey: @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
 
-        guard let trigger = trigger(for: type, event: event) else {
+        let trigger = (
+            type == .keyDown || type == .keyUp
+                ? trigger(for: type, event: event)
+                : nil
+        )
+        guard let trigger else {
+            if targetActivityMonitoringEnabled,
+               type == .keyDown
+                    || type == .leftMouseDown
+                    || type == .rightMouseDown
+                    || type == .otherMouseDown
+            {
+                targetActivityActionBox.invoke()
+            }
             return Unmanaged.passUnretained(event)
         }
 
@@ -202,6 +224,11 @@ final class GlobalHotKey: @unchecked Sendable {
     @MainActor
     func setEscapeEnabled(_ enabled: Bool) {
         escapeEnabled = enabled
+    }
+
+    @MainActor
+    func setTargetActivityMonitoringEnabled(_ enabled: Bool) {
+        targetActivityMonitoringEnabled = enabled
     }
 
     private func startHealthTimer() {
