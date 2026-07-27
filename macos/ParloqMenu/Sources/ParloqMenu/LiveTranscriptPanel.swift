@@ -157,6 +157,7 @@ final class LiveTranscriptPanel {
     private let elapsedLabel: NSTextField
     private let presentsWindow: Bool
     private var metadata: DictationHUDMetadata
+    private var contextOverride: String?
     private var latestSnapshot: LiveTranscriptSnapshot?
 
     init(
@@ -398,6 +399,7 @@ final class LiveTranscriptPanel {
 
     func showListening() {
         latestSnapshot = nil
+        contextOverride = nil
         inputSpectrumView.isHidden = false
         accentRail.layer?.backgroundColor = ParloqVisuals.listening.cgColor
         iconView.contentTintColor = ParloqVisuals.listening
@@ -479,6 +481,7 @@ final class LiveTranscriptPanel {
     ) {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         inputSpectrumView.isHidden = true
+        contextOverride = "COPIED TO CLIPBOARD"
         latestSnapshot = snapshot
         accentRail.layer?.backgroundColor = ParloqVisuals.coral.cgColor
         iconView.contentTintColor = ParloqVisuals.coral
@@ -489,6 +492,7 @@ final class LiveTranscriptPanel {
             color: ParloqVisuals.coral,
             toolTip: message
         )
+        renderMetadata()
         render(snapshot: snapshot, showCursor: false)
         presentIfNeeded()
     }
@@ -599,9 +603,10 @@ final class LiveTranscriptPanel {
     }
 
     private func renderMetadata() {
-        let context = metadata.contextLabel
+        let context = contextOverride ?? metadata.contextLabel
         let contextColor = (
-            metadata.deliveryMode == .targetChanged
+            contextOverride != nil
+                || metadata.deliveryMode == .targetChanged
                 ? ParloqVisuals.coral.withAlphaComponent(0.82)
                 : ParloqVisuals.text.withAlphaComponent(0.38)
         )
