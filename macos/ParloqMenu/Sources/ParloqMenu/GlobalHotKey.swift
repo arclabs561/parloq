@@ -1,5 +1,4 @@
 import AppKit
-import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 import os
@@ -8,6 +7,26 @@ private let hotKeyLogger = Logger(
     subsystem: "net.attobop.parloq.menu",
     category: "hotkey"
 )
+
+private enum GlobalHotKeyError: LocalizedError {
+    case accessibilityMissing
+    case tapCreationFailed
+    case sourceCreationFailed
+    case tapEnableFailed
+
+    var errorDescription: String? {
+        switch self {
+        case .accessibilityMissing:
+            return "Accessibility permission is required for the Dictation key"
+        case .tapCreationFailed:
+            return "Could not create the Dictation key event tap"
+        case .sourceCreationFailed:
+            return "Could not attach the Dictation key event tap"
+        case .tapEnableFailed:
+            return "Could not enable the Dictation key event tap"
+        }
+    }
+}
 
 private final class HotKeyActionBox: @unchecked Sendable {
     let action: @MainActor @Sendable () -> Void
@@ -23,132 +42,158 @@ private final class HotKeyActionBox: @unchecked Sendable {
     }
 }
 
-final class GlobalHotKey {
+final class GlobalHotKey: @unchecked Sendable {
     typealias Action = @MainActor @Sendable () -> Void
 
-    private var hotKey: EventHotKeyRef?
-    private var eventHandler: EventHandlerRef?
+    private var eventTap: CFMachPort?
+    private var runLoopSource: CFRunLoopSource?
+    private var healthTimer: DispatchSourceTimer?
+    private var keyOverride: DictationKeyOverride?
     private let actionBox: HotKeyActionBox
+    private var keyIsPressed = false
 
-    init(action: @escaping Action) throws {
-        let actionBox = HotKeyActionBox(action: action)
-        self.actionBox = actionBox
+    init(
+        installKeyOverride: Bool = true,
+        action: @escaping Action
+    ) throws {
+        actionBox = HotKeyActionBox(action: action)
 
-        var eventType = EventTypeSpec(
-            eventClass: OSType(kEventClassKeyboard),
-            eventKind: UInt32(kEventHotKeyPressed)
-        )
-        let handlerStatus = InstallEventHandler(
-            GetApplicationEventTarget(),
-            { _, _, context in
-                guard let context else { return OSStatus(eventNotHandledErr) }
-                let box = Unmanaged<HotKeyActionBox>
+        guard AXIsProcessTrusted() else {
+            throw GlobalHotKeyError.accessibilityMissing
+        }
+        if installKeyOverride {
+            keyOverride = try DictationKeyOverride()
+        }
+
+        let eventMask =
+            (CGEventMask(1) << CGEventType.keyDown.rawValue)
+            | (CGEventMask(1) << CGEventType.keyUp.rawValue)
+        guard let eventTap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: eventMask,
+            callback: { _, type, event, context in
+                guard let context else {
+                    return Unmanaged.passUnretained(event)
+                }
+                let hotKey = Unmanaged<GlobalHotKey>
                     .fromOpaque(context)
                     .takeUnretainedValue()
-                hotKeyLogger.debug("Received ⌃⌥Space")
-                box.invoke()
-                return noErr
+                return hotKey.handle(type: type, event: event)
             },
-            1,
-            &eventType,
-            Unmanaged.passUnretained(actionBox).toOpaque(),
-            &eventHandler
-        )
-        guard handlerStatus == noErr else {
-            throw NSError(
-                domain: NSOSStatusErrorDomain,
-                code: Int(handlerStatus),
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Could not install hotkey handler (OSStatus \(handlerStatus))",
-                ]
-            )
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        ) else {
+            throw GlobalHotKeyError.tapCreationFailed
         }
+        self.eventTap = eventTap
 
-        let identifier = EventHotKeyID(
-            signature: fourCharacterCode("PRLQ"),
-            id: 1
-        )
-        let registerStatus = RegisterEventHotKey(
-            UInt32(kVK_Space),
-            UInt32(controlKey | optionKey),
-            identifier,
-            GetApplicationEventTarget(),
-            0,
-            &hotKey
-        )
-        guard registerStatus == noErr else {
-            if let eventHandler {
-                RemoveEventHandler(eventHandler)
-            }
-            throw NSError(
-                domain: NSOSStatusErrorDomain,
-                code: Int(registerStatus),
-                userInfo: [
-                    NSLocalizedDescriptionKey:
-                        "Could not register ⌃⌥Space (OSStatus \(registerStatus))",
-                ]
-            )
+        guard let source = CFMachPortCreateRunLoopSource(
+            kCFAllocatorDefault,
+            eventTap,
+            0
+        ) else {
+            CFMachPortInvalidate(eventTap)
+            self.eventTap = nil
+            throw GlobalHotKeyError.sourceCreationFailed
         }
-        hotKeyLogger.info("Registered ⌃⌥Space")
+        runLoopSource = source
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: eventTap, enable: true)
+
+        guard CGEvent.tapIsEnabled(tap: eventTap) else {
+            cleanup()
+            throw GlobalHotKeyError.tapEnableFailed
+        }
+        startHealthTimer()
+        hotKeyLogger.info("Listening for the Dictation key")
     }
 
     deinit {
-        if let hotKey {
-            UnregisterEventHotKey(hotKey)
-        }
-        if let eventHandler {
-            RemoveEventHandler(eventHandler)
-        }
+        cleanup()
     }
 
-    private func fourCharacterCode(_ value: String) -> FourCharCode {
-        value.utf8.reduce(0) { ($0 << 8) + FourCharCode($1) }
+    private func handle(
+        type: CGEventType,
+        event: CGEvent
+    ) -> Unmanaged<CGEvent>? {
+        if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+            keyIsPressed = false
+            if let eventTap {
+                CGEvent.tapEnable(tap: eventTap, enable: true)
+            }
+            hotKeyLogger.notice("Event tap recovered")
+            return Unmanaged.passUnretained(event)
+        }
+
+        guard event.getIntegerValueField(.keyboardEventKeycode)
+                == DictationKeyOverride.keyCode else {
+            return Unmanaged.passUnretained(event)
+        }
+
+        if type == .keyDown, !keyIsPressed {
+            keyIsPressed = true
+            hotKeyLogger.info(
+                "Received remapped Dictation key"
+            )
+            actionBox.invoke()
+        } else if type == .keyUp {
+            keyIsPressed = false
+        }
+        return type == .keyDown || type == .keyUp
+            ? nil
+            : Unmanaged.passUnretained(event)
+    }
+
+    private func startHealthTimer() {
+        let timer = DispatchSource.makeTimerSource(queue: .main)
+        timer.schedule(
+            deadline: .now() + 5,
+            repeating: 5,
+            leeway: .milliseconds(250)
+        )
+        timer.setEventHandler { [weak self] in
+            guard let self, let eventTap = self.eventTap else {
+                return
+            }
+            guard !CGEvent.tapIsEnabled(tap: eventTap) else {
+                return
+            }
+            CGEvent.tapEnable(tap: eventTap, enable: true)
+            hotKeyLogger.notice("Health check re-enabled event tap")
+        }
+        healthTimer = timer
+        timer.resume()
+    }
+
+    private func cleanup() {
+        healthTimer?.cancel()
+        healthTimer = nil
+        if let eventTap {
+            CGEvent.tapEnable(tap: eventTap, enable: false)
+        }
+        if let runLoopSource {
+            CFRunLoopRemoveSource(
+                CFRunLoopGetMain(),
+                runLoopSource,
+                .commonModes
+            )
+        }
+        if let eventTap {
+            CFMachPortInvalidate(eventTap)
+        }
+        runLoopSource = nil
+        eventTap = nil
+        keyOverride?.restore()
+        keyOverride = nil
     }
 
     @MainActor
-    static func runSelfCheck(timeout: TimeInterval = 1) throws -> Bool {
-        let state = HotKeyCheckState()
-        let hotKey = try GlobalHotKey {
-            state.received = true
-            NSApp.stop(nil)
+    static func checkAvailability() throws {
+        let hotKey = try GlobalHotKey(installKeyOverride: false) {
+            // Registration is the check; physical event delivery is intentionally
+            // not synthesized because session taps ignore injected events.
         }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-            postShortcut()
-        }
-        DispatchQueue.main.asyncAfter(deadline: .now() + timeout) {
-            NSApp.stop(nil)
-        }
-        NSApp.run()
         withExtendedLifetime(hotKey) {}
-        return state.received
     }
-
-    @MainActor
-    private static func postShortcut() {
-        guard let source = CGEventSource(stateID: .hidSystemState),
-              let keyDown = CGEvent(
-                  keyboardEventSource: source,
-                  virtualKey: CGKeyCode(kVK_Space),
-                  keyDown: true
-              ),
-              let keyUp = CGEvent(
-                  keyboardEventSource: source,
-                  virtualKey: CGKeyCode(kVK_Space),
-                  keyDown: false
-              )
-        else {
-            return
-        }
-        keyDown.flags = [.maskControl, .maskAlternate]
-        keyUp.flags = [.maskControl, .maskAlternate]
-        keyDown.post(tap: .cghidEventTap)
-        keyUp.post(tap: .cghidEventTap)
-    }
-}
-
-@MainActor
-private final class HotKeyCheckState {
-    var received = false
 }

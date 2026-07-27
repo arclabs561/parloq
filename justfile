@@ -28,15 +28,14 @@ recorder-eval-smoke output="test-results/recorder-eval-smoke.md":
 
 macos-app:
     swift build -c release --package-path macos/ParloqMenu
-    mkdir -p macos/ParloqMenu/.build/Parloq.app/Contents/MacOS macos/ParloqMenu/.build/Parloq.app/Contents/Resources
-    cp macos/ParloqMenu/.build/release/ParloqMenu macos/ParloqMenu/.build/Parloq.app/Contents/MacOS/ParloqMenu
-    cp macos/ParloqMenu/Resources/AppIcon.icns macos/ParloqMenu/.build/Parloq.app/Contents/Resources/AppIcon.icns
-    cp macos/ParloqMenu/Resources/Info.plist macos/ParloqMenu/.build/Parloq.app/Contents/Info.plist
-    xattr -d com.apple.FinderInfo macos/ParloqMenu/.build/Parloq.app 2>/dev/null || true
-    xattr -d 'com.apple.fileprovider.fpfs#P' macos/ParloqMenu/.build/Parloq.app 2>/dev/null || true
-    codesign --force --sign "${PARLOQ_CODESIGN_IDENTITY:-stela-dev}" --identifier net.attobop.parloq.menu macos/ParloqMenu/.build/Parloq.app
-    codesign --verify --deep --strict macos/ParloqMenu/.build/Parloq.app
+    mkdir -p "$HOME/Library/Caches/Parloq/Parloq.app/Contents/MacOS" "$HOME/Library/Caches/Parloq/Parloq.app/Contents/Resources"
+    cp macos/ParloqMenu/.build/release/ParloqMenu "$HOME/Library/Caches/Parloq/Parloq.app/Contents/MacOS/ParloqMenu"
+    cp macos/ParloqMenu/Resources/AppIcon.icns "$HOME/Library/Caches/Parloq/Parloq.app/Contents/Resources/AppIcon.icns"
+    cp macos/ParloqMenu/Resources/Info.plist "$HOME/Library/Caches/Parloq/Parloq.app/Contents/Info.plist"
+    xattr -cr "$HOME/Library/Caches/Parloq/Parloq.app"
+    codesign --force --sign "${PARLOQ_CODESIGN_IDENTITY:-stela-dev}" --identifier net.attobop.parloq.menu "$HOME/Library/Caches/Parloq/Parloq.app"
+    codesign --verify --deep --strict "$HOME/Library/Caches/Parloq/Parloq.app"
 
 install-macos-app: macos-app
-    ditto macos/ParloqMenu/.build/Parloq.app /Applications/Parloq.app
+    ditto "$HOME/Library/Caches/Parloq/Parloq.app" /Applications/Parloq.app
     codesign --verify --deep --strict /Applications/Parloq.app

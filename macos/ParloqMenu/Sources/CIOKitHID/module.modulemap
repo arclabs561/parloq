@@ -1,0 +1,5 @@
+module CIOKitHID [system] {
+    header "include/CIOKitHID.h"
+    link framework "IOKit"
+    export *
+}

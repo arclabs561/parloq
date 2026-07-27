@@ -7,7 +7,10 @@ The Python daemon remains the speech engine.
 
 ## Behavior
 
-- `⌃⌥Space` starts and stops dictation.
+- A tap of the Microphone/Dictation key (F5 on supported Apple keyboards)
+  starts and stops Parloq instead of macOS Dictation.
+- Parloq remaps only that HID key while it is running, preserves unrelated
+  mappings, and restores the prior mapping when it quits.
 - Live transcript snapshots replace only the text range Parloq inserted in the
   control that was focused at start.
 - If focus, selection, or the inserted text changes, Parloq stops replacing it
@@ -31,17 +34,18 @@ open /Applications/Parloq.app
 
 The app does not open a permission prompt at launch. When you are ready, use
 the menu item **Request Accessibility Permission**, then enable Parloq under
-System Settings > Privacy & Security > Accessibility.
+System Settings > Privacy & Security > Accessibility. Accessibility lets
+Parloq replace the Microphone key and update the focused text field.
 
 Use **Launch at Login** in the menu after the app is installed. The daemon is
 managed separately by its existing `parloq.dictate` launchd agent, so either
 side can be restarted and diagnosed independently.
 
-The built bundle is
-`macos/ParloqMenu/.build/Parloq.app`. It is signed with the local `stela-dev`
-identity so macOS can retain Accessibility approval across rebuilds. Override
-the identity with `PARLOQ_CODESIGN_IDENTITY`; use `-` for an ad-hoc development
-build on a machine without that identity.
+The built bundle is `~/Library/Caches/Parloq/Parloq.app`, outside File
+Provider-managed project metadata that can invalidate codesigning. It is signed
+with the local `stela-dev` identity so macOS can retain Accessibility approval
+across rebuilds. Override the identity with `PARLOQ_CODESIGN_IDENTITY`; use `-`
+for an ad-hoc development build on a machine without that identity.
 
 ## Development
 
@@ -59,7 +63,13 @@ Check the installed app's Accessibility state without opening a window:
 /Applications/Parloq.app/Contents/MacOS/ParloqMenu --check-accessibility
 ```
 
-With Parloq quit, verify that macOS delivers its global shortcut end to end:
+Request permission from the installed bundle without opening an app window:
+
+```sh
+/Applications/Parloq.app/Contents/MacOS/ParloqMenu --request-accessibility
+```
+
+With Parloq quit, verify that macOS can arm its global shortcut event tap:
 
 ```sh
 /Applications/Parloq.app/Contents/MacOS/ParloqMenu --check-hotkey

@@ -1,11 +1,26 @@
 import AppKit
 import ParloqMenuCore
 import ServiceManagement
+import os
+
+private let appLogger = Logger(
+    subsystem: "net.attobop.parloq.menu",
+    category: "app"
+)
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    private enum IconState: Equatable {
+        case idle
+        case offline
+        case listening
+        case finishing
+        case error
+    }
+
     private let client = UnixSocketClient()
     private var hotKey: GlobalHotKey?
+    private var hotKeyRetry: DispatchWorkItem?
     private var statusItem: NSStatusItem?
     private var statusMenuItem: NSMenuItem?
     private var copyMenuItem: NSMenuItem?
@@ -16,23 +31,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastTranscript = ""
     private var lastSequence = 0
     private var lastDeliveryWarning: String?
+    private var hotKeyWarning: String?
+    private var iconState: IconState?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
         buildMenu()
         configureClient()
-        do {
-            hotKey = try GlobalHotKey { [weak self] in
-                self?.toggleDictation()
-            }
-        } catch {
-            updateStatus("Hotkey unavailable: \(error.localizedDescription)")
-        }
+        installHotKey()
         client.startSubscription()
         requestAccessibilityPermission(prompt: false)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        hotKeyRetry?.cancel()
+        hotKey = nil
         client.cancel()
     }
 
@@ -44,7 +57,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.connected = connected
             if connected {
-                self.updateStatus("Connected")
+                self.updateStatus(self.hotKeyWarning ?? "Connected")
             } else {
                 self.phase = nil
                 self.lastSequence = 0
@@ -57,12 +70,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func buildMenu() {
         let item = NSStatusBar.system.statusItem(
-            withLength: NSStatusItem.variableLength)
+            withLength: NSStatusItem.squareLength)
         statusItem = item
-        item.button?.image = NSImage(
-            systemSymbolName: "waveform",
-            accessibilityDescription: "Parloq"
-        )
+        item.button?.image = StatusIcon.parloq
 
         let menu = NSMenu()
         let status = NSMenuItem(title: "Connecting…", action: nil, keyEquivalent: "")
@@ -71,7 +81,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(status)
 
         let toggle = NSMenuItem(
-            title: "Toggle Dictation (⌃⌥Space)",
+            title: "Toggle Dictation (Microphone key)",
             action: #selector(toggleFromMenu),
             keyEquivalent: ""
         )
@@ -183,7 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .warming:
             return "Warming model…"
         case .idle:
-            return "Ready — ⌃⌥Space"
+            return hotKeyWarning ?? "Ready — Microphone key"
         case .recording:
             return "Recording…"
         case .finalizing:
@@ -201,25 +211,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateIcon() {
-        let symbol: String
+        let state: IconState
+        let tint: NSColor?
         if !connected {
-            symbol = "waveform.slash"
+            state = .offline
+            tint = .secondaryLabelColor
         } else {
             switch phase {
             case .recording:
-                symbol = "record.circle.fill"
+                state = .listening
+                tint = .systemRed
             case .finalizing, .polishing:
-                symbol = "ellipsis.circle"
+                state = .finishing
+                tint = .systemOrange
             case .error:
-                symbol = "exclamationmark.triangle"
+                state = .error
+                tint = .systemRed
             default:
-                symbol = "waveform"
+                state = .idle
+                tint = nil
             }
         }
-        statusItem?.button?.image = NSImage(
-            systemSymbolName: symbol,
-            accessibilityDescription: "Parloq"
-        )
+        guard iconState != state else { return }
+        iconState = state
+        guard let button = statusItem?.button else { return }
+        button.image = StatusIcon.parloq
+        button.imagePosition = .imageOnly
+        button.contentTintColor = tint
+        button.title = ""
+        button.setAccessibilityLabel("Parloq")
+        button.setAccessibilityValue(accessibilityValue(for: state))
+    }
+
+    private func accessibilityValue(for state: IconState) -> String {
+        switch state {
+        case .idle:
+            return "Ready"
+        case .offline:
+            return "Offline"
+        case .listening:
+            return "Listening"
+        case .finishing:
+            return "Finishing"
+        case .error:
+            return "Error"
+        }
     }
 
     @objc private func copyLastTranscript() {
@@ -234,6 +270,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             updateStatus("Accessibility permission granted")
         } else {
             updateStatus("Grant Parloq access in Privacy & Security")
+        }
+    }
+
+    private func installHotKey() {
+        hotKeyRetry?.cancel()
+        hotKeyRetry = nil
+        do {
+            hotKey = try GlobalHotKey { [weak self] in
+                self?.toggleDictation()
+            }
+            hotKeyWarning = nil
+            updateStatus(connected ? "Ready — Microphone key" : "Connecting…")
+        } catch {
+            hotKey = nil
+            let warning = "Hotkey unavailable: \(error.localizedDescription)"
+            let warningChanged = hotKeyWarning != warning
+            hotKeyWarning = warning
+            updateStatus(warning)
+            if warningChanged {
+                appLogger.error(
+                    "Dictation key setup failed: \(error.localizedDescription, privacy: .public)"
+                )
+            }
+            let retry = DispatchWorkItem { [weak self] in
+                self?.installHotKey()
+            }
+            hotKeyRetry = retry
+            DispatchQueue.main.asyncAfter(
+                deadline: .now() + 5,
+                execute: retry
+            )
         }
     }
 

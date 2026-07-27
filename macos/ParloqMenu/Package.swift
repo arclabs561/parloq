@@ -11,14 +11,15 @@ let package = Package(
         .executable(name: "ParloqMenu", targets: ["ParloqMenu"]),
     ],
     targets: [
+        .systemLibrary(name: "CIOKitHID"),
         .target(name: "ParloqMenuCore"),
         .executableTarget(
             name: "ParloqMenu",
-            dependencies: ["ParloqMenuCore"],
+            dependencies: ["CIOKitHID", "ParloqMenuCore"],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ApplicationServices"),
-                .linkedFramework("Carbon"),
+                .linkedFramework("IOKit"),
                 .linkedFramework("ServiceManagement"),
             ]
         ),
