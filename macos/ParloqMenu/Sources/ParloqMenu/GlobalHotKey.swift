@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 import os
@@ -17,13 +18,13 @@ private enum GlobalHotKeyError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .accessibilityMissing:
-            return "Accessibility permission is required for the Dictation key"
+            return "Accessibility permission is required for dictation shortcuts"
         case .tapCreationFailed:
-            return "Could not create the Dictation key event tap"
+            return "Could not create the dictation shortcut event tap"
         case .sourceCreationFailed:
-            return "Could not attach the Dictation key event tap"
+            return "Could not attach the dictation shortcut event tap"
         case .tapEnableFailed:
-            return "Could not enable the Dictation key event tap"
+            return "Could not enable the dictation shortcut event tap"
         }
     }
 }
@@ -45,12 +46,18 @@ private final class HotKeyActionBox: @unchecked Sendable {
 final class GlobalHotKey: @unchecked Sendable {
     typealias Action = @MainActor @Sendable () -> Void
 
+    private enum Trigger: Hashable {
+        case dictationKey
+        case optionSpace
+    }
+
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var healthTimer: DispatchSourceTimer?
     private var keyOverride: DictationKeyOverride?
     private let actionBox: HotKeyActionBox
-    private var keyIsPressed = false
+    private var pressedTriggers: Set<Trigger> = []
+    private(set) var warning: String?
 
     init(
         installKeyOverride: Bool = true,
@@ -62,7 +69,14 @@ final class GlobalHotKey: @unchecked Sendable {
             throw GlobalHotKeyError.accessibilityMissing
         }
         if installKeyOverride {
-            keyOverride = try DictationKeyOverride()
+            do {
+                keyOverride = try DictationKeyOverride()
+            } catch {
+                warning = "⌥Space ready; Dictation key unavailable"
+                hotKeyLogger.error(
+                    "Dictation key override failed: \(error.localizedDescription, privacy: .public)"
+                )
+            }
         }
 
         let eventMask =
@@ -106,7 +120,7 @@ final class GlobalHotKey: @unchecked Sendable {
             throw GlobalHotKeyError.tapEnableFailed
         }
         startHealthTimer()
-        hotKeyLogger.info("Listening for the Dictation key")
+        hotKeyLogger.info("Listening for Option-Space and the Dictation key")
     }
 
     deinit {
@@ -118,7 +132,7 @@ final class GlobalHotKey: @unchecked Sendable {
         event: CGEvent
     ) -> Unmanaged<CGEvent>? {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            keyIsPressed = false
+            pressedTriggers.removeAll()
             if let eventTap {
                 CGEvent.tapEnable(tap: eventTap, enable: true)
             }
@@ -126,23 +140,47 @@ final class GlobalHotKey: @unchecked Sendable {
             return Unmanaged.passUnretained(event)
         }
 
-        guard event.getIntegerValueField(.keyboardEventKeycode)
-                == DictationKeyOverride.keyCode else {
+        guard let trigger = trigger(for: type, event: event) else {
             return Unmanaged.passUnretained(event)
         }
 
-        if type == .keyDown, !keyIsPressed {
-            keyIsPressed = true
-            hotKeyLogger.info(
-                "Received remapped Dictation key"
-            )
-            actionBox.invoke()
+        if type == .keyDown {
+            if pressedTriggers.insert(trigger).inserted {
+                hotKeyLogger.info("Received dictation shortcut")
+                actionBox.invoke()
+            }
         } else if type == .keyUp {
-            keyIsPressed = false
+            pressedTriggers.remove(trigger)
         }
         return type == .keyDown || type == .keyUp
             ? nil
             : Unmanaged.passUnretained(event)
+    }
+
+    private func trigger(
+        for type: CGEventType,
+        event: CGEvent
+    ) -> Trigger? {
+        let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        if keyCode == DictationKeyOverride.keyCode {
+            return .dictationKey
+        }
+        guard keyCode == Int64(kVK_Space) else {
+            return nil
+        }
+        if type == .keyUp, pressedTriggers.contains(.optionSpace) {
+            return .optionSpace
+        }
+
+        let shortcutModifiers: CGEventFlags = [
+            .maskShift,
+            .maskControl,
+            .maskAlternate,
+            .maskCommand,
+        ]
+        return event.flags.intersection(shortcutModifiers) == .maskAlternate
+            ? .optionSpace
+            : nil
     }
 
     private func startHealthTimer() {

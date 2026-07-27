@@ -138,13 +138,52 @@ final class TextDeliverySession {
     }
 }
 
+private enum FocusedElement {
+    static func capture() -> AXUIElement? {
+        let systemWide = AXUIElementCreateSystemWide()
+        if let focused = copy(
+            from: systemWide,
+            attribute: kAXFocusedUIElementAttribute
+        ) {
+            return focused
+        }
+
+        guard let application = NSWorkspace.shared.frontmostApplication else {
+            return nil
+        }
+        let applicationElement = AXUIElementCreateApplication(
+            application.processIdentifier)
+        return copy(
+            from: applicationElement,
+            attribute: kAXFocusedUIElementAttribute
+        )
+    }
+
+    private static func copy(
+        from element: AXUIElement,
+        attribute: String
+    ) -> AXUIElement? {
+        var value: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(
+            element,
+            attribute as CFString,
+            &value
+        ) == .success,
+        let value,
+        CFGetTypeID(value) == AXUIElementGetTypeID()
+        else {
+            return nil
+        }
+        return (value as! AXUIElement)
+    }
+}
+
 private final class FocusedTextTarget {
     private enum Identity {
         case element(AXUIElement)
         case application(pid_t)
     }
 
-    private let systemWide = AXUIElementCreateSystemWide()
     private let identity: Identity
 
     private init(identity: Identity) {
@@ -152,17 +191,9 @@ private final class FocusedTextTarget {
     }
 
     static func capture() -> FocusedTextTarget? {
-        let systemWide = AXUIElementCreateSystemWide()
-        var value: CFTypeRef?
-        if AXUIElementCopyAttributeValue(
-            systemWide,
-            kAXFocusedUIElementAttribute as CFString,
-            &value
-        ) == .success,
-        let value,
-        CFGetTypeID(value) == AXUIElementGetTypeID() {
+        if let element = FocusedElement.capture() {
             return FocusedTextTarget(
-                identity: .element(value as! AXUIElement))
+                identity: .element(element))
         }
         guard let application = NSWorkspace.shared.frontmostApplication else {
             return nil
@@ -174,18 +205,10 @@ private final class FocusedTextTarget {
     var isStillFocused: Bool {
         switch identity {
         case let .element(element):
-            var value: CFTypeRef?
-            guard AXUIElementCopyAttributeValue(
-                systemWide,
-                kAXFocusedUIElementAttribute as CFString,
-                &value
-            ) == .success,
-            let value,
-            CFGetTypeID(value) == AXUIElementGetTypeID()
-            else {
+            guard let focused = FocusedElement.capture() else {
                 return false
             }
-            return CFEqual(value, element)
+            return CFEqual(focused, element)
         case let .application(processIdentifier):
             return NSWorkspace.shared.frontmostApplication?
                 .processIdentifier == processIdentifier
@@ -194,7 +217,6 @@ private final class FocusedTextTarget {
 }
 
 private final class OwnedTextRange {
-    private let systemWide = AXUIElementCreateSystemWide()
     private let element: AXUIElement
     private var ownedRange: CFRange
     private var expectedSelection: CFRange
@@ -213,11 +235,7 @@ private final class OwnedTextRange {
 
     static func capture() -> OwnedTextRange? {
         guard AXIsProcessTrusted() else { return nil }
-        let systemWide = AXUIElementCreateSystemWide()
-        guard let element = copyElement(
-            from: systemWide,
-            attribute: kAXFocusedUIElementAttribute
-        ) else {
+        guard let element = FocusedElement.capture() else {
             return nil
         }
 
@@ -255,10 +273,9 @@ private final class OwnedTextRange {
     }
 
     func replaceOwnedText(with text: String) throws {
-        guard let focused = Self.copyElement(
-            from: systemWide,
-            attribute: kAXFocusedUIElementAttribute
-        ), CFEqual(focused, element) else {
+        guard let focused = FocusedElement.capture(),
+              CFEqual(focused, element)
+        else {
             throw DeliveryError.ownershipLost
         }
         guard let value = Self.copyString(
@@ -318,26 +335,6 @@ private final class OwnedTextRange {
             )
         }
         expectedSelection = cursor
-    }
-
-    private static func copyElement(
-        from element: AXUIElement,
-        attribute: String
-    ) -> AXUIElement? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            element,
-            attribute as CFString,
-            &value
-        ) == .success else {
-            return nil
-        }
-        guard let value,
-              CFGetTypeID(value) == AXUIElementGetTypeID()
-        else {
-            return nil
-        }
-        return (value as! AXUIElement)
     }
 
     private static func copyString(

@@ -7,19 +7,22 @@ The Python daemon remains the speech engine.
 
 ## Behavior
 
-- A tap of the Microphone/Dictation key (F5 on supported Apple keyboards)
-  starts and stops Parloq instead of macOS Dictation.
+- **Option-Space** or a tap of the Microphone/Dictation key (F5 on supported
+  Apple keyboards) starts and stops Parloq.
 - Parloq remaps only that HID key while it is running, preserves unrelated
   mappings, and restores the prior mapping when it quits.
+- A compact, non-activating HUD shows revisable transcript snapshots while
+  recording. It cannot receive keyboard focus or mouse input.
 - Live transcript snapshots replace only the text range Parloq inserted in the
-  control that was focused at start.
+  control that was focused at start when that control exposes a writable
+  Accessibility range.
 - If focus, selection, or the inserted text changes, Parloq stops replacing it
   and copies the accurate final transcript instead of overwriting user input.
 - Controls without writable Accessibility ranges receive finalized text only.
-  Unstable draft text is never appended where it cannot be revised safely.
+  The HUD still provides live feedback, while unstable draft text is never
+  appended where it cannot be revised safely.
 - The daemon runs a higher-quality offline pass after stop; that result replaces
   the live snapshot when range ownership is still intact.
-- No transcript popup or floating window is created.
 
 ## Build and install
 
@@ -29,7 +32,7 @@ From the repository root:
 just macos-app
 just install-macos-app
 recorder dictate install-agent
-open /Applications/Parloq.app
+open -gj /Applications/Parloq.app
 ```
 
 The app does not open a permission prompt at launch. When you are ready, use

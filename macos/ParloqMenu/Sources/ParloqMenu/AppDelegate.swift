@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private let client = UnixSocketClient()
+    private var liveTranscriptPanel: LiveTranscriptPanel?
     private var hotKey: GlobalHotKey?
     private var hotKeyRetry: DispatchWorkItem?
     private var statusItem: NSStatusItem?
@@ -28,6 +29,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var phase: DictatePhase?
     private var connected = false
     private var deliverySession: TextDeliverySession?
+    private var liveTranscript = LiveTranscriptBuffer()
     private var lastTranscript = ""
     private var lastSequence = 0
     private var lastDeliveryWarning: String?
@@ -46,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         hotKeyRetry?.cancel()
         hotKey = nil
+        liveTranscriptPanel?.hide()
         client.cancel()
     }
 
@@ -62,6 +65,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.phase = nil
                 self.lastSequence = 0
                 self.deliverySession = nil
+                self.liveTranscript.reset()
+                self.liveTranscriptPanel?.hide()
                 self.updateStatus(message ?? "Daemon unavailable")
             }
             self.updateIcon()
@@ -82,7 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(status)
 
         let toggle = NSMenuItem(
-            title: "Toggle Dictation (Microphone key)",
+            title: "Toggle Dictation (⌥Space or Microphone key)",
             action: #selector(toggleFromMenu),
             keyEquivalent: ""
         )
@@ -139,12 +144,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         switch phase {
         case .recording:
+            liveTranscriptPanel?.showFinishing()
             client.send(.stop)
         case .finalizing, .polishing:
             updateStatus("Finishing current dictation…")
         default:
             lastDeliveryWarning = nil
+            liveTranscript.reset()
             deliverySession = TextDeliverySession()
+            let panel = LiveTranscriptPanel()
+            liveTranscriptPanel = panel
+            panel.showListening()
             client.send(.start)
         }
     }
@@ -155,7 +165,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         phase = event.phase
         switch event.type {
         case .transcript:
-            deliverySession?.deliver(event: event)
+            if let text = event.text, !text.isEmpty {
+                deliverySession?.deliver(event: event)
+                if let visibleText = liveTranscript.update(snapshot: text) {
+                    liveTranscriptPanel?.update(text: visibleText)
+                }
+            }
             updateStatus(statusText(for: event))
 
         case .final:
@@ -174,12 +189,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 updateStatus("Dictation complete")
             }
             deliverySession = nil
+            liveTranscript.reset()
+            liveTranscriptPanel?.hide()
+            liveTranscriptPanel = nil
 
         case .error:
             updateStatus(event.message ?? "Dictation error")
             deliverySession = nil
+            liveTranscript.reset()
+            liveTranscriptPanel?.hide()
+            liveTranscriptPanel = nil
 
         case .ack, .status:
+            if event.phase == .finalizing || event.phase == .polishing {
+                liveTranscriptPanel?.showFinishing()
+            } else if event.phase == .idle, deliverySession != nil {
+                liveTranscript.reset()
+                liveTranscriptPanel?.hide()
+                liveTranscriptPanel = nil
+            }
             if event.phase == .idle, let lastDeliveryWarning {
                 updateStatus(lastDeliveryWarning)
             } else {
@@ -194,7 +222,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .warming:
             return "Warming model…"
         case .idle:
-            return hotKeyWarning ?? "Ready — Microphone key"
+            return hotKeyWarning ?? "Ready — ⌥Space or Microphone key"
         case .recording:
             return "Recording…"
         case .finalizing:
@@ -287,11 +315,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyRetry?.cancel()
         hotKeyRetry = nil
         do {
-            hotKey = try GlobalHotKey { [weak self] in
+            let installedHotKey = try GlobalHotKey { [weak self] in
                 self?.toggleDictation()
             }
-            hotKeyWarning = nil
-            updateStatus(connected ? "Ready — Microphone key" : "Connecting…")
+            hotKey = installedHotKey
+            hotKeyWarning = installedHotKey.warning
+            updateStatus(
+                connected
+                    ? installedHotKey.warning
+                        ?? "Ready — ⌥Space or Microphone key"
+                    : "Connecting…"
+            )
         } catch {
             hotKey = nil
             let warning = "Hotkey unavailable: \(error.localizedDescription)"
