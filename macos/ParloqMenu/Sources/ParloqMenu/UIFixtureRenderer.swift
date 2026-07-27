@@ -1,5 +1,6 @@
 import AppKit
 import ParloqMenuCore
+import QuartzCore
 
 @MainActor
 enum UIFixtureRenderer {
@@ -9,6 +10,40 @@ enum UIFixtureRenderer {
             withIntermediateDirectories: true
         )
 
+        let application = NSApplication.shared
+        let previousAppearance = application.appearance
+        defer { application.appearance = previousAppearance }
+
+        application.appearance = NSAppearance(named: .darkAqua)
+        let dark = try renderStates(to: directory)
+
+        let lightDirectory = directory.appendingPathComponent(
+            "light",
+            isDirectory: true
+        )
+        try FileManager.default.createDirectory(
+            at: lightDirectory,
+            withIntermediateDirectories: true
+        )
+        application.appearance = NSAppearance(named: .aqua)
+        let light = try renderStates(to: lightDirectory)
+
+        application.appearance = NSAppearance(named: .darkAqua)
+        let board = try renderReviewBoard(
+            dark: dark,
+            light: light,
+            to: directory
+        )
+        let manifest = try writeManifest(
+            dark: dark,
+            light: light,
+            board: board,
+            to: directory
+        )
+        return dark + light + [board, manifest]
+    }
+
+    private static func renderStates(to directory: URL) throws -> [URL] {
         var rendered: [URL] = []
         rendered.append(try renderListeningShort(to: directory))
         rendered.append(try renderListeningLong(to: directory))
@@ -252,6 +287,318 @@ enum UIFixtureRenderer {
         let url = directory.appendingPathComponent("status-icons.png")
         try write(view, to: url)
         return url
+    }
+
+    private struct Artifact: Codable {
+        let appearance: String
+        let file: String
+        let state: String
+        let pixelWidth: Int
+        let pixelHeight: Int
+        let bytes: Int
+    }
+
+    private struct ReviewManifest: Codable {
+        let artifacts: [Artifact]
+        let reviewBoard: String
+        let limitations: [String]
+    }
+
+    private static func renderReviewBoard(
+        dark: [URL],
+        light: [URL],
+        to directory: URL
+    ) throws -> URL {
+        guard dark.count == light.count else {
+            throw fixtureError("appearance fixture counts do not match")
+        }
+
+        let pairs = try zip(dark, light).map { darkURL, lightURL in
+            guard darkURL.lastPathComponent == lightURL.lastPathComponent,
+                  let darkImage = NSImage(contentsOf: darkURL),
+                  let lightImage = NSImage(contentsOf: lightURL)
+            else {
+                throw fixtureError(
+                    "could not pair \(darkURL.lastPathComponent)"
+                )
+            }
+            return (
+                state: darkURL.deletingPathExtension().lastPathComponent,
+                dark: darkImage,
+                light: lightImage
+            )
+        }
+
+        let margin: CGFloat = 20
+        let columnGap: CGFloat = 18
+        let columnWidth: CGFloat = 660
+        let headerHeight: CGFloat = 84
+        let rowGap: CGFloat = 14
+        let rows = pairs.map {
+            max($0.dark.size.height, $0.light.size.height) + 48
+        }
+        let boardSize = NSSize(
+            width: 2 * margin + 2 * columnWidth + columnGap,
+            height: headerHeight
+                + rows.reduce(0, +)
+                + CGFloat(max(0, rows.count - 1)) * rowGap
+                + margin
+        )
+        let board = NSView(frame: NSRect(origin: .zero, size: boardSize))
+        board.wantsLayer = true
+        board.layer?.backgroundColor = NSColor(
+            srgbRed: 0.055,
+            green: 0.06,
+            blue: 0.075,
+            alpha: 1
+        ).cgColor
+
+        let title = reviewLabel(
+            "PARLOQ HUD · FOCUS-SAFE REVIEW",
+            size: 15,
+            weight: .semibold,
+            color: NSColor.white.withAlphaComponent(0.92)
+        )
+        title.frame = NSRect(
+            x: margin,
+            y: boardSize.height - 36,
+            width: 420,
+            height: 20
+        )
+        board.addSubview(title)
+
+        let note = reviewLabel(
+            "Compatibility material render · native glass refraction requires "
+                + "the installed compositor",
+            size: 10.5,
+            weight: .regular,
+            color: NSColor.white.withAlphaComponent(0.54)
+        )
+        note.frame = NSRect(
+            x: margin,
+            y: boardSize.height - 57,
+            width: 620,
+            height: 16
+        )
+        board.addSubview(note)
+
+        for (title, x) in [
+            ("DARK APPEARANCE", margin),
+            ("LIGHT APPEARANCE", margin + columnWidth + columnGap),
+        ] {
+            let label = reviewLabel(
+                title,
+                size: 10,
+                weight: .semibold,
+                color: NSColor.white.withAlphaComponent(0.60)
+            )
+            label.frame = NSRect(
+                x: x + 14,
+                y: boardSize.height - 78,
+                width: columnWidth - 28,
+                height: 16
+            )
+            board.addSubview(label)
+        }
+
+        var rowTop = boardSize.height - headerHeight
+        for (index, pair) in pairs.enumerated() {
+            let rowHeight = rows[index]
+            let rowBottom = rowTop - rowHeight
+            let stateLabel = reviewLabel(
+                pair.state.replacingOccurrences(of: "hud-", with: "")
+                    .replacingOccurrences(of: "-", with: " ")
+                    .uppercased(),
+                size: 9.5,
+                weight: .medium,
+                color: NSColor.white.withAlphaComponent(0.46)
+            )
+            stateLabel.frame = NSRect(
+                x: margin,
+                y: rowTop - 22,
+                width: 320,
+                height: 14
+            )
+            board.addSubview(stateLabel)
+
+            addReviewCell(
+                image: pair.dark,
+                frame: NSRect(
+                    x: margin,
+                    y: rowBottom,
+                    width: columnWidth,
+                    height: rowHeight - 28
+                ),
+                light: false,
+                to: board
+            )
+            addReviewCell(
+                image: pair.light,
+                frame: NSRect(
+                    x: margin + columnWidth + columnGap,
+                    y: rowBottom,
+                    width: columnWidth,
+                    height: rowHeight - 28
+                ),
+                light: true,
+                to: board
+            )
+            rowTop = rowBottom - rowGap
+        }
+
+        let url = directory.appendingPathComponent("ui-review-board.png")
+        board.layoutSubtreeIfNeeded()
+        try write(board, to: url)
+        return url
+    }
+
+    private static func addReviewCell(
+        image: NSImage,
+        frame: NSRect,
+        light: Bool,
+        to board: NSView
+    ) {
+        let cell = NSView(frame: frame)
+        cell.wantsLayer = true
+        cell.layer?.cornerRadius = 18
+        cell.layer?.cornerCurve = .continuous
+        cell.layer?.masksToBounds = true
+
+        let gradient = CAGradientLayer()
+        gradient.frame = cell.bounds
+        gradient.cornerRadius = 18
+        gradient.startPoint = CGPoint(x: 0.05, y: 0.95)
+        gradient.endPoint = CGPoint(x: 0.95, y: 0.05)
+        if light {
+            gradient.colors = [
+                NSColor(
+                    srgbRed: 0.91,
+                    green: 0.93,
+                    blue: 0.97,
+                    alpha: 1
+                ).cgColor,
+                NSColor(
+                    srgbRed: 0.66,
+                    green: 0.70,
+                    blue: 0.78,
+                    alpha: 1
+                ).cgColor,
+            ]
+        } else {
+            gradient.colors = [
+                NSColor(
+                    srgbRed: 0.12,
+                    green: 0.14,
+                    blue: 0.19,
+                    alpha: 1
+                ).cgColor,
+                NSColor(
+                    srgbRed: 0.035,
+                    green: 0.045,
+                    blue: 0.07,
+                    alpha: 1
+                ).cgColor,
+            ]
+        }
+        cell.layer?.addSublayer(gradient)
+
+        let imageView = NSImageView()
+        imageView.image = image
+        imageView.imageScaling = .scaleProportionallyDown
+        imageView.frame = cell.bounds.insetBy(dx: 10, dy: 8)
+        imageView.autoresizingMask = [.width, .height]
+        cell.addSubview(imageView)
+        board.addSubview(cell)
+    }
+
+    private static func reviewLabel(
+        _ value: String,
+        size: CGFloat,
+        weight: NSFont.Weight,
+        color: NSColor
+    ) -> NSTextField {
+        let label = NSTextField(labelWithString: value)
+        label.font = NSFont.systemFont(ofSize: size, weight: weight)
+        label.textColor = color
+        label.lineBreakMode = .byTruncatingTail
+        return label
+    }
+
+    private static func writeManifest(
+        dark: [URL],
+        light: [URL],
+        board: URL,
+        to directory: URL
+    ) throws -> URL {
+        let artifacts = try [
+            ("dark", dark),
+            ("light", light),
+        ].flatMap { appearance, urls in
+            try urls.map { url in
+                let data = try Data(contentsOf: url)
+                guard let bitmap = NSBitmapImageRep(data: data),
+                      bitmap.pixelsWide >= 200,
+                      bitmap.pixelsHigh >= 100,
+                      data.count >= 1_000
+                else {
+                    throw fixtureError(
+                        "empty or implausibly small fixture "
+                            + url.lastPathComponent
+                    )
+                }
+                return Artifact(
+                    appearance: appearance,
+                    file: url.path.replacingOccurrences(
+                        of: directory.path + "/",
+                        with: ""
+                    ),
+                    state: url.deletingPathExtension().lastPathComponent,
+                    pixelWidth: bitmap.pixelsWide,
+                    pixelHeight: bitmap.pixelsHigh,
+                    bytes: data.count
+                )
+            }
+        }
+
+        for index in dark.indices {
+            let darkArtifact = artifacts[index]
+            let lightArtifact = artifacts[index + dark.count]
+            guard darkArtifact.state == lightArtifact.state,
+                  darkArtifact.pixelWidth == lightArtifact.pixelWidth,
+                  darkArtifact.pixelHeight == lightArtifact.pixelHeight
+            else {
+                throw fixtureError(
+                    "light and dark geometry differ for "
+                        + darkArtifact.state
+                )
+            }
+        }
+
+        let manifest = ReviewManifest(
+            artifacts: artifacts,
+            reviewBoard: board.lastPathComponent,
+            limitations: [
+                "The review board verifies content, hierarchy, geometry, "
+                    + "appearance, and state coverage without showing a window.",
+                "NSGlassEffectView refraction and optical merging are rendered "
+                    + "only by the installed WindowServer compositor.",
+            ]
+        )
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let url = directory.appendingPathComponent("manifest.json")
+        var data = try encoder.encode(manifest)
+        data.append(0x0A)
+        try data.write(to: url, options: .atomic)
+        return url
+    }
+
+    private static func fixtureError(_ description: String) -> Error {
+        NSError(
+            domain: "Parloq.UIFixtureRenderer",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: description]
+        )
     }
 
     private static func makePanel(

@@ -18,6 +18,7 @@ check:
     uv run recorder/evals/test_agent_plist.py
     uv run recorder/evals/test_ui_fixture.py
     swift test --package-path macos/ParloqMenu
+    swift run --package-path macos/ParloqMenu ParloqMenu --render-ui-fixtures "test-results/ui-fixtures"
 
 recorder-corpus target="librispeech":
     data/corpora/recorder/scripts/sync.sh {{target}}

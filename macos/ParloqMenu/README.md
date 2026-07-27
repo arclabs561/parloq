@@ -12,15 +12,16 @@ The Python daemon remains the speech engine.
 - Parloq remaps only that HID key while it is running, preserves unrelated
   mappings, and restores the prior mapping when it quits.
 - A compact, non-activating HUD shows revisable transcript snapshots while
-  recording. On macOS 26 it uses native regular Liquid Glass, with the
-  established visual-effect material as the compatibility and offscreen-test
-  fallback. Settled context is muted above the bright, changing tail, and older
-  context truncates from the top. Two quiet instrument rows identify the
-  captured application and delivery behavior, show the real input spectrum,
-  elapsed time, microphone, model, live speaking rate, peak dBFS, and prosody
-  calibration. It cannot receive keyboard focus or mouse input. It follows the
-  focused caret or window's display, with the pointer display only as a
-  fallback.
+  recording. On macOS 26, a native glass container optically joins the tinted
+  state lens to the transcript capsule while a detached clear-glass shelf keeps
+  diagnostics subordinate. The established visual-effect material remains the
+  compatibility and offscreen-test fallback. Settled context is muted above
+  the bright, changing tail, and older context truncates from the top. Two
+  quiet instrument rows identify the captured application and delivery
+  behavior, show the real input spectrum, elapsed time, microphone, model,
+  live speaking rate, peak dBFS, and prosody calibration. It cannot receive
+  keyboard focus or mouse input. It follows the focused caret or window's
+  display, with the pointer display only as a fallback.
 - The menu-bar icon uses a different silhouette for ready, listening,
   finalizing, unavailable, and error states. Listening adds a visible status
   dot and green tint; its waveform and the HUD's nine-band **SPECTRUM**
@@ -102,10 +103,15 @@ just ui-fixtures
 just check
 ```
 
-`just ui-fixtures` renders representative HUD and status-icon states to
-`test-results/ui-fixtures/`. It uses the real AppKit views without showing a
-window, activating Parloq, arming shortcuts, or opening the microphone, so
-visual changes can be inspected without interrupting another app.
+`just ui-fixtures` renders every representative HUD and status-icon state in
+dark and light appearances to `test-results/ui-fixtures/`. It also creates
+`ui-review-board.png` for one-pass comparison and `manifest.json`, which checks
+that every appearance pair has matching, non-empty geometry. The command uses
+the real AppKit hierarchy without showing a window, activating Parloq, arming
+shortcuts, or opening the microphone, so visual changes can be inspected
+without interrupting another app. The compatibility material stands in for
+native glass in these offscreen renders; WindowServer-owned refraction and
+optical merging still require a final installed-panel check.
 
 Set `RECORDER_DICTATE_SOCK` for an isolated daemon socket. The production
 default is `/tmp/recorder-dictate-$UID.sock`.
