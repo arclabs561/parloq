@@ -132,19 +132,134 @@ private final class InputSpectrumView: NSView {
     }
 }
 
+@MainActor
+private struct PanelSurfaceGroup {
+    let root: NSView
+    let rootContent: NSView
+    let main: NSView
+    let mainContent: NSView
+    let shelf: NSView
+    let shelfContent: NSView
+    let state: NSView
+    let stateContent: NSView
+    let usesNativeGlass: Bool
+}
+
+@MainActor
+private func makePanelSurfaceGroup(
+    presentsWindow: Bool
+) -> PanelSurfaceGroup {
+    // NSGlassEffectView's compositor does not participate in an offscreen
+    // cacheDisplay pass. Fixtures preserve the exact island geometry with
+    // visual-effect fallbacks; the installed panel uses native glass.
+    if #available(macOS 26.0, *), presentsWindow {
+        let container = NSGlassEffectContainerView()
+        container.spacing = 12
+        let rootContent = NSView()
+        container.contentView = rootContent
+
+        func glass(
+            radius: CGFloat,
+            style: NSGlassEffectView.Style = .regular,
+            tint: NSColor? = nil
+        ) -> (NSGlassEffectView, NSView) {
+            let surface = NSGlassEffectView()
+            surface.style = style
+            surface.cornerRadius = radius
+            surface.tintColor = tint
+            let content = NSView()
+            surface.contentView = content
+            return (surface, content)
+        }
+
+        let (main, mainContent) = glass(radius: 27)
+        let (shelf, shelfContent) = glass(radius: 18, style: .clear)
+        let (state, stateContent) = glass(
+            radius: 28,
+            tint: ParloqVisuals.listening.withAlphaComponent(0.22)
+        )
+        rootContent.addSubview(main)
+        rootContent.addSubview(shelf)
+        rootContent.addSubview(state)
+        return PanelSurfaceGroup(
+            root: container,
+            rootContent: rootContent,
+            main: main,
+            mainContent: mainContent,
+            shelf: shelf,
+            shelfContent: shelfContent,
+            state: state,
+            stateContent: stateContent,
+            usesNativeGlass: true
+        )
+    }
+
+    let root = NSView()
+
+    func fallback(
+        radius: CGFloat
+    ) -> NSVisualEffectView {
+        let surface = NSVisualEffectView()
+        surface.material = .popover
+        surface.blendingMode = .behindWindow
+        surface.state = .active
+        surface.wantsLayer = true
+        surface.layer?.cornerRadius = radius
+        surface.layer?.cornerCurve = .continuous
+        surface.layer?.masksToBounds = true
+        surface.layer?.borderWidth = 0.5
+        surface.layer?.borderColor = NSColor.white
+            .withAlphaComponent(0.18)
+            .cgColor
+        return surface
+    }
+
+    let main = fallback(radius: 27)
+    let shelf = fallback(radius: 18)
+    let state = fallback(radius: 28)
+    root.addSubview(main)
+    root.addSubview(shelf)
+    root.addSubview(state)
+    return PanelSurfaceGroup(
+        root: root,
+        rootContent: root,
+        main: main,
+        mainContent: main,
+        shelf: shelf,
+        shelfContent: shelf,
+        state: state,
+        stateContent: state,
+        usesNativeGlass: false
+    )
+}
+
+@MainActor
+private func makeTintView(
+    color: NSColor,
+    alpha: CGFloat
+) -> NSView {
+    let view = NSView()
+    view.wantsLayer = true
+    view.layer?.backgroundColor = color
+        .withAlphaComponent(alpha)
+        .cgColor
+    view.translatesAutoresizingMaskIntoConstraints = false
+    return view
+}
+
 private enum PanelMetrics {
-    static let width: CGFloat = 620
-    static let minimumHeight: CGFloat = 132
-    static let maximumHeight: CGFloat = 214
-    static let horizontalInset: CGFloat = 20
-    static let verticalChrome: CGFloat = 108
-    static let cornerRadius: CGFloat = 20
+    static let width: CGFloat = 640
+    static let minimumHeight: CGFloat = 154
+    static let maximumHeight: CGFloat = 236
+    static let verticalChrome: CGFloat = 136
+    static let transcriptWidth: CGFloat = width - 88
 }
 
 @MainActor
 final class LiveTranscriptPanel {
     private let panel: NSPanel
-    private let stateHalo: NSView
+    private let surfaces: PanelSurfaceGroup
+    private let stateTintView: NSView
     private let iconView: NSImageView
     private let stateLabel: NSTextField
     private let hintLabel: NSTextField
@@ -171,6 +286,27 @@ final class LiveTranscriptPanel {
         self.metadata = metadata
         telemetry = DictationHUDTelemetry(details: details)
         self.presentsWindow = presentsWindow
+        surfaces = makePanelSurfaceGroup(presentsWindow: presentsWindow)
+        let reduceTransparency =
+            NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        let mainTintView = makeTintView(
+            color: ParloqVisuals.surfaceTint,
+            alpha: reduceTransparency
+                ? 0.94
+                : (surfaces.usesNativeGlass ? 0 : 0.30)
+        )
+        let shelfTintView = makeTintView(
+            color: ParloqVisuals.surfaceTint,
+            alpha: reduceTransparency
+                ? 0.90
+                : (surfaces.usesNativeGlass ? 0 : 0.24)
+        )
+        stateTintView = makeTintView(
+            color: ParloqVisuals.listening,
+            alpha: reduceTransparency
+                ? 0.28
+                : (surfaces.usesNativeGlass ? 0 : 0.14)
+        )
         panel = NSPanel(
             contentRect: NSRect(
                 x: 0,
@@ -184,7 +320,7 @@ final class LiveTranscriptPanel {
         )
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.hasShadow = true
+        panel.hasShadow = false
         panel.hidesOnDeactivate = false
         panel.ignoresMouseEvents = true
         panel.isReleasedWhenClosed = false
@@ -196,67 +332,19 @@ final class LiveTranscriptPanel {
             .ignoresCycle,
             .stationary,
         ]
-
-        let material: NSView
-        let contentHost: NSView
-        let usesNativeGlass: Bool
-        // NSGlassEffectView's compositor does not participate in an offscreen
-        // cacheDisplay pass. Fixtures use the same content hierarchy over the
-        // established material fallback; the installed panel uses native glass.
-        if #available(macOS 26.0, *), presentsWindow {
-            let glass = NSGlassEffectView()
-            glass.style = .regular
-            glass.cornerRadius = PanelMetrics.cornerRadius
-            glass.tintColor = ParloqVisuals.surfaceTint.withAlphaComponent(0.22)
-            let content = NSView()
-            glass.contentView = content
-            material = glass
-            contentHost = content
-            usesNativeGlass = true
-        } else {
-            let fallback = NSVisualEffectView()
-            fallback.material = .hudWindow
-            fallback.blendingMode = .behindWindow
-            fallback.state = .active
-            contentHost = fallback
-            material = fallback
-            usesNativeGlass = false
+        panel.contentView = surfaces.root
+        if surfaces.rootContent !== surfaces.root {
+            surfaces.rootContent.frame = surfaces.root.bounds
+            surfaces.rootContent.autoresizingMask = [.width, .height]
         }
-        material.wantsLayer = true
-        if !usesNativeGlass {
-            material.layer?.cornerRadius = PanelMetrics.cornerRadius
-            material.layer?.cornerCurve = .continuous
-            material.layer?.masksToBounds = true
-            material.layer?.borderWidth = 0.5
-            material.layer?.borderColor = NSColor.white
-                .withAlphaComponent(0.18)
-                .cgColor
+        for (surface, content) in [
+            (surfaces.main, surfaces.mainContent),
+            (surfaces.shelf, surfaces.shelfContent),
+            (surfaces.state, surfaces.stateContent),
+        ] where content !== surface {
+            content.frame = surface.bounds
+            content.autoresizingMask = [.width, .height]
         }
-        panel.contentView = material
-        if contentHost !== material {
-            contentHost.frame = material.bounds
-            contentHost.autoresizingMask = [.width, .height]
-        }
-
-        let tint = NSView()
-        tint.wantsLayer = true
-        tint.layer?.backgroundColor = ParloqVisuals.surfaceTint
-            .withAlphaComponent(
-                NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-                    ? 0.96
-                    : (usesNativeGlass ? 0.18 : 0.34)
-            )
-            .cgColor
-        tint.translatesAutoresizingMaskIntoConstraints = false
-
-        stateHalo = NSView()
-        stateHalo.wantsLayer = true
-        stateHalo.layer?.cornerRadius = 10
-        stateHalo.layer?.cornerCurve = .continuous
-        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
-            .withAlphaComponent(0.13)
-            .cgColor
-        stateHalo.translatesAutoresizingMaskIntoConstraints = false
 
         iconView = NSImageView()
         iconView.imageScaling = .scaleProportionallyUpOrDown
@@ -333,25 +421,32 @@ final class LiveTranscriptPanel {
         )
         prosodyLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        contentHost.addSubview(tint)
-        contentHost.addSubview(stateHalo)
-        contentHost.addSubview(iconView)
-        contentHost.addSubview(stateLabel)
-        contentHost.addSubview(hintLabel)
-        contentHost.addSubview(transcriptLabel)
-        contentHost.addSubview(targetApplicationIconView)
-        contentHost.addSubview(contextLabel)
-        contentHost.addSubview(inputSpectrumView)
-        contentHost.addSubview(centerMetricLabel)
-        contentHost.addSubview(elapsedLabel)
-        contentHost.addSubview(statsLabel)
-        contentHost.addSubview(prosodyLabel)
+        surfaces.main.translatesAutoresizingMaskIntoConstraints = false
+        surfaces.shelf.translatesAutoresizingMaskIntoConstraints = false
+        surfaces.state.translatesAutoresizingMaskIntoConstraints = false
+
+        surfaces.mainContent.addSubview(mainTintView)
+        surfaces.mainContent.addSubview(stateLabel)
+        surfaces.mainContent.addSubview(hintLabel)
+        surfaces.mainContent.addSubview(transcriptLabel)
+
+        surfaces.stateContent.addSubview(stateTintView)
+        surfaces.stateContent.addSubview(iconView)
+
+        surfaces.shelfContent.addSubview(shelfTintView)
+        surfaces.shelfContent.addSubview(targetApplicationIconView)
+        surfaces.shelfContent.addSubview(contextLabel)
+        surfaces.shelfContent.addSubview(inputSpectrumView)
+        surfaces.shelfContent.addSubview(centerMetricLabel)
+        surfaces.shelfContent.addSubview(elapsedLabel)
+        surfaces.shelfContent.addSubview(statsLabel)
+        surfaces.shelfContent.addSubview(prosodyLabel)
 
         let contextLeadingConstraint: NSLayoutConstraint
         if targetApplicationIcon == nil {
             contextLeadingConstraint = contextLabel.leadingAnchor.constraint(
-                equalTo: contentHost.leadingAnchor,
-                constant: PanelMetrics.horizontalInset
+                equalTo: surfaces.shelfContent.leadingAnchor,
+                constant: 16
             )
         } else {
             contextLeadingConstraint = contextLabel.leadingAnchor.constraint(
@@ -360,36 +455,97 @@ final class LiveTranscriptPanel {
             )
         }
         NSLayoutConstraint.activate([
-            tint.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
-            tint.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
-            tint.topAnchor.constraint(equalTo: contentHost.topAnchor),
-            tint.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
-            stateHalo.leadingAnchor.constraint(
-                equalTo: contentHost.leadingAnchor,
-                constant: 15
+            surfaces.main.leadingAnchor.constraint(
+                equalTo: surfaces.rootContent.leadingAnchor,
+                constant: 18
             ),
-            stateHalo.topAnchor.constraint(
-                equalTo: contentHost.topAnchor,
+            surfaces.main.trailingAnchor.constraint(
+                equalTo: surfaces.rootContent.trailingAnchor
+            ),
+            surfaces.main.topAnchor.constraint(
+                equalTo: surfaces.rootContent.topAnchor
+            ),
+            surfaces.main.bottomAnchor.constraint(
+                equalTo: surfaces.shelf.topAnchor,
+                constant: -8
+            ),
+            surfaces.shelf.leadingAnchor.constraint(
+                equalTo: surfaces.rootContent.leadingAnchor,
+                constant: 30
+            ),
+            surfaces.shelf.trailingAnchor.constraint(
+                equalTo: surfaces.rootContent.trailingAnchor,
+                constant: -12
+            ),
+            surfaces.shelf.bottomAnchor.constraint(
+                equalTo: surfaces.rootContent.bottomAnchor
+            ),
+            surfaces.shelf.heightAnchor.constraint(equalToConstant: 58),
+            surfaces.state.leadingAnchor.constraint(
+                equalTo: surfaces.rootContent.leadingAnchor
+            ),
+            surfaces.state.topAnchor.constraint(
+                equalTo: surfaces.main.topAnchor,
                 constant: 12
             ),
-            stateHalo.widthAnchor.constraint(equalToConstant: 30),
-            stateHalo.heightAnchor.constraint(equalToConstant: 30),
+            surfaces.state.widthAnchor.constraint(equalToConstant: 56),
+            surfaces.state.heightAnchor.constraint(equalToConstant: 56),
+
+            mainTintView.leadingAnchor.constraint(
+                equalTo: surfaces.mainContent.leadingAnchor
+            ),
+            mainTintView.trailingAnchor.constraint(
+                equalTo: surfaces.mainContent.trailingAnchor
+            ),
+            mainTintView.topAnchor.constraint(
+                equalTo: surfaces.mainContent.topAnchor
+            ),
+            mainTintView.bottomAnchor.constraint(
+                equalTo: surfaces.mainContent.bottomAnchor
+            ),
+            shelfTintView.leadingAnchor.constraint(
+                equalTo: surfaces.shelfContent.leadingAnchor
+            ),
+            shelfTintView.trailingAnchor.constraint(
+                equalTo: surfaces.shelfContent.trailingAnchor
+            ),
+            shelfTintView.topAnchor.constraint(
+                equalTo: surfaces.shelfContent.topAnchor
+            ),
+            shelfTintView.bottomAnchor.constraint(
+                equalTo: surfaces.shelfContent.bottomAnchor
+            ),
+            stateTintView.leadingAnchor.constraint(
+                equalTo: surfaces.stateContent.leadingAnchor
+            ),
+            stateTintView.trailingAnchor.constraint(
+                equalTo: surfaces.stateContent.trailingAnchor
+            ),
+            stateTintView.topAnchor.constraint(
+                equalTo: surfaces.stateContent.topAnchor
+            ),
+            stateTintView.bottomAnchor.constraint(
+                equalTo: surfaces.stateContent.bottomAnchor
+            ),
             iconView.centerYAnchor.constraint(
-                equalTo: stateHalo.centerYAnchor
+                equalTo: surfaces.stateContent.centerYAnchor
             ),
-            iconView.centerXAnchor.constraint(equalTo: stateHalo.centerXAnchor),
-            iconView.widthAnchor.constraint(equalToConstant: 20),
-            iconView.heightAnchor.constraint(equalToConstant: 18),
+            iconView.centerXAnchor.constraint(
+                equalTo: surfaces.stateContent.centerXAnchor
+            ),
+            iconView.widthAnchor.constraint(equalToConstant: 24),
+            iconView.heightAnchor.constraint(equalToConstant: 22),
             stateLabel.leadingAnchor.constraint(
-                equalTo: stateHalo.trailingAnchor,
-                constant: 9
+                equalTo: surfaces.mainContent.leadingAnchor,
+                constant: 54
             ),
-            stateLabel.centerYAnchor.constraint(
-                equalTo: stateHalo.centerYAnchor
+            stateLabel.topAnchor.constraint(
+                equalTo: surfaces.mainContent.topAnchor,
+                constant: 16
             ),
             hintLabel.trailingAnchor.constraint(
-                equalTo: contentHost.trailingAnchor,
-                constant: -PanelMetrics.horizontalInset
+                equalTo: surfaces.mainContent.trailingAnchor,
+                constant: -20
             ),
             hintLabel.firstBaselineAnchor.constraint(
                 equalTo: stateLabel.firstBaselineAnchor
@@ -399,24 +555,24 @@ final class LiveTranscriptPanel {
                 constant: -12
             ),
             transcriptLabel.leadingAnchor.constraint(
-                equalTo: contentHost.leadingAnchor,
-                constant: PanelMetrics.horizontalInset
+                equalTo: surfaces.mainContent.leadingAnchor,
+                constant: 48
             ),
             transcriptLabel.trailingAnchor.constraint(
-                equalTo: contentHost.trailingAnchor,
-                constant: -PanelMetrics.horizontalInset
+                equalTo: surfaces.mainContent.trailingAnchor,
+                constant: -22
             ),
             transcriptLabel.topAnchor.constraint(
-                equalTo: stateHalo.bottomAnchor,
-                constant: 10
+                equalTo: stateLabel.bottomAnchor,
+                constant: 15
             ),
             transcriptLabel.bottomAnchor.constraint(
-                lessThanOrEqualTo: contextLabel.topAnchor,
-                constant: -10
+                lessThanOrEqualTo: surfaces.mainContent.bottomAnchor,
+                constant: -17
             ),
             targetApplicationIconView.leadingAnchor.constraint(
-                equalTo: contentHost.leadingAnchor,
-                constant: PanelMetrics.horizontalInset
+                equalTo: surfaces.shelfContent.leadingAnchor,
+                constant: 16
             ),
             targetApplicationIconView.centerYAnchor.constraint(
                 equalTo: contextLabel.centerYAnchor
@@ -434,12 +590,12 @@ final class LiveTranscriptPanel {
             ),
             contextLabel.bottomAnchor.constraint(
                 equalTo: statsLabel.topAnchor,
-                constant: -7
+                constant: -6
             ),
             inputSpectrumView.widthAnchor.constraint(equalToConstant: 40),
             inputSpectrumView.heightAnchor.constraint(equalToConstant: 12),
             inputSpectrumView.centerXAnchor.constraint(
-                equalTo: contentHost.centerXAnchor
+                equalTo: surfaces.shelfContent.centerXAnchor
             ),
             inputSpectrumView.centerYAnchor.constraint(
                 equalTo: contextLabel.centerYAnchor
@@ -449,8 +605,8 @@ final class LiveTranscriptPanel {
                 constant: 16
             ),
             elapsedLabel.trailingAnchor.constraint(
-                equalTo: contentHost.trailingAnchor,
-                constant: -PanelMetrics.horizontalInset
+                equalTo: surfaces.shelfContent.trailingAnchor,
+                constant: -16
             ),
             elapsedLabel.firstBaselineAnchor.constraint(
                 equalTo: contextLabel.firstBaselineAnchor
@@ -463,20 +619,20 @@ final class LiveTranscriptPanel {
             ),
             centerMetricLabel.widthAnchor.constraint(equalToConstant: 112),
             statsLabel.leadingAnchor.constraint(
-                equalTo: contentHost.leadingAnchor,
-                constant: PanelMetrics.horizontalInset
+                equalTo: surfaces.shelfContent.leadingAnchor,
+                constant: 16
             ),
             statsLabel.trailingAnchor.constraint(
                 lessThanOrEqualTo: prosodyLabel.leadingAnchor,
                 constant: -12
             ),
             statsLabel.bottomAnchor.constraint(
-                equalTo: contentHost.bottomAnchor,
-                constant: -12
+                equalTo: surfaces.shelfContent.bottomAnchor,
+                constant: -10
             ),
             prosodyLabel.trailingAnchor.constraint(
-                equalTo: contentHost.trailingAnchor,
-                constant: -PanelMetrics.horizontalInset
+                equalTo: surfaces.shelfContent.trailingAnchor,
+                constant: -16
             ),
             prosodyLabel.firstBaselineAnchor.constraint(
                 equalTo: statsLabel.firstBaselineAnchor
@@ -490,9 +646,6 @@ final class LiveTranscriptPanel {
         contextOverride = nil
         inputSpectrumView.isHidden = false
         centerMetricLabel.isHidden = true
-        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
-            .withAlphaComponent(0.13)
-            .cgColor
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.listening
         setMode(
@@ -520,9 +673,6 @@ final class LiveTranscriptPanel {
             snapshot.text,
             elapsedSeconds: elapsedSeconds
         )
-        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
-            .withAlphaComponent(0.13)
-            .cgColor
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.listening
         setMode(
@@ -573,9 +723,6 @@ final class LiveTranscriptPanel {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         inputSpectrumView.isHidden = true
         setCenterMetric("Accuracy pass")
-        stateHalo.layer?.backgroundColor = ParloqVisuals.cyan
-            .withAlphaComponent(0.13)
-            .cgColor
         iconView.contentTintColor = ParloqVisuals.cyan
         iconView.image = StatusIcon.finishing
         setMode(
@@ -606,9 +753,6 @@ final class LiveTranscriptPanel {
         setCenterMetric(
             telemetry.completionPerformanceLabel ?? "Processed locally"
         )
-        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
-            .withAlphaComponent(0.13)
-            .cgColor
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.ready
         let copied = metadata.deliveryMode == .clipboardFallback
@@ -633,9 +777,6 @@ final class LiveTranscriptPanel {
         setCenterMetric("Transcript preserved")
         contextOverride = "Copied to clipboard"
         latestSnapshot = snapshot
-        stateHalo.layer?.backgroundColor = ParloqVisuals.coral
-            .withAlphaComponent(0.14)
-            .cgColor
         iconView.contentTintColor = ParloqVisuals.coral
         iconView.image = StatusIcon.error
         setMode(
@@ -830,11 +971,9 @@ final class LiveTranscriptPanel {
     }
 
     private func growToFitTranscript() {
-        let textWidth = PanelMetrics.width
-            - 2 * PanelMetrics.horizontalInset
         let bounds = transcriptLabel.attributedStringValue.boundingRect(
             with: NSSize(
-                width: textWidth,
+                width: PanelMetrics.transcriptWidth,
                 height: .greatestFiniteMagnitude
             ),
             options: [.usesLineFragmentOrigin, .usesFontLeading]
@@ -858,6 +997,7 @@ final class LiveTranscriptPanel {
         color: NSColor,
         toolTip: String? = nil
     ) {
+        updateStateSurface(color: color)
         stateLabel.attributedStringValue = NSAttributedString(
             string: title,
             attributes: [
@@ -875,6 +1015,24 @@ final class LiveTranscriptPanel {
                     ParloqVisuals.secondaryText.withAlphaComponent(0.76),
             ]
         )
+    }
+
+    private func updateStateSurface(color: NSColor) {
+        if #available(macOS 26.0, *),
+           let glass = surfaces.state as? NSGlassEffectView
+        {
+            glass.tintColor = color.withAlphaComponent(0.22)
+        }
+
+        let alpha: CGFloat
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency {
+            alpha = 0.28
+        } else {
+            alpha = surfaces.usesNativeGlass ? 0 : 0.14
+        }
+        stateTintView.layer?.backgroundColor = color
+            .withAlphaComponent(alpha)
+            .cgColor
     }
 
     private func positionNearFocusedTarget() {
