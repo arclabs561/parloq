@@ -174,7 +174,7 @@ def main() -> int:
         stream_interval=0.5,
         polish=False,
         polish_model="unused",
-        prosody=False,
+        prosody=True,
         no_chime=True,
         no_clipboard=True,
         save=False,
@@ -223,6 +223,10 @@ def main() -> int:
         assert final.text == "Hello world."
         assert final.finalized_text == "Hello world."
         assert final.asr_seconds is not None
+        assert final.prosody_state == "calibrating"
+        assert final.prosody_energy_z is None
+        assert final.prosody_baseline_count == 1
+        assert -26.1 < final.prosody_rms_db < -25.9
         assert completion.message.startswith("✓ 2 words"), completion.message
         assert len(written_audio) == 1
 
@@ -231,7 +235,8 @@ def main() -> int:
             idle = next_type(subscriber, "status")
         assert idle.device == args.device
         assert idle.model == args.model
-        assert idle.prosody_enabled is False
+        assert idle.prosody_enabled is True
+        assert idle.prosody_baseline_count == 1
         assert idle.polish_enabled is False
         assert idle.chime_enabled is False
         assert idle.save_enabled is False

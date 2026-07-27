@@ -11,7 +11,7 @@ not a dependency.
 | Artifact | Source | What it tested | Verdict |
 |---|---|---|---|
 | `separability_bench_*.{json,txt}` | `prosody-bench/separability_bench.py` | Can acoustic features separate RAVDESS arousal vs valence? | Arousal yes (`energy_std` AUC 0.89); valence ~chance (0.66). The one robust finding. |
-| `prosody_features.txt` | `experiments/prosody_features.py` | Fork B: dependency-free energy/pitch/pause features. | Energy separates arousal. Basis for the shipped emphasis tag. |
+| `prosody_features.txt` | `experiments/prosody_features.py` | Fork B: dependency-free energy/pitch/pause features. | Energy separates arousal. Basis for the shipped structured energy signal. |
 | `ravdess_dim.txt` | `experiments/ravdess_dim.py` | Fork A: dimensional A/V model (audeering wav2vec2). | Per-emotion arousal/valence means; arousal separable. |
 | `ravdess_ab_pairs_v1_noisy.json` | `experiments/ravdess_run.py` | SER-classifier path: predict an emotion tag per clip. | Negative. `pred_tag` agrees with the true label only 9/24 times. This is why the classifier path was dropped for acoustic features. The `_noisy` suffix is the point. |
 | `ab_tag_response_*.{json,txt}` | `prosody-bench/ab_tag_response.py` | Do inline tags change LLM responses, zero-shot, across 6 models? | 100% "adapted" on the soft judge. Optimistic; the hard evals below deflate it. |
@@ -22,7 +22,8 @@ not a dependency.
 Read top to bottom the story is consistent: the soft eval looked like a 100%
 effect and each harder control shrank it. The shipped emphasis tag rests on the
 one robust finding (energy separates arousal, AUC ~0.89), not on the
-response-change numbers.
+response-change numbers. The daily path reports that signal as metadata rather
+than inserting a tag into dictated text.
 
 ## On the labels (read before trusting any of this)
 

@@ -165,6 +165,11 @@ by hand instead (e.g. while testing):
 recorder dictate --daemon --prosody
 ```
 
+`--prosody` reports a deliberately narrow, local energy-relative signal in the
+native protocol. It calibrates against recent utterances and reports
+`calibrating`, `baseline`, or `elevated`; it does not infer emotion or valence
+and never inserts a tag into dictated text.
+
 Either way, bind the hotkey in macOS Shortcuts / Karabiner-Elements to:
 
 ```sh

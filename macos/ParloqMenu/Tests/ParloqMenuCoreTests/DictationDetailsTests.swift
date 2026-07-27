@@ -11,8 +11,10 @@ import Testing
           "phase": "idle",
           "sequence": 1,
           "device": ":2",
+          "device_name": "Studio Display Microphone",
           "model": "mlx-community/parakeet-tdt-0.6b-v3",
-          "prosody_enabled": false,
+          "prosody_enabled": true,
+          "prosody_baseline_count": 3,
           "polish_enabled": true,
           "chime_enabled": false,
           "save_enabled": true,
@@ -42,18 +44,41 @@ import Testing
           "phase": "finalizing",
           "sequence": 3,
           "elapsed_seconds": 4.25,
-          "asr_seconds": 0.75
+          "asr_seconds": 0.75,
+          "prosody_state": "elevated",
+          "prosody_energy_z": 1.25,
+          "prosody_baseline_count": 4,
+          "prosody_rms_db": -24.5
         }
         """))
 
     #expect(details.model == "mlx-community/parakeet-tdt-0.6b-v3")
+    #expect(details.deviceName == "Studio Display Microphone")
     #expect(details.lastAudioSeconds == 4.25)
     #expect(details.lastASRSeconds == 0.75)
     #expect(details.latestRealtimeFactor == 0.75 / 4.25)
+    #expect(details.latestProsodyState == .elevated)
+    #expect(details.latestProsodyEnergyZ == 1.25)
+    #expect(details.prosodyBaselineCount == 4)
+    #expect(details.latestProsodyRMSDB == -24.5)
 }
 
 private func decodeEvent(_ json: String) throws -> DictateEvent {
     try JSONDecoder().decode(DictateEvent.self, from: Data(json.utf8))
+}
+
+@Test func protocolPreservesUnknownProsodyStates() throws {
+    let event = try decodeEvent("""
+        {
+          "version": 1,
+          "type": "final",
+          "phase": "finalizing",
+          "sequence": 5,
+          "prosody_state": "future_measure"
+        }
+        """)
+
+    #expect(event.prosodyState == .unknown("future_measure"))
 }
 
 @Test func protocolDecodesInputPeakTelemetry() throws {

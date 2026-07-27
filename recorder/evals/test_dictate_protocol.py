@@ -72,6 +72,11 @@ def main() -> int:
         save_enabled=False,
         vocab_count=3,
         stream_interval_seconds=0.5,
+        device_name="Studio Display Microphone",
+        prosody_state="elevated",
+        prosody_energy_z=1.4,
+        prosody_baseline_count=8,
+        prosody_rms_db=-24.5,
     )
     line = event.to_line()
     assert line.endswith(b"\n")
@@ -100,6 +105,11 @@ def main() -> int:
         "save_enabled": False,
         "vocab_count": 3,
         "stream_interval_seconds": 0.5,
+        "device_name": "Studio Display Microphone",
+        "prosody_state": "elevated",
+        "prosody_energy_z": 1.4,
+        "prosody_baseline_count": 8,
+        "prosody_rms_db": -24.5,
     }, body
 
     broker = rec.DictateEventBroker()

@@ -3,12 +3,13 @@
 # requires-python = ">=3.10"
 # dependencies = ["numpy"]
 # ///
-"""Regression test for recorder's --prosody _emphasis_tag (the A/MVP).
+"""Regression test for recorder's structured energy-relative prosody signal.
 
 Loads the real function from the recorder daily-driver and asserts the
-energy-baseline behavior: quiet utterances seed the baseline (no tag), an
-utterance well above baseline gets [emphatic], quiet returns clean, and a
-sub-0.5s clip is skipped without polluting the baseline.
+energy-baseline behavior: quiet utterances seed the baseline, an utterance well
+above baseline reports elevated energy, quiet returns to baseline, and a
+sub-0.5s clip is skipped without polluting the baseline. Transcript text is not
+an output of this analysis.
 
 Run: uv run prosody-bench/test_emphasis_tag.py
 """
@@ -25,16 +26,27 @@ def load():
     return mod
 
 def main():
-    rec = load(); et, SR = rec._emphasis_tag, rec.SAMPLE_RATE
+    rec = load(); analyze, SR = rec._analyze_prosody, rec.SAMPLE_RATE
     np.random.seed(0); hist = []
     for i in range(3):
-        assert et((np.random.randn(SR)*0.01).astype(np.float32), hist) == "", f"quiet{i} tagged"
-    assert et((np.random.randn(SR)*0.20).astype(np.float32), hist) == "[emphatic] ", "loud not tagged"
-    assert et((np.random.randn(SR)*0.01).astype(np.float32), hist) == "", "quiet tagged after loud"
+        result = analyze(
+            (np.random.randn(SR)*0.01).astype(np.float32), hist)
+        assert result.state == "calibrating", (i, result)
+        assert result.energy_z is None, result
+    elevated = analyze(
+        (np.random.randn(SR)*0.20).astype(np.float32), hist)
+    assert elevated.state == "elevated", elevated
+    assert elevated.energy_z > 0.8, elevated
+    baseline = analyze(
+        (np.random.randn(SR)*0.01).astype(np.float32), hist)
+    assert baseline.state == "baseline", baseline
     n_before = len(hist)
-    assert et((np.random.randn(SR//4)*0.20).astype(np.float32), hist) == "", "short clip tagged"
+    short = analyze(
+        (np.random.randn(SR//4)*0.20).astype(np.float32), hist)
+    assert short.state == "insufficient_audio", short
+    assert short.energy_z is None, short
     assert len(hist) == n_before, "short clip polluted baseline"
-    print("PASS: emphasis tag fires on elevated energy, silent otherwise")
+    print("PASS: prosody reports calibrated energy without mutating text")
 
 if __name__ == "__main__":
     main()

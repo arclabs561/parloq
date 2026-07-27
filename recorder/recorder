@@ -3182,7 +3182,9 @@ class DictateEvent:
         "finalized_text", "draft_text", "message", "elapsed_seconds",
         "input_peak_db", "input_spectrum_db", "asr_seconds", "device", "model",
         "prosody_enabled", "polish_enabled", "chime_enabled", "save_enabled",
-        "vocab_count", "stream_interval_seconds",
+        "vocab_count", "stream_interval_seconds", "device_name",
+        "prosody_state", "prosody_energy_z", "prosody_baseline_count",
+        "prosody_rms_db",
     )
 
     def __init__(
@@ -3208,6 +3210,11 @@ class DictateEvent:
         save_enabled: bool | None = None,
         vocab_count: int | None = None,
         stream_interval_seconds: float | None = None,
+        device_name: str | None = None,
+        prosody_state: str | None = None,
+        prosody_energy_z: float | None = None,
+        prosody_baseline_count: int | None = None,
+        prosody_rms_db: float | None = None,
     ):
         self.event_type = event_type
         self.phase = phase
@@ -3229,6 +3236,11 @@ class DictateEvent:
         self.save_enabled = save_enabled
         self.vocab_count = vocab_count
         self.stream_interval_seconds = stream_interval_seconds
+        self.device_name = device_name
+        self.prosody_state = prosody_state
+        self.prosody_energy_z = prosody_energy_z
+        self.prosody_baseline_count = prosody_baseline_count
+        self.prosody_rms_db = prosody_rms_db
 
     def to_dict(self) -> dict:
         body = {
@@ -3255,6 +3267,11 @@ class DictateEvent:
             ("save_enabled", self.save_enabled),
             ("vocab_count", self.vocab_count),
             ("stream_interval_seconds", self.stream_interval_seconds),
+            ("device_name", self.device_name),
+            ("prosody_state", self.prosody_state),
+            ("prosody_energy_z", self.prosody_energy_z),
+            ("prosody_baseline_count", self.prosody_baseline_count),
+            ("prosody_rms_db", self.prosody_rms_db),
         )
         for key, value in optional:
             if value is not None:
@@ -3495,31 +3512,65 @@ def _warmup_model(model) -> None:
         pass
 
 
-def _emphasis_tag(samples, hist: list) -> str:
-    """Energy-based emphasis tag for one dictation utterance, calibrated to a
-    per-session running baseline (so it survives mic/level differences).
+class ProsodyAnalysis:
+    """A deliberately narrow acoustic result, separate from transcript text."""
 
-    Returns "[emphatic] " when this utterance's RMS energy is well above the
-    recent baseline (z > 0.8), else "". Grounded in repo evals: RMS energy
-    separates high vs low vocal arousal on RAVDESS (AUC ~0.89), and
-    a cross-model A/B shows arousal tags shift LLM responses modestly above a
-    noise floor (high run-to-run variance). Experimental; opt-in via --prosody.
+    __slots__ = ("state", "energy_z", "baseline_count", "rms_db")
 
-    `hist` is the session's running window of recent RMS values, mutated here.
+    def __init__(
+        self,
+        *,
+        state: str,
+        energy_z: float | None,
+        baseline_count: int,
+        rms_db: float | None,
+    ):
+        self.state = state
+        self.energy_z = energy_z
+        self.baseline_count = baseline_count
+        self.rms_db = rms_db
+
+    def __repr__(self) -> str:
+        return (
+            "ProsodyAnalysis("
+            f"state={self.state!r}, energy_z={self.energy_z!r}, "
+            f"baseline_count={self.baseline_count!r}, rms_db={self.rms_db!r}"
+            ")"
+        )
+
+
+def _analyze_prosody(samples, hist: list) -> ProsodyAnalysis:
+    """Compare utterance energy with a per-session baseline.
+
+    The detector reports acoustic energy only. It does not infer emotion,
+    valence, intent, or confidence, and it never changes the transcript.
+    `hist` is the running window of recent RMS values, mutated here.
     """
     import statistics
     if samples.size < SAMPLE_RATE // 2:  # under ~0.5s: too short to judge
-        return ""
+        return ProsodyAnalysis(
+            state="insufficient_audio",
+            energy_z=None,
+            baseline_count=len(hist),
+            rms_db=None,
+        )
     rms = float(np.sqrt(np.mean(samples.astype(np.float64) ** 2)))
-    tag = ""
+    energy_z = None
+    state = "calibrating"
     if len(hist) >= 3:
         mu = statistics.fmean(hist)
         sd = statistics.pstdev(hist) or 1e-9
-        if (rms - mu) / sd > 0.8:
-            tag = "[emphatic] "
+        energy_z = (rms - mu) / sd
+        state = "elevated" if energy_z > 0.8 else "baseline"
     hist.append(rms)
     del hist[:-20]  # keep the last 20 utterances as the baseline
-    return tag
+    rms_db = 20.0 * float(np.log10(rms)) if rms > 1e-6 else -120.0
+    return ProsodyAnalysis(
+        state=state,
+        energy_z=energy_z,
+        baseline_count=len(hist),
+        rms_db=max(-120.0, min(0.0, rms_db)),
+    )
 
 
 def _peak_dbfs(samples) -> float:
@@ -3750,6 +3801,7 @@ class DictateSessionController:
         self._legacy_mode = False
         self._legacy_paste = False
         self._energy_hist: list[float] = []
+        self._device_name = device_label(args.device)
 
     def _next_sequence(self) -> int:
         with self._sequence_lock:
@@ -3781,6 +3833,7 @@ class DictateSessionController:
             message=message,
             elapsed_seconds=elapsed,
             device=self._args.device,
+            device_name=self._device_name,
             model=self._args.model,
             prosody_enabled=bool(getattr(self._args, "prosody", False)),
             polish_enabled=bool(self._args.polish),
@@ -3788,6 +3841,11 @@ class DictateSessionController:
             save_enabled=bool(self._args.save),
             vocab_count=len(self._vocab),
             stream_interval_seconds=float(self._args.stream_interval),
+            prosody_baseline_count=(
+                len(self._energy_hist)
+                if getattr(self._args, "prosody", False)
+                else None
+            ),
         )
 
     def legacy_status(self, sock_path: Path) -> str:
@@ -4199,9 +4257,10 @@ class DictateSessionController:
                 completion.message = "○ dictation cancelled"
                 return
             text = _apply_vocab(text, self._vocab)
+            prosody = None
             if getattr(self._args, "prosody", False):
                 samples = np.frombuffer(bytes(samples_buf), dtype=np.float32)
-                text = _emphasis_tag(samples, self._energy_hist) + text
+                prosody = _analyze_prosody(samples, self._energy_hist)
 
             with self._lock:
                 legacy_mode = self._legacy_mode
@@ -4230,6 +4289,12 @@ class DictateSessionController:
                 draft_text="",
                 elapsed_seconds=record_s,
                 asr_seconds=asr_s,
+                prosody_state=prosody.state if prosody else None,
+                prosody_energy_z=prosody.energy_z if prosody else None,
+                prosody_baseline_count=(
+                    prosody.baseline_count if prosody else None
+                ),
+                prosody_rms_db=prosody.rms_db if prosody else None,
             ))
             final_published = True
             if not self._args.no_chime:
@@ -4531,8 +4596,8 @@ def cmd_dictate(rest: list[str]) -> int:
                         "line) applied deterministically after transcribe; "
                         "defaults to ~/recordings/.vocab.txt if present")
     p.add_argument("--prosody", action="store_true",
-                   help="EXPERIMENTAL: prefix [emphatic] when an utterance's vocal "
-                        "energy is well above the session baseline")
+                   help="EXPERIMENTAL: report utterance energy relative to a "
+                        "session baseline without changing transcript text")
     p.add_argument("--daemon", action="store_true",
                    help="run as a long-running daemon listening on a unix socket; "
                         "trigger record cycles via `recorder dictate trigger`")
