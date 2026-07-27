@@ -24,6 +24,7 @@ import Testing
           "chime_enabled": false,
           "save_enabled": true,
           "vocab_count": 7,
+          "vocab_path": "/tmp/example-vocab.txt",
           "stream_interval_seconds": 0.5
         }
         """))
@@ -45,6 +46,8 @@ import Testing
     ])
     #expect(details.polishEnabled == true)
     #expect(details.vocabCount == 7)
+    #expect(details.vocabPath == "/tmp/example-vocab.txt")
+    #expect(details.vocabWarning == nil)
     #expect(details.lastAudioSeconds == nil)
 
     details.update(from: try decodeEvent("""
@@ -103,6 +106,35 @@ import Testing
         """))
     #expect(details.deviceAvailable == true)
     #expect(details.configurationWarning == nil)
+}
+
+@Test func detailsClearVocabularyWarningAfterSuccessfulReload() throws {
+    var details = DictationDetails()
+    details.update(from: try decodeEvent("""
+        {
+          "version": 1,
+          "type": "status",
+          "phase": "idle",
+          "sequence": 1,
+          "vocab_count": 3,
+          "vocab_path": "/tmp/vocab.txt",
+          "vocab_warning": "Using prior corrections"
+        }
+        """))
+    #expect(details.vocabWarning == "Using prior corrections")
+
+    details.update(from: try decodeEvent("""
+        {
+          "version": 1,
+          "type": "status",
+          "phase": "recording",
+          "sequence": 2,
+          "vocab_count": 4,
+          "vocab_path": "/tmp/vocab.txt"
+        }
+        """))
+    #expect(details.vocabCount == 4)
+    #expect(details.vocabWarning == nil)
 }
 
 @Test func configureRequestEncodesTypedMicrophoneSetting() throws {

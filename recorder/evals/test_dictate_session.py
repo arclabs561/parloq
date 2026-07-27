@@ -157,6 +157,7 @@ def main() -> int:
     processes = queue.Queue()
     processes.put(FakeProcess(audio))
     processes.put(FakeProcess(audio))
+    processes.put(FakeProcess(audio))
     original_popen = rec.subprocess.Popen
     rec.subprocess.Popen = lambda *_args, **_kwargs: processes.get(timeout=2)
     original_write_flac = rec._write_dictate_flac
@@ -185,6 +186,8 @@ def main() -> int:
     model = engine.submit(FakeModel).result()
     config_directory = tempfile.TemporaryDirectory()
     config_path = Path(config_directory.name) / "dictation-config.json"
+    vocab_path = Path(config_directory.name) / "vocab.txt"
+    vocab_path.write_text("parlo = Parloq\n", encoding="utf-8")
     available_devices = [
         rec.DictationDevice(":0", "MacBook Pro Microphone"),
         rec.DictationDevice(":2", "Studio Display Microphone"),
@@ -200,6 +203,7 @@ def main() -> int:
         session_submit=engine.submit,
         config_path=config_path,
         device_provider=lambda: available_devices,
+        vocab_path=vocab_path,
     )
 
     try:
@@ -277,7 +281,9 @@ def main() -> int:
         assert idle.polish_enabled is False
         assert idle.chime_enabled is False
         assert idle.save_enabled is False
-        assert idle.vocab_count == 0
+        assert idle.vocab_count == 1
+        assert idle.vocab_path == str(vocab_path)
+        assert idle.vocab_warning is None
         assert idle.stream_interval_seconds == args.stream_interval
         assert controller.phase() == rec.DictatePhase.IDLE
 
@@ -299,6 +305,31 @@ def main() -> int:
         assert reconnected.device_available is True
         assert reconnected.configuration_warning is None
 
+        vocab_path.write_bytes(b"\xff")
+        invalid_vocab_id, error = controller.start(legacy=False)
+        assert error is None
+        assert invalid_vocab_id
+        invalid_vocab_transcript = next_type(subscriber, "transcript")
+        assert invalid_vocab_transcript.session_id == invalid_vocab_id
+        completion, error = controller.cancel()
+        assert error is None
+        assert completion is not None
+        assert completion.event.wait(timeout=2)
+        while True:
+            event = subscriber.get(timeout=2)
+            if (
+                event.event_type == rec.DictateEventType.STATUS
+                and event.phase == rec.DictatePhase.IDLE
+            ):
+                break
+        invalid_vocab_status = controller.status_event()
+        assert invalid_vocab_status.vocab_count == 1
+        assert "using prior corrections" in invalid_vocab_status.vocab_warning
+
+        vocab_path.write_text(
+            "parlo = Parloq\nsuper whisper = Superwhisper\n",
+            encoding="utf-8",
+        )
         cancelled_id, error = controller.start(legacy=False)
         assert error is None
         assert cancelled_id
@@ -326,6 +357,7 @@ def main() -> int:
             for event in cancelled_events
         ), cancelled_events
         assert controller.phase() == rec.DictatePhase.IDLE
+        assert controller.status_event().vocab_count == 2
     finally:
         rec.subprocess.Popen = original_popen
         rec._write_dictate_flac = original_write_flac

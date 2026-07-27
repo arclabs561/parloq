@@ -139,7 +139,11 @@ Consumer: daily dictation quality, privacy, and input reliability.
 After choosing configuration authority, expose in this order:
 
 1. `Microphone` selector using the daemon's existing device discovery.
+   Delivered with daemon-owned persistence, restart re-resolution, and
+   hot-plug reconciliation.
 2. `Vocabulary…` to edit or reveal the deterministic correction file.
+   Delivered as an edit action against the daemon-reported path, with a reload
+   at the start of each dictation.
 3. `Save Recordings` privacy toggle with a plain description of the storage
    location and retention behavior.
 4. `Polish Final Text` as an explicit opt-in. Preserve raw ASR alongside any

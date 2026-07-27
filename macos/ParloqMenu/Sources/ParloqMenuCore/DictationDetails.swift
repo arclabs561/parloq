@@ -14,6 +14,8 @@ public struct DictationDetails: Equatable, Sendable {
     public private(set) var chimeEnabled: Bool?
     public private(set) var saveEnabled: Bool?
     public private(set) var vocabCount: Int?
+    public private(set) var vocabPath: String?
+    public private(set) var vocabWarning: String?
     public private(set) var streamIntervalSeconds: Double?
     public private(set) var lastAudioSeconds: Double?
     public private(set) var lastASRSeconds: Double?
@@ -34,6 +36,8 @@ public struct DictationDetails: Equatable, Sendable {
         chimeEnabled: Bool? = nil,
         saveEnabled: Bool? = nil,
         vocabCount: Int? = nil,
+        vocabPath: String? = nil,
+        vocabWarning: String? = nil,
         streamIntervalSeconds: Double? = nil,
         lastAudioSeconds: Double? = nil,
         lastASRSeconds: Double? = nil
@@ -53,6 +57,8 @@ public struct DictationDetails: Equatable, Sendable {
         self.chimeEnabled = chimeEnabled
         self.saveEnabled = saveEnabled
         self.vocabCount = vocabCount
+        self.vocabPath = vocabPath
+        self.vocabWarning = vocabWarning
         self.streamIntervalSeconds = streamIntervalSeconds
         self.lastAudioSeconds = lastAudioSeconds
         self.lastASRSeconds = lastASRSeconds
@@ -88,6 +94,10 @@ public struct DictationDetails: Equatable, Sendable {
         chimeEnabled = event.chimeEnabled ?? chimeEnabled
         saveEnabled = event.saveEnabled ?? saveEnabled
         vocabCount = event.vocabCount ?? vocabCount
+        vocabPath = event.vocabPath ?? vocabPath
+        if event.vocabPath != nil {
+            vocabWarning = event.vocabWarning
+        }
         streamIntervalSeconds =
             event.streamIntervalSeconds ?? streamIntervalSeconds
 

@@ -3236,7 +3236,8 @@ class DictateEvent:
         "finalized_text", "draft_text", "message", "elapsed_seconds",
         "input_peak_db", "input_spectrum_db", "asr_seconds", "device", "model",
         "prosody_enabled", "polish_enabled", "chime_enabled", "save_enabled",
-        "vocab_count", "stream_interval_seconds", "device_name",
+        "vocab_count", "vocab_path", "vocab_warning",
+        "stream_interval_seconds", "device_name",
         "device_available", "available_devices", "configuration_warning",
         "prosody_state", "prosody_energy_z", "prosody_baseline_count",
         "prosody_rms_db",
@@ -3264,6 +3265,8 @@ class DictateEvent:
         chime_enabled: bool | None = None,
         save_enabled: bool | None = None,
         vocab_count: int | None = None,
+        vocab_path: str | None = None,
+        vocab_warning: str | None = None,
         stream_interval_seconds: float | None = None,
         device_name: str | None = None,
         device_available: bool | None = None,
@@ -3293,6 +3296,8 @@ class DictateEvent:
         self.chime_enabled = chime_enabled
         self.save_enabled = save_enabled
         self.vocab_count = vocab_count
+        self.vocab_path = vocab_path
+        self.vocab_warning = vocab_warning
         self.stream_interval_seconds = stream_interval_seconds
         self.device_name = device_name
         self.device_available = device_available
@@ -3327,6 +3332,8 @@ class DictateEvent:
             ("chime_enabled", self.chime_enabled),
             ("save_enabled", self.save_enabled),
             ("vocab_count", self.vocab_count),
+            ("vocab_path", self.vocab_path),
+            ("vocab_warning", self.vocab_warning),
             ("stream_interval_seconds", self.stream_interval_seconds),
             ("device_name", self.device_name),
             ("device_available", self.device_available),
@@ -3546,6 +3553,17 @@ def _dictate_trigger(rest: list[str]) -> int:
         return 2
 
 
+def _vocab_path(path=None) -> Path:
+    return (
+        Path(path)
+        if path
+        else Path(os.environ.get(
+            "DICTATE_VOCAB",
+            str(Path.home() / "recordings" / ".vocab.txt"),
+        ))
+    ).expanduser()
+
+
 def _load_vocab(path=None) -> "list[tuple[str, str]]":
     """Load deterministic dictation corrections from a vocab file.
 
@@ -3556,9 +3574,7 @@ def _load_vocab(path=None) -> "list[tuple[str, str]]":
     the non-LLM correction path: it runs whether or not --polish is set, so a
     daily user's proper nouns and identifiers are fixed deterministically.
     """
-    p = (Path(path) if path else Path(os.environ.get(
-        "DICTATE_VOCAB", str(Path.home() / "recordings" / ".vocab.txt"))))
-    p = p.expanduser()
+    p = _vocab_path(path)
     if not p.exists():
         return []
     pairs: list = []
@@ -3943,12 +3959,16 @@ class DictateSessionController:
         saved_device: DictationDevice | None = None,
         configuration_warning: str | None = None,
         device_provider=None,
+        vocab_path: Path | None = None,
+        vocab_warning: str | None = None,
     ):
         self._args = args
         self._model = model
         self._mx = mx
         self._decoding_config = decoding_config
         self._vocab = vocab
+        self._vocab_path = vocab_path
+        self._vocab_warning = vocab_warning
         self._out_dir = out_dir
         self._broker = broker
         self._session_submit = session_submit
@@ -4026,6 +4046,13 @@ class DictateSessionController:
             device_available = self._device_available
             configuration_warning = (
                 self._device_warning or self._configuration_file_warning)
+            vocab_count = len(self._vocab)
+            vocab_path = (
+                str(self._vocab_path)
+                if self._vocab_path is not None
+                else None
+            )
+            vocab_warning = self._vocab_warning
             elapsed = (
                 time.time() - self._started_at
                 if phase in (
@@ -4052,7 +4079,9 @@ class DictateSessionController:
             polish_enabled=bool(self._args.polish),
             chime_enabled=not self._args.no_chime,
             save_enabled=bool(self._args.save),
-            vocab_count=len(self._vocab),
+            vocab_count=vocab_count,
+            vocab_path=vocab_path,
+            vocab_warning=vocab_warning,
             stream_interval_seconds=float(self._args.stream_interval),
             prosody_baseline_count=(
                 len(self._energy_hist)
@@ -4149,10 +4178,23 @@ class DictateSessionController:
         with self._lock:
             return self._phase
 
+    def _refresh_vocab_locked(self) -> None:
+        if self._vocab_path is None:
+            return
+        try:
+            self._vocab = _load_vocab(self._vocab_path)
+            self._vocab_warning = None
+        except (OSError, UnicodeError) as error:
+            self._vocab_warning = (
+                f"Vocabulary could not be reloaded; using prior corrections: "
+                f"{error}"
+            )
+
     def start(self, *, legacy: bool) -> tuple[str | None, str | None]:
         with self._lock:
             if self._phase not in (DictatePhase.IDLE, DictatePhase.ERROR):
                 return None, f"already {self._phase.value}"
+            self._refresh_vocab_locked()
             if self._capture_device is None:
                 return None, (
                     self._device_warning
@@ -4661,7 +4703,14 @@ def _dictate_daemon(args) -> int:
         engine.shutdown(wait=False, cancel_futures=True)
         raise
 
-    vocab = _load_vocab(args.vocab)
+    vocab_path = _vocab_path(args.vocab)
+    vocab_warning = None
+    try:
+        vocab = _load_vocab(vocab_path)
+    except (OSError, UnicodeError) as error:
+        vocab = []
+        vocab_warning = f"Vocabulary could not be loaded: {error}"
+        print(vocab_warning, file=sys.stderr)
     if vocab:
         print(f"vocab: {len(vocab)} corrections", file=sys.stderr)
 
@@ -4683,6 +4732,8 @@ def _dictate_daemon(args) -> int:
         config_path=config_path,
         saved_device=saved_device,
         configuration_warning=configuration_warning,
+        vocab_path=vocab_path,
+        vocab_warning=vocab_warning,
     )
 
     # Listen on the unix socket

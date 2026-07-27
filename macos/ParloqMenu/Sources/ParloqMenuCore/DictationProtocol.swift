@@ -120,6 +120,8 @@ public struct DictateEvent: Decodable, Sendable {
     public let chimeEnabled: Bool?
     public let saveEnabled: Bool?
     public let vocabCount: Int?
+    public let vocabPath: String?
+    public let vocabWarning: String?
     public let streamIntervalSeconds: Double?
 
     enum CodingKeys: String, CodingKey {
@@ -151,6 +153,8 @@ public struct DictateEvent: Decodable, Sendable {
         case chimeEnabled = "chime_enabled"
         case saveEnabled = "save_enabled"
         case vocabCount = "vocab_count"
+        case vocabPath = "vocab_path"
+        case vocabWarning = "vocab_warning"
         case streamIntervalSeconds = "stream_interval_seconds"
     }
 
@@ -209,6 +213,10 @@ public struct DictateEvent: Decodable, Sendable {
             Bool.self, forKey: .saveEnabled)
         vocabCount = try values.decodeIfPresent(
             Int.self, forKey: .vocabCount)
+        vocabPath = try values.decodeIfPresent(
+            String.self, forKey: .vocabPath)
+        vocabWarning = try values.decodeIfPresent(
+            String.self, forKey: .vocabWarning)
         streamIntervalSeconds = try values.decodeIfPresent(
             Double.self, forKey: .streamIntervalSeconds)
     }

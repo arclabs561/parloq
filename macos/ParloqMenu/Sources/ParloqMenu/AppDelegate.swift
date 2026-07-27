@@ -675,6 +675,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    @objc private func editVocabulary() {
+        guard let path = details.vocabPath else {
+            updateStatus("Vocabulary file is unavailable")
+            return
+        }
+        do {
+            let fileURL = try VocabularyFile.prepare(atPath: path)
+            guard NSWorkspace.shared.open(fileURL) else {
+                updateStatus("Could not open vocabulary file")
+                return
+            }
+            updateStatus("Vocabulary reloads with the next dictation")
+        } catch {
+            updateStatus(
+                "Vocabulary file: \(error.localizedDescription)"
+            )
+        }
+    }
+
     @objc private func copyDiagnostics() {
         let shortVersion = Bundle.main.object(
             forInfoDictionaryKey: "CFBundleShortVersionString"
@@ -838,6 +857,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                     ? "Vocabulary: 1 correction"
                     : "Vocabulary: \(vocabCount) corrections"
             )
+        }
+        if let warning = details.vocabWarning {
+            addDetail("Vocabulary warning: \(warning)")
+        }
+        if let vocabPath = details.vocabPath {
+            let editVocabularyItem = NSMenuItem(
+                title: "Edit Vocabulary…",
+                action: #selector(editVocabulary),
+                keyEquivalent: ""
+            )
+            editVocabularyItem.target = self
+            editVocabularyItem.toolTip =
+                "\(vocabPath)\nChanges apply to the next dictation."
+            detailsMenu.addItem(editVocabularyItem)
         }
         if let interval = details.streamIntervalSeconds {
             addDetail(

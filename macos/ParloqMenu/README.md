@@ -71,12 +71,18 @@ The Python daemon remains the speech engine.
   Maccy can retain it and the latest dictation remains ready to paste. The
   completion HUD says **Complete · Copied** only after that write succeeds and
   changes to **Complete · Copy failed** when it does not.
+- **Microphone** lists the daemon's current audio inputs and persists the
+  selected input by name as well as its current AVFoundation index. If that
+  input disappears, Parloq warns and blocks capture instead of silently using a
+  different microphone.
 - **Dictation Details** reports effective microphone, model, quality/privacy
   modes, vocabulary count, live-update cadence, and latest capture/ASR timing
   from the running daemon, including the latest ASR-to-audio realtime factor.
-  These values are diagnostic and read-only. **Copy Diagnostics** exports the
-  same runtime facts plus connection, phase, app, system, and Accessibility
-  state without transcript or target-application contents.
+  **Edit Vocabulary…** creates or opens the daemon's deterministic correction
+  file; saved changes reload at the start of the next dictation.
+  **Copy Diagnostics** exports runtime facts plus connection, phase, app,
+  system, and Accessibility state without transcript or target-application
+  contents.
 
 ## Build and install
 
