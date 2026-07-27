@@ -72,7 +72,9 @@ The Python daemon remains the speech engine.
 - **Dictation Details** reports effective microphone, model, quality/privacy
   modes, vocabulary count, live-update cadence, and latest capture/ASR timing
   from the running daemon, including the latest ASR-to-audio realtime factor.
-  These values are diagnostic and read-only.
+  These values are diagnostic and read-only. **Copy Diagnostics** exports the
+  same runtime facts plus connection, phase, app, system, and Accessibility
+  state without transcript or target-application contents.
 
 ## Build and install
 

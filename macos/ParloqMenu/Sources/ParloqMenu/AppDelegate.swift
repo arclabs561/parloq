@@ -615,6 +615,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
     }
 
+    @objc private func copyDiagnostics() {
+        let shortVersion = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleShortVersionString"
+        ) as? String
+        let buildVersion = Bundle.main.object(
+            forInfoDictionaryKey: "CFBundleVersion"
+        ) as? String
+        let appVersion = [shortVersion, buildVersion.map { "(\($0))" }]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        let diagnostics = DictationDiagnostics.render(
+            appVersion: appVersion,
+            systemVersion: ProcessInfo.processInfo
+                .operatingSystemVersionString,
+            connected: connected,
+            phase: phase,
+            accessibilityGranted: AXIsProcessTrusted(),
+            details: details
+        )
+
+        NSPasteboard.general.clearContents()
+        guard NSPasteboard.general.setString(
+            diagnostics,
+            forType: .string
+        ) else {
+            updateStatus("Could not copy diagnostics")
+            return
+        }
+        updateStatus("Diagnostics copied")
+    }
+
     private func refreshHistoryMenu() {
         historyMenu.removeAllItems()
         let entries = historyStore.history.entries
@@ -661,6 +692,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         detailsMenu.removeAllItems()
         guard connected else {
             addDetail("Waiting for dictation daemon…")
+            addCopyDiagnosticsItem()
             return
         }
 
@@ -696,7 +728,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         addModeDetail("Polish final text", enabled: details.polishEnabled)
-        addModeDetail("Voice energy analysis", enabled: details.prosodyEnabled)
+        addModeDetail(
+            "Voice level analysis",
+            enabled: details.prosodyEnabled
+        )
         addModeDetail("Save recordings", enabled: details.saveEnabled)
         addModeDetail("Chimes", enabled: details.chimeEnabled)
 
@@ -707,7 +742,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 showLatestProsodyResult: true
             )
             if let label = telemetry.prosodyLabel {
-                addDetail("Latest voice energy: \(label)")
+                addDetail("Latest: \(label)")
             }
         }
 
@@ -728,6 +763,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if detailsMenu.items.isEmpty {
             addDetail("Waiting for daemon details…")
         }
+
+        addCopyDiagnosticsItem()
+    }
+
+    private func addCopyDiagnosticsItem() {
+        detailsMenu.addItem(.separator())
+        let copy = NSMenuItem(
+            title: "Copy Diagnostics",
+            action: #selector(copyDiagnostics),
+            keyEquivalent: ""
+        )
+        copy.target = self
+        copy.toolTip =
+            "Copies runtime settings and timing without transcript or target-app text"
+        detailsMenu.addItem(copy)
     }
 
     private func addDetail(
