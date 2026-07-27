@@ -85,10 +85,11 @@ recorder dictate install-agent
 open /Applications/Parloq.app
 ```
 
-Then use `⌃⌥Space` to start and stop. The app shows state in the menu bar and
-updates only the text range it owns; it does not show a transcript popup. See
-[`macos/ParloqMenu/README.md`](../macos/ParloqMenu/README.md) for fallback and
-permission behavior.
+Then use **Option-Space** or the Microphone/Dictation key to start and stop.
+The app shows state in the menu bar, presents a passive live-transcript HUD
+that never takes focus, and updates only the text range it owns. See
+[`macos/ParloqMenu/README.md`](../macos/ParloqMenu/README.md) for fallback,
+clipboard-history, and permission behavior.
 
 ### Vocab file: deterministic corrections
 

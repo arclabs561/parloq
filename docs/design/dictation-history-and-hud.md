@@ -16,10 +16,12 @@ file under Application Support, and expose recent entries in a native
 `Dictation History` submenu. Selecting an entry copies it. Drafts, cancelled
 recordings, audio, and target-application metadata never enter history.
 
-This deliberately does not rewrite Maccy's private database. Maccy is not
-installed on this Mac, and database coupling would be fragile even if it were.
-Parloq's history also avoids replacing the user's current clipboard merely to
-make another clipboard manager observe an item.
+Also publish each non-empty final exactly once to the system pasteboard at the
+native completion boundary, regardless of how text delivery succeeded. This
+makes the latest dictation immediately pasteable and lets clipboard managers
+retain it without coupling to their private storage. Parloq deliberately does
+not rewrite a clipboard manager's database or cycle and restore pasteboard
+contents.
 
 Render live speech as one wrapping paragraph with two visual roles. Settled
 context is muted; the actively revised tail and cursor remain bright at the
@@ -54,9 +56,11 @@ restores the text Parloq owned when that remains safe. The HUD advertises
 
 ## Why not the rejected options
 
-Writing Maccy's storage couples Parloq to an undocumented schema and concurrent
-writer. Cycling the system pasteboard and restoring it creates timing races and
-extra clipboard entries. A custom history window adds focus, search, and
-keyboard-navigation complexity before the native menu has failed.
+Writing a clipboard manager's storage couples Parloq to an undocumented schema
+and concurrent writer. Cycling and restoring pasteboard contents creates timing
+races and extra entries; publishing the completed final once and leaving it
+current has one owner and one observable result. A custom history window adds
+focus, search, and keyboard-navigation complexity before the native menu has
+failed.
 
 Decided: 2026-07-27 | Session: Codex

@@ -18,7 +18,7 @@ import Testing
 
     #expect(
         metadata.contextLabel
-            == "Safe copy mode · final goes to clipboard"
+            == "Safe copy · final goes to clipboard"
     )
 }
 

@@ -55,9 +55,9 @@ public struct DictationHUDTelemetry: Equatable, Sendable {
         if showsLatestProsodyResult, let state = details.latestProsodyState {
             switch state {
             case .elevated:
-                return "Voice energy · elevated"
+                return "Voice level · above usual"
             case .baseline:
-                return "Voice energy · typical"
+                return "Voice level · typical"
             case .calibrating:
                 return calibrationLabel
             case .insufficientAudio:
@@ -68,7 +68,7 @@ public struct DictationHUDTelemetry: Equatable, Sendable {
         }
 
         let count = details.prosodyBaselineCount ?? 0
-        return count < 3 ? calibrationLabel : "Voice energy · ready"
+        return count < 3 ? calibrationLabel : nil
     }
 
     public var completionPerformanceLabel: String? {
@@ -119,7 +119,7 @@ public struct DictationHUDTelemetry: Equatable, Sendable {
 
     private var calibrationLabel: String {
         let count = min(3, max(0, details.prosodyBaselineCount ?? 0))
-        return "Voice energy · learning \(count)/3"
+        return "Learning typical voice level · \(count)/3"
     }
 
     private func format(_ value: Double, fractionDigits: Int) -> String {

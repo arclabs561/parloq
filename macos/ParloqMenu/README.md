@@ -18,8 +18,9 @@ The Python daemon remains the speech engine.
   compatibility and offscreen-test fallback. Settled context is muted above
   the bright, changing tail, and older context truncates from the top. Two
   quiet instrument rows identify the captured application and delivery
-  behavior, show the real input spectrum, elapsed time, microphone, model,
-  live speaking rate, peak dBFS, and prosody calibration. It cannot receive
+  behavior, elapsed time, microphone, model, live speaking rate, peak dBFS,
+  and the short voice-level learning phase. The state lens shows the real input
+  spectrum without mixing it with an insertion cursor. It cannot receive
   keyboard focus or mouse input. It follows the focused caret or window's
   display, with the pointer display only as a fallback.
 - The menu-bar icon uses a different silhouette for ready, listening,
@@ -42,19 +43,20 @@ The Python daemon remains the speech engine.
   transcript only after dictation stops. The HUD still provides live feedback,
   while unstable draft text is never appended where it cannot be revised
   safely. Any ordinary click or keystroke before delivery changes the HUD to
-  **Focus changed · copies final** and prevents Parloq from guessing at a new
-  insertion point. Blind keyboard delivery keeps
+  **Safe copy · final goes to clipboard** and prevents Parloq from guessing at
+  a new insertion point. Blind keyboard delivery keeps
   Unicode surrogate pairs intact and refuses line breaks or control characters
   that could act as terminal commands; the full final is copied instead.
 - The daemon runs a higher-quality offline pass after stop; that result replaces
   the live snapshot when range ownership is still intact. A brief passive
   completion state reports local ASR realtime factor and, when enabled, the
   latest energy-relative prosody result before dismissing itself.
-- Prosody is structured acoustic metadata, never transcript markup. It
-  calibrates utterance energy against recent dictations and reports only
-  calibration, baseline energy, or elevated energy. Parloq does not present
-  emotion, valence, intent, or confidence labels that its evidence does not
-  support.
+- The optional voice-level analysis is structured acoustic metadata, never
+  transcript markup. It learns typical utterance energy from three completed
+  dictations, then reports only whether a completed recording was typical or
+  above that baseline. A ready state is not shown because it requires no user
+  action. Parloq does not present emotion, valence, intent, or confidence labels
+  that its evidence does not support.
 - If the daemon fails or disconnects after speech appears, the HUD retains the
   latest transcript, copies it for clipboard-history recovery, and changes to a
   distinct **Recovered** state. Escape dismisses that recovery without sending

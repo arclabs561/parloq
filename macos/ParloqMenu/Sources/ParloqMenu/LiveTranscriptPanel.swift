@@ -41,7 +41,6 @@ enum ParloqVisuals {
 @MainActor
 private final class InputSpectrumView: NSView {
     private let bars: [CALayer]
-    private let cursor = CALayer()
     private var displayedBands = Array(
         repeating: 0.0,
         count: InputSpectrum.bandCount
@@ -55,11 +54,7 @@ private final class InputSpectrumView: NSView {
             bar.cornerRadius = 1
             layer?.addSublayer(bar)
         }
-        cursor.cornerRadius = 1.2
-        layer?.addSublayer(cursor)
-        setAccessibilityLabel(
-            "Live microphone frequency spectrum and insertion cursor"
-        )
+        setAccessibilityLabel("Live microphone frequency spectrum")
         update(InputSpectrum(dbFS: nil), fallback: nil)
     }
 
@@ -69,13 +64,10 @@ private final class InputSpectrumView: NSView {
 
     override func layout() {
         super.layout()
-        let width: CGFloat = 2.2
-        let gap: CGFloat = 1.4
-        let cursorGap: CGFloat = 4
-        let cursorWidth: CGFloat = 2.4
-        let barsWidth = CGFloat(bars.count) * width
+        let width: CGFloat = 2.6
+        let gap: CGFloat = 1.5
+        let contentWidth = CGFloat(bars.count) * width
             + CGFloat(max(0, bars.count - 1)) * gap
-        let contentWidth = barsWidth + cursorGap + cursorWidth
         let leading = max(0, (bounds.width - contentWidth) / 2)
         for (index, bar) in bars.enumerated() {
             let height = max(1.5, bar.frame.height)
@@ -86,13 +78,6 @@ private final class InputSpectrumView: NSView {
                 height: height
             )
         }
-        let cursorHeight = min(28, max(14, bounds.height - 4))
-        cursor.frame = CGRect(
-            x: leading + barsWidth + cursorGap,
-            y: (bounds.height - cursorHeight) / 2,
-            width: cursorWidth,
-            height: cursorHeight
-        )
     }
 
     func update(
@@ -140,9 +125,6 @@ private final class InputSpectrumView: NSView {
                 .withAlphaComponent(0.22 + 0.78 * value)
                 .cgColor
         }
-        cursor.backgroundColor = ParloqVisuals.listening
-            .withAlphaComponent(0.94)
-            .cgColor
         CATransaction.commit()
         let audibleBands = displayedBands.filter { $0 >= 0.18 }.count
         setAccessibilityValue("\(audibleBands) active frequency bands")
@@ -374,6 +356,8 @@ final class LiveTranscriptPanel {
     private var telemetry: DictationHUDTelemetry
     private var contextOverride: String?
     private var latestSnapshot: LiveTranscriptSnapshot?
+    private var contextToCenterMetricConstraint: NSLayoutConstraint?
+    private var contextToElapsedConstraint: NSLayoutConstraint?
 
     init(
         metadata: DictationHUDMetadata,
@@ -576,6 +560,17 @@ final class LiveTranscriptPanel {
                 constant: 6
             )
         }
+        contextToCenterMetricConstraint =
+            contextLabel.trailingAnchor.constraint(
+                lessThanOrEqualTo: centerMetricLabel.leadingAnchor,
+                constant: -16
+            )
+        contextToElapsedConstraint = contextLabel.trailingAnchor.constraint(
+            lessThanOrEqualTo: elapsedLabel.leadingAnchor,
+            constant: -16
+        )
+        contextToElapsedConstraint?.isActive = true
+
         NSLayoutConstraint.activate([
             surfaces.main.leadingAnchor.constraint(
                 equalTo: surfaces.rootContent.leadingAnchor,
@@ -718,10 +713,6 @@ final class LiveTranscriptPanel {
                 equalToConstant: 13
             ),
             contextLeadingConstraint,
-            contextLabel.trailingAnchor.constraint(
-                lessThanOrEqualTo: centerMetricLabel.leadingAnchor,
-                constant: -16
-            ),
             contextLabel.bottomAnchor.constraint(
                 equalTo: statsLabel.topAnchor,
                 constant: -6
@@ -771,7 +762,7 @@ final class LiveTranscriptPanel {
         latestSnapshot = nil
         contextOverride = nil
         inputSpectrumView.isHidden = false
-        centerMetricLabel.isHidden = true
+        hideCenterMetric()
         iconView.isHidden = true
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.listening
@@ -794,7 +785,7 @@ final class LiveTranscriptPanel {
         guard !snapshot.text.isEmpty else { return }
         latestSnapshot = snapshot
         inputSpectrumView.isHidden = false
-        centerMetricLabel.isHidden = true
+        hideCenterMetric()
         iconView.isHidden = true
         metadata.updateElapsed(elapsedSeconds)
         telemetry.updateTranscript(
@@ -1098,6 +1089,8 @@ final class LiveTranscriptPanel {
     }
 
     private func setCenterMetric(_ text: String) {
+        contextToElapsedConstraint?.isActive = false
+        contextToCenterMetricConstraint?.isActive = true
         centerMetricLabel.isHidden = false
         centerMetricLabel.attributedStringValue = NSAttributedString(
             string: text,
@@ -1108,6 +1101,12 @@ final class LiveTranscriptPanel {
             ]
         )
         centerMetricLabel.setAccessibilityValue(text)
+    }
+
+    private func hideCenterMetric() {
+        contextToCenterMetricConstraint?.isActive = false
+        contextToElapsedConstraint?.isActive = true
+        centerMetricLabel.isHidden = true
     }
 
     private func growToFitTranscript() {
