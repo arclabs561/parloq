@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var phase: DictatePhase?
     private var connected = false
     private var deliverySession: TextDeliverySession?
-    private var liveTranscript = LiveTranscriptBuffer()
+    private var overlay = DictationOverlayModel()
     private var lastSequence = 0
     private var lastDeliveryWarning: String?
     private var cancellationWarning: String?
@@ -67,7 +67,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self else { return }
             self.connected = connected
             if connected {
-                self.updateStatus(self.hotKeyWarning ?? "Connected")
+                self.updateStatus(
+                    self.recoveryMessage
+                        ?? self.hotKeyWarning
+                        ?? "Connected"
+                )
             } else {
                 self.phase = nil
                 self.lastSequence = 0
@@ -75,10 +79,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.cancelRequested = false
                 self.cancellationWarning = nil
                 self.details = DictationDetails()
-                self.hotKey?.setEscapeEnabled(false)
-                self.liveTranscript.reset()
-                self.liveTranscriptPanel?.hide()
-                self.updateStatus(message ?? "Daemon unavailable")
+                let failure = message ?? "Daemon unavailable"
+                if !self.recoverTranscript(message: failure) {
+                    self.clearOverlay()
+                    self.updateStatus(failure)
+                }
             }
             self.refreshDetailsMenu()
             self.updateIcon()
@@ -171,7 +176,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func cancelFromMenu() {
-        cancelDictation()
+        cancelOrDismiss()
     }
 
     private func toggleDictation() {
@@ -181,15 +186,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         switch phase {
         case .recording:
+            overlay.markFinishing()
             liveTranscriptPanel?.showFinishing()
             client.send(.stop)
         case .finalizing, .polishing:
             updateStatus("Finishing current dictation…")
         default:
+            clearOverlay()
             lastDeliveryWarning = nil
             cancellationWarning = nil
             cancelRequested = false
-            liveTranscript.reset()
+            overlay.begin()
             deliverySession = TextDeliverySession()
             let panel = LiveTranscriptPanel()
             liveTranscriptPanel = panel
@@ -215,7 +222,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .transcript:
             if let text = event.text, !text.isEmpty {
                 deliverySession?.deliver(event: event)
-                if let visibleSnapshot = liveTranscript.update(
+                if let visibleSnapshot = overlay.update(
                     snapshot: text,
                     finalizedText: event.finalizedText,
                     draftText: event.draftText
@@ -251,35 +258,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 updateStatus("Dictation complete")
             }
             deliverySession = nil
-            hotKey?.setEscapeEnabled(false)
-            liveTranscript.reset()
-            liveTranscriptPanel?.hide()
-            liveTranscriptPanel = nil
+            clearOverlay()
 
         case .error:
-            updateStatus(event.message ?? "Dictation error")
             deliverySession = nil
-            hotKey?.setEscapeEnabled(false)
-            liveTranscript.reset()
-            liveTranscriptPanel?.hide()
-            liveTranscriptPanel = nil
+            let failure = event.message ?? "Dictation error"
+            if !recoverTranscript(message: failure) {
+                clearOverlay()
+                updateStatus(failure)
+            }
 
         case .ack, .status:
             if event.phase == .finalizing || event.phase == .polishing {
+                overlay.markFinishing()
                 liveTranscriptPanel?.showFinishing()
             } else if event.phase == .idle, deliverySession != nil {
-                hotKey?.setEscapeEnabled(false)
-                liveTranscript.reset()
-                liveTranscriptPanel?.hide()
-                liveTranscriptPanel = nil
+                clearOverlay()
             }
-            if event.phase == .idle, let lastDeliveryWarning {
+            if let recoveryMessage {
+                updateStatus(recoveryMessage)
+            } else if event.phase == .idle, let lastDeliveryWarning {
                 updateStatus(lastDeliveryWarning)
             } else {
                 updateStatus(statusText(for: event))
             }
         }
         updateIcon()
+    }
+
+    private func cancelOrDismiss() {
+        if recoveryMessage != nil {
+            clearOverlay()
+            if !connected {
+                updateStatus("Daemon unavailable")
+            } else if phase == .error {
+                updateStatus(lastDeliveryWarning ?? "Dictation error")
+            } else {
+                updateStatus(
+                    hotKeyWarning ?? "Ready — ⌥Space or Microphone key")
+            }
+            updateIcon()
+            return
+        }
+        cancelDictation()
     }
 
     private func cancelDictation() {
@@ -295,10 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         cancelRequested = true
         phase = .finalizing
         deliverySession = nil
-        hotKey?.setEscapeEnabled(false)
-        liveTranscript.reset()
-        liveTranscriptPanel?.hide()
-        liveTranscriptPanel = nil
+        clearOverlay()
         updateStatus(cancellationWarning ?? "Cancelling dictation…")
         updateIcon()
         client.send(.cancel)
@@ -351,6 +369,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let state: IconState
         if !connected {
             state = .offline
+        } else if recoveryMessage != nil {
+            state = .error
         } else {
             switch phase {
             case .recording:
@@ -376,8 +396,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateMenuActions() {
-        let canCancel = deliverySession != nil && !cancelRequested
-        cancelMenuItem?.isHidden = !canCancel
+        if recoveryMessage != nil {
+            cancelMenuItem?.title = "Dismiss Recovered Transcript (Esc)"
+            cancelMenuItem?.isHidden = false
+        } else {
+            cancelMenuItem?.title = "Cancel Dictation (Esc)"
+            let canCancel = deliverySession != nil && !cancelRequested
+            cancelMenuItem?.isHidden = !canCancel
+        }
         switch phase {
         case .recording:
             toggleMenuItem?.title =
@@ -388,6 +414,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             toggleMenuItem?.title =
                 "Start Dictation (⌥Space or Microphone key)"
         }
+    }
+
+    private var recoveryMessage: String? {
+        guard case let .recovering(message) = overlay.phase else {
+            return nil
+        }
+        return message
+    }
+
+    @discardableResult
+    private func recoverTranscript(message: String) -> Bool {
+        let status = "\(message) — transcript copied"
+        guard let snapshot = overlay.fail(message: status) else {
+            return false
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(snapshot.text, forType: .string)
+        lastDeliveryWarning = status
+        hotKey?.setEscapeEnabled(true)
+        liveTranscriptPanel?.showRecovery(
+            snapshot: snapshot,
+            message: status
+        )
+        updateStatus(status)
+        updateMenuActions()
+        return true
+    }
+
+    private func clearOverlay() {
+        overlay.complete()
+        hotKey?.setEscapeEnabled(false)
+        liveTranscriptPanel?.hide()
+        liveTranscriptPanel = nil
+        updateMenuActions()
     }
 
     private func statusIcon(for state: IconState) -> NSImage {
@@ -619,7 +679,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     self?.toggleDictation()
                 },
                 cancelAction: { [weak self] in
-                    self?.cancelDictation()
+                    self?.cancelOrDismiss()
                 }
             )
             hotKey = installedHotKey

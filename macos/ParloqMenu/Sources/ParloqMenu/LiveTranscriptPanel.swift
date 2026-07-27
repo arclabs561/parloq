@@ -20,6 +20,12 @@ private enum ParloqVisuals {
         blue: 0.95,
         alpha: 1
     )
+    static let coral = NSColor(
+        srgbRed: 1.0,
+        green: 0.42,
+        blue: 0.45,
+        alpha: 1
+    )
     static let text = NSColor(
         srgbRed: 0.92,
         green: 0.94,
@@ -39,6 +45,7 @@ private enum PanelMetrics {
 @MainActor
 final class LiveTranscriptPanel {
     private let panel: NSPanel
+    private let accentRail: NSView
     private let iconView: NSImageView
     private let stateLabel: NSTextField
     private let hintLabel: NSTextField
@@ -97,7 +104,7 @@ final class LiveTranscriptPanel {
             .cgColor
         tint.translatesAutoresizingMaskIntoConstraints = false
 
-        let accentRail = NSView()
+        accentRail = NSView()
         accentRail.wantsLayer = true
         accentRail.layer?.backgroundColor = ParloqVisuals.mint.cgColor
         accentRail.translatesAutoresizingMaskIntoConstraints = false
@@ -184,8 +191,13 @@ final class LiveTranscriptPanel {
 
     func showListening() {
         latestSnapshot = nil
+        accentRail.layer?.backgroundColor = ParloqVisuals.mint.cgColor
         iconView.image = StatusIcon.listening
-        setMode(title: "LISTENING", hint: "ESC CANCEL · ⌥SPACE FINISH")
+        setMode(
+            title: "LISTENING",
+            hint: "ESC CANCEL · ⌥SPACE FINISH",
+            color: ParloqVisuals.mint
+        )
         renderPlaceholder("Start speaking")
         positionOnActiveScreen()
         panel.orderFrontRegardless()
@@ -194,8 +206,13 @@ final class LiveTranscriptPanel {
     func update(snapshot: LiveTranscriptSnapshot) {
         guard !snapshot.text.isEmpty else { return }
         latestSnapshot = snapshot
+        accentRail.layer?.backgroundColor = ParloqVisuals.mint.cgColor
         iconView.image = StatusIcon.listening
-        setMode(title: "LISTENING", hint: "ESC CANCEL · ⌥SPACE FINISH")
+        setMode(
+            title: "LISTENING",
+            hint: "ESC CANCEL · ⌥SPACE FINISH",
+            color: ParloqVisuals.mint
+        )
         render(snapshot: snapshot, showCursor: true)
         if !panel.isVisible {
             positionOnActiveScreen()
@@ -204,12 +221,37 @@ final class LiveTranscriptPanel {
     }
 
     func showFinishing() {
+        accentRail.layer?.backgroundColor = ParloqVisuals.cyan.cgColor
         iconView.image = StatusIcon.finishing
-        setMode(title: "FINALIZING", hint: "ESC CANCEL")
+        setMode(
+            title: "FINALIZING",
+            hint: "ESC CANCEL",
+            color: ParloqVisuals.cyan
+        )
         if let latestSnapshot {
             render(snapshot: latestSnapshot, showCursor: false)
         } else {
             renderPlaceholder("Preparing final text")
+        }
+    }
+
+    func showRecovery(
+        snapshot: LiveTranscriptSnapshot,
+        message: String
+    ) {
+        latestSnapshot = snapshot
+        accentRail.layer?.backgroundColor = ParloqVisuals.coral.cgColor
+        iconView.image = StatusIcon.error
+        setMode(
+            title: "RECOVERED",
+            hint: "TRANSCRIPT COPIED · ESC DISMISS",
+            color: ParloqVisuals.coral,
+            toolTip: message
+        )
+        render(snapshot: snapshot, showCursor: false)
+        if !panel.isVisible {
+            positionOnActiveScreen()
+            panel.orderFrontRegardless()
         }
     }
 
@@ -319,7 +361,12 @@ final class LiveTranscriptPanel {
         panel.setFrame(frame, display: true)
     }
 
-    private func setMode(title: String, hint: String) {
+    private func setMode(
+        title: String,
+        hint: String,
+        color: NSColor,
+        toolTip: String? = nil
+    ) {
         stateLabel.attributedStringValue = NSAttributedString(
             string: title,
             attributes: [
@@ -327,10 +374,12 @@ final class LiveTranscriptPanel {
                     ofSize: 10.5,
                     weight: .semibold
                 ),
-                .foregroundColor: ParloqVisuals.mint,
+                .foregroundColor: color,
                 .kern: 1.0,
             ]
         )
+        stateLabel.toolTip = toolTip
+        stateLabel.setAccessibilityValue(toolTip ?? title)
         hintLabel.attributedStringValue = NSAttributedString(
             string: hint,
             attributes: [
