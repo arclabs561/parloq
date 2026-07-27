@@ -4,12 +4,7 @@ import AppKit
 enum StatusIcon {
     static let ready = makeReady(description: "Parloq ready")
 
-    static let listening = symbol(
-        named: "waveform.circle.fill",
-        description: "Parloq listening",
-        pointSize: 15,
-        weight: .semibold
-    )
+    static let listening = makeListening(description: "Parloq listening")
 
     static let finishing = symbol(
         named: "ellipsis.circle",
@@ -93,6 +88,59 @@ enum StatusIcon {
             path.move(to: NSPoint(x: 18.2, y: 4.2))
             path.line(to: NSPoint(x: 18.2, y: 13.8))
             path.stroke()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = description
+        return image
+    }
+
+    private static func makeListening(description: String) -> NSImage {
+        let image = NSImage(
+            size: NSSize(width: 20, height: 18),
+            flipped: false
+        ) { _ in
+            NSColor.black.setFill()
+            NSColor.black.setStroke()
+
+            NSBezierPath(
+                ovalIn: NSRect(x: 0.8, y: 6.7, width: 4.6, height: 4.6)
+            ).fill()
+
+            let waveform = NSBezierPath()
+            waveform.lineWidth = 1.9
+            waveform.lineCapStyle = .round
+            waveform.lineJoinStyle = .round
+            waveform.move(to: NSPoint(x: 6.5, y: 9))
+            waveform.curve(
+                to: NSPoint(x: 8.5, y: 7.5),
+                controlPoint1: NSPoint(x: 7.1, y: 9),
+                controlPoint2: NSPoint(x: 7.8, y: 11.8)
+            )
+            waveform.curve(
+                to: NSPoint(x: 10.5, y: 11.5),
+                controlPoint1: NSPoint(x: 9.2, y: 4.6),
+                controlPoint2: NSPoint(x: 9.8, y: 4.0)
+            )
+            waveform.curve(
+                to: NSPoint(x: 12.9, y: 6.0),
+                controlPoint1: NSPoint(x: 11.2, y: 15.4),
+                controlPoint2: NSPoint(x: 12.0, y: 14.7)
+            )
+            waveform.curve(
+                to: NSPoint(x: 15.2, y: 9),
+                controlPoint1: NSPoint(x: 13.7, y: 2.9),
+                controlPoint2: NSPoint(x: 14.2, y: 9)
+            )
+            waveform.line(to: NSPoint(x: 18.1, y: 9))
+            waveform.stroke()
+
+            let cursor = NSBezierPath()
+            cursor.lineWidth = 2.5
+            cursor.lineCapStyle = .round
+            cursor.move(to: NSPoint(x: 18.2, y: 3.7))
+            cursor.line(to: NSPoint(x: 18.2, y: 14.3))
+            cursor.stroke()
             return true
         }
         image.isTemplate = true
