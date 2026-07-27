@@ -15,7 +15,39 @@ public struct DictationDetails: Equatable, Sendable {
     public private(set) var lastAudioSeconds: Double?
     public private(set) var lastASRSeconds: Double?
 
-    public init() {}
+    public init(
+        device: String? = nil,
+        deviceName: String? = nil,
+        model: String? = nil,
+        prosodyEnabled: Bool? = nil,
+        latestProsodyState: DictationProsodyState? = nil,
+        latestProsodyEnergyZ: Double? = nil,
+        prosodyBaselineCount: Int? = nil,
+        latestProsodyRMSDB: Double? = nil,
+        polishEnabled: Bool? = nil,
+        chimeEnabled: Bool? = nil,
+        saveEnabled: Bool? = nil,
+        vocabCount: Int? = nil,
+        streamIntervalSeconds: Double? = nil,
+        lastAudioSeconds: Double? = nil,
+        lastASRSeconds: Double? = nil
+    ) {
+        self.device = device
+        self.deviceName = deviceName
+        self.model = model
+        self.prosodyEnabled = prosodyEnabled
+        self.latestProsodyState = latestProsodyState
+        self.latestProsodyEnergyZ = latestProsodyEnergyZ
+        self.prosodyBaselineCount = prosodyBaselineCount
+        self.latestProsodyRMSDB = latestProsodyRMSDB
+        self.polishEnabled = polishEnabled
+        self.chimeEnabled = chimeEnabled
+        self.saveEnabled = saveEnabled
+        self.vocabCount = vocabCount
+        self.streamIntervalSeconds = streamIntervalSeconds
+        self.lastAudioSeconds = lastAudioSeconds
+        self.lastASRSeconds = lastASRSeconds
+    }
 
     public var latestRealtimeFactor: Double? {
         guard let audio = lastAudioSeconds,

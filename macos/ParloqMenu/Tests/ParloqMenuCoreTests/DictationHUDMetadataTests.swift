@@ -7,7 +7,7 @@ import Testing
         deliveryMode: .directInsertion
     )
 
-    #expect(metadata.contextLabel == "NOTES · LIVE INSERT")
+    #expect(metadata.contextLabel == "Notes · Live insert")
     #expect(metadata.elapsedLabel == "0:00")
 
     metadata.updateElapsed(65.9)
@@ -18,7 +18,7 @@ import Testing
 
     #expect(
         metadata.contextLabel
-            == "FOCUS CHANGED · COPIES FINAL"
+            == "Focus changed · copies final"
     )
 }
 
@@ -29,7 +29,7 @@ import Testing
         elapsedSeconds: 8
     )
 
-    #expect(metadata.contextLabel == "COPIES FINAL")
+    #expect(metadata.contextLabel == "Copies final")
     metadata.updateElapsed(4)
     metadata.updateElapsed(nil)
     metadata.updateElapsed(.infinity)

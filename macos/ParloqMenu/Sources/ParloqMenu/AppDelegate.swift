@@ -20,6 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private let client = UnixSocketClient()
     private var liveTranscriptPanel: LiveTranscriptPanel?
+    private var completionDismissWorkItem: DispatchWorkItem?
     private var hotKey: GlobalHotKey?
     private var hotKeyRetry: DispatchWorkItem?
     private var statusItem: NSStatusItem?
@@ -54,6 +55,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        completionDismissWorkItem?.cancel()
         hotKeyRetry?.cancel()
         hotKey = nil
         liveTranscriptPanel?.hide()
@@ -207,6 +209,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
             let panel = LiveTranscriptPanel(
                 metadata: metadata,
+                details: details,
                 targetApplicationIcon: session.hudTargetApplicationIcon
             )
             liveTranscriptPanel = panel
@@ -227,6 +230,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         details.update(from: event)
         if details != previousDetails {
             refreshDetailsMenu()
+            liveTranscriptPanel?.updateDetails(details)
         }
         liveTranscriptPanel?.updateElapsed(event.elapsedSeconds)
         updateInputLevel(from: event)
@@ -279,7 +283,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 updateStatus("Dictation complete")
             }
             deliverySession = nil
-            clearOverlay()
+            if let text = event.text, !text.isEmpty {
+                overlay.complete()
+                hotKey?.setEscapeEnabled(false)
+                hotKey?.setTargetActivityMonitoringEnabled(false)
+                liveTranscriptPanel?.showCompleted(
+                    snapshot: LiveTranscriptSnapshot(
+                        text: text,
+                        settledText: text,
+                        activeText: ""
+                    ),
+                    details: details
+                )
+                scheduleCompletionDismissal()
+                updateMenuActions()
+            } else {
+                clearOverlay()
+            }
 
         case .error:
             deliverySession = nil
@@ -484,12 +504,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     private func clearOverlay() {
+        completionDismissWorkItem?.cancel()
+        completionDismissWorkItem = nil
         overlay.complete()
         hotKey?.setEscapeEnabled(false)
         hotKey?.setTargetActivityMonitoringEnabled(false)
         liveTranscriptPanel?.hide()
         liveTranscriptPanel = nil
         updateMenuActions()
+    }
+
+    private func scheduleCompletionDismissal() {
+        completionDismissWorkItem?.cancel()
+        let item = DispatchWorkItem { [weak self] in
+            self?.completionDismissWorkItem = nil
+            self?.clearOverlay()
+        }
+        completionDismissWorkItem = item
+        DispatchQueue.main.asyncAfter(
+            deadline: .now() + 1.25,
+            execute: item
+        )
     }
 
     private func statusIcon(for state: IconState) -> NSImage {
@@ -619,7 +654,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return
         }
 
-        if let device = details.device {
+        if let device = details.deviceName ?? details.device {
             addDetail("Microphone: \(device)")
         }
         if let model = details.model {
@@ -654,6 +689,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         addModeDetail("Prosody", enabled: details.prosodyEnabled)
         addModeDetail("Save recordings", enabled: details.saveEnabled)
         addModeDetail("Chimes", enabled: details.chimeEnabled)
+
+        if details.latestProsodyState != nil {
+            var telemetry = DictationHUDTelemetry()
+            telemetry.updateDetails(
+                details,
+                showLatestProsodyResult: true
+            )
+            if let label = telemetry.prosodyLabel {
+                addDetail("Latest prosody: \(label)")
+            }
+        }
 
         if let audio = details.lastAudioSeconds {
             if !detailsMenu.items.isEmpty {

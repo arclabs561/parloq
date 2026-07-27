@@ -3,7 +3,7 @@ import ParloqMenuCore
 import QuartzCore
 
 enum ParloqVisuals {
-    static let navy = NSColor(
+    static let surfaceTint = NSColor(
         srgbRed: 0.035,
         green: 0.055,
         blue: 0.14,
@@ -27,12 +27,9 @@ enum ParloqVisuals {
         blue: 0.45,
         alpha: 1
     )
-    static let text = NSColor(
-        srgbRed: 0.92,
-        green: 0.94,
-        blue: 0.98,
-        alpha: 1
-    )
+    static let text = NSColor.labelColor
+    static let secondaryText = NSColor.secondaryLabelColor
+    static let tertiaryText = NSColor.tertiaryLabelColor
 }
 
 @MainActor
@@ -136,17 +133,18 @@ private final class InputSpectrumView: NSView {
 }
 
 private enum PanelMetrics {
-    static let width: CGFloat = 574
-    static let minimumHeight: CGFloat = 104
-    static let maximumHeight: CGFloat = 174
-    static let horizontalInset: CGFloat = 18
-    static let verticalChrome: CGFloat = 78
+    static let width: CGFloat = 620
+    static let minimumHeight: CGFloat = 132
+    static let maximumHeight: CGFloat = 214
+    static let horizontalInset: CGFloat = 20
+    static let verticalChrome: CGFloat = 108
+    static let cornerRadius: CGFloat = 20
 }
 
 @MainActor
 final class LiveTranscriptPanel {
     private let panel: NSPanel
-    private let accentRail: NSView
+    private let stateHalo: NSView
     private let iconView: NSImageView
     private let stateLabel: NSTextField
     private let hintLabel: NSTextField
@@ -154,18 +152,24 @@ final class LiveTranscriptPanel {
     private let targetApplicationIconView: NSImageView
     private let contextLabel: NSTextField
     private let inputSpectrumView: InputSpectrumView
+    private let centerMetricLabel: NSTextField
     private let elapsedLabel: NSTextField
+    private let statsLabel: NSTextField
+    private let prosodyLabel: NSTextField
     private let presentsWindow: Bool
     private var metadata: DictationHUDMetadata
+    private var telemetry: DictationHUDTelemetry
     private var contextOverride: String?
     private var latestSnapshot: LiveTranscriptSnapshot?
 
     init(
         metadata: DictationHUDMetadata,
+        details: DictationDetails = DictationDetails(),
         targetApplicationIcon: NSImage? = nil,
         presentsWindow: Bool = true
     ) {
         self.metadata = metadata
+        telemetry = DictationHUDTelemetry(details: details)
         self.presentsWindow = presentsWindow
         panel = NSPanel(
             contentRect: NSRect(
@@ -193,35 +197,61 @@ final class LiveTranscriptPanel {
             .stationary,
         ]
 
-        let material = NSVisualEffectView()
-        material.material = .hudWindow
-        material.blendingMode = .behindWindow
-        material.state = .active
+        let material: NSView
+        let contentHost: NSView
+        // NSGlassEffectView's compositor does not participate in an offscreen
+        // cacheDisplay pass. Fixtures use the same content hierarchy over the
+        // established material fallback; the installed panel uses native glass.
+        if #available(macOS 26.0, *), presentsWindow {
+            let glass = NSGlassEffectView()
+            glass.style = .regular
+            glass.cornerRadius = PanelMetrics.cornerRadius
+            glass.tintColor = ParloqVisuals.surfaceTint.withAlphaComponent(0.22)
+            let content = NSView()
+            glass.contentView = content
+            material = glass
+            contentHost = content
+        } else {
+            let fallback = NSVisualEffectView()
+            fallback.material = .hudWindow
+            fallback.blendingMode = .behindWindow
+            fallback.state = .active
+            contentHost = fallback
+            material = fallback
+        }
         material.wantsLayer = true
-        material.layer?.cornerRadius = 12
+        material.layer?.cornerRadius = PanelMetrics.cornerRadius
         material.layer?.cornerCurve = .continuous
         material.layer?.masksToBounds = true
         material.layer?.borderWidth = 0.5
         material.layer?.borderColor = NSColor.white
-            .withAlphaComponent(0.16)
+            .withAlphaComponent(0.18)
             .cgColor
         panel.contentView = material
+        if contentHost !== material {
+            contentHost.frame = material.bounds
+            contentHost.autoresizingMask = [.width, .height]
+        }
 
         let tint = NSView()
         tint.wantsLayer = true
-        tint.layer?.backgroundColor = ParloqVisuals.navy
+        tint.layer?.backgroundColor = ParloqVisuals.surfaceTint
             .withAlphaComponent(
                 NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
-                    ? 0.98
-                    : 0.84
+                    ? 0.96
+                    : 0.34
             )
             .cgColor
         tint.translatesAutoresizingMaskIntoConstraints = false
 
-        accentRail = NSView()
-        accentRail.wantsLayer = true
-        accentRail.layer?.backgroundColor = ParloqVisuals.listening.cgColor
-        accentRail.translatesAutoresizingMaskIntoConstraints = false
+        stateHalo = NSView()
+        stateHalo.wantsLayer = true
+        stateHalo.layer?.cornerRadius = 10
+        stateHalo.layer?.cornerCurve = .continuous
+        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
+            .withAlphaComponent(0.13)
+            .cgColor
+        stateHalo.translatesAutoresizingMaskIntoConstraints = false
 
         iconView = NSImageView()
         iconView.imageScaling = .scaleProportionallyUpOrDown
@@ -268,6 +298,10 @@ final class LiveTranscriptPanel {
         inputSpectrumView = InputSpectrumView()
         inputSpectrumView.translatesAutoresizingMaskIntoConstraints = false
 
+        centerMetricLabel = NSTextField(labelWithString: "")
+        centerMetricLabel.alignment = .center
+        centerMetricLabel.translatesAutoresizingMaskIntoConstraints = false
+
         elapsedLabel = NSTextField(labelWithString: "")
         elapsedLabel.alignment = .right
         elapsedLabel.setContentCompressionResistancePriority(
@@ -276,21 +310,42 @@ final class LiveTranscriptPanel {
         )
         elapsedLabel.translatesAutoresizingMaskIntoConstraints = false
 
-        material.addSubview(tint)
-        material.addSubview(accentRail)
-        material.addSubview(iconView)
-        material.addSubview(stateLabel)
-        material.addSubview(hintLabel)
-        material.addSubview(transcriptLabel)
-        material.addSubview(targetApplicationIconView)
-        material.addSubview(contextLabel)
-        material.addSubview(inputSpectrumView)
-        material.addSubview(elapsedLabel)
+        statsLabel = NSTextField(labelWithString: "")
+        statsLabel.lineBreakMode = .byTruncatingTail
+        statsLabel.maximumNumberOfLines = 1
+        statsLabel.usesSingleLineMode = true
+        statsLabel.setContentCompressionResistancePriority(
+            .defaultLow,
+            for: .horizontal
+        )
+        statsLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        prosodyLabel = NSTextField(labelWithString: "")
+        prosodyLabel.alignment = .right
+        prosodyLabel.setContentCompressionResistancePriority(
+            .required,
+            for: .horizontal
+        )
+        prosodyLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        contentHost.addSubview(tint)
+        contentHost.addSubview(stateHalo)
+        contentHost.addSubview(iconView)
+        contentHost.addSubview(stateLabel)
+        contentHost.addSubview(hintLabel)
+        contentHost.addSubview(transcriptLabel)
+        contentHost.addSubview(targetApplicationIconView)
+        contentHost.addSubview(contextLabel)
+        contentHost.addSubview(inputSpectrumView)
+        contentHost.addSubview(centerMetricLabel)
+        contentHost.addSubview(elapsedLabel)
+        contentHost.addSubview(statsLabel)
+        contentHost.addSubview(prosodyLabel)
 
         let contextLeadingConstraint: NSLayoutConstraint
         if targetApplicationIcon == nil {
             contextLeadingConstraint = contextLabel.leadingAnchor.constraint(
-                equalTo: material.leadingAnchor,
+                equalTo: contentHost.leadingAnchor,
                 constant: PanelMetrics.horizontalInset
             )
         } else {
@@ -300,33 +355,35 @@ final class LiveTranscriptPanel {
             )
         }
         NSLayoutConstraint.activate([
-            tint.leadingAnchor.constraint(equalTo: material.leadingAnchor),
-            tint.trailingAnchor.constraint(equalTo: material.trailingAnchor),
-            tint.topAnchor.constraint(equalTo: material.topAnchor),
-            tint.bottomAnchor.constraint(equalTo: material.bottomAnchor),
-            accentRail.leadingAnchor.constraint(equalTo: material.leadingAnchor),
-            accentRail.topAnchor.constraint(equalTo: material.topAnchor),
-            accentRail.bottomAnchor.constraint(equalTo: material.bottomAnchor),
-            accentRail.widthAnchor.constraint(equalToConstant: 3),
-            iconView.leadingAnchor.constraint(
-                equalTo: material.leadingAnchor,
-                constant: PanelMetrics.horizontalInset
-            ),
-            iconView.centerYAnchor.constraint(
-                equalTo: stateLabel.centerYAnchor
-            ),
-            iconView.widthAnchor.constraint(equalToConstant: 22),
-            iconView.heightAnchor.constraint(equalToConstant: 20),
-            stateLabel.leadingAnchor.constraint(
-                equalTo: iconView.trailingAnchor,
-                constant: 10
-            ),
-            stateLabel.topAnchor.constraint(
-                equalTo: material.topAnchor,
+            tint.leadingAnchor.constraint(equalTo: contentHost.leadingAnchor),
+            tint.trailingAnchor.constraint(equalTo: contentHost.trailingAnchor),
+            tint.topAnchor.constraint(equalTo: contentHost.topAnchor),
+            tint.bottomAnchor.constraint(equalTo: contentHost.bottomAnchor),
+            stateHalo.leadingAnchor.constraint(
+                equalTo: contentHost.leadingAnchor,
                 constant: 15
             ),
+            stateHalo.topAnchor.constraint(
+                equalTo: contentHost.topAnchor,
+                constant: 12
+            ),
+            stateHalo.widthAnchor.constraint(equalToConstant: 30),
+            stateHalo.heightAnchor.constraint(equalToConstant: 30),
+            iconView.centerYAnchor.constraint(
+                equalTo: stateHalo.centerYAnchor
+            ),
+            iconView.centerXAnchor.constraint(equalTo: stateHalo.centerXAnchor),
+            iconView.widthAnchor.constraint(equalToConstant: 20),
+            iconView.heightAnchor.constraint(equalToConstant: 18),
+            stateLabel.leadingAnchor.constraint(
+                equalTo: stateHalo.trailingAnchor,
+                constant: 9
+            ),
+            stateLabel.centerYAnchor.constraint(
+                equalTo: stateHalo.centerYAnchor
+            ),
             hintLabel.trailingAnchor.constraint(
-                equalTo: material.trailingAnchor,
+                equalTo: contentHost.trailingAnchor,
                 constant: -PanelMetrics.horizontalInset
             ),
             hintLabel.firstBaselineAnchor.constraint(
@@ -337,23 +394,23 @@ final class LiveTranscriptPanel {
                 constant: -12
             ),
             transcriptLabel.leadingAnchor.constraint(
-                equalTo: material.leadingAnchor,
+                equalTo: contentHost.leadingAnchor,
                 constant: PanelMetrics.horizontalInset
             ),
             transcriptLabel.trailingAnchor.constraint(
-                equalTo: material.trailingAnchor,
+                equalTo: contentHost.trailingAnchor,
                 constant: -PanelMetrics.horizontalInset
             ),
             transcriptLabel.topAnchor.constraint(
-                equalTo: stateLabel.bottomAnchor,
-                constant: 12
+                equalTo: stateHalo.bottomAnchor,
+                constant: 10
             ),
             transcriptLabel.bottomAnchor.constraint(
                 lessThanOrEqualTo: contextLabel.topAnchor,
-                constant: -8
+                constant: -10
             ),
             targetApplicationIconView.leadingAnchor.constraint(
-                equalTo: material.leadingAnchor,
+                equalTo: contentHost.leadingAnchor,
                 constant: PanelMetrics.horizontalInset
             ),
             targetApplicationIconView.centerYAnchor.constraint(
@@ -371,13 +428,13 @@ final class LiveTranscriptPanel {
                 constant: -16
             ),
             contextLabel.bottomAnchor.constraint(
-                equalTo: material.bottomAnchor,
-                constant: -12
+                equalTo: statsLabel.topAnchor,
+                constant: -7
             ),
             inputSpectrumView.widthAnchor.constraint(equalToConstant: 40),
             inputSpectrumView.heightAnchor.constraint(equalToConstant: 12),
             inputSpectrumView.centerXAnchor.constraint(
-                equalTo: material.centerXAnchor
+                equalTo: contentHost.centerXAnchor
             ),
             inputSpectrumView.centerYAnchor.constraint(
                 equalTo: contextLabel.centerYAnchor
@@ -387,11 +444,37 @@ final class LiveTranscriptPanel {
                 constant: 16
             ),
             elapsedLabel.trailingAnchor.constraint(
-                equalTo: material.trailingAnchor,
+                equalTo: contentHost.trailingAnchor,
                 constant: -PanelMetrics.horizontalInset
             ),
             elapsedLabel.firstBaselineAnchor.constraint(
                 equalTo: contextLabel.firstBaselineAnchor
+            ),
+            centerMetricLabel.centerXAnchor.constraint(
+                equalTo: inputSpectrumView.centerXAnchor
+            ),
+            centerMetricLabel.centerYAnchor.constraint(
+                equalTo: inputSpectrumView.centerYAnchor
+            ),
+            centerMetricLabel.widthAnchor.constraint(equalToConstant: 112),
+            statsLabel.leadingAnchor.constraint(
+                equalTo: contentHost.leadingAnchor,
+                constant: PanelMetrics.horizontalInset
+            ),
+            statsLabel.trailingAnchor.constraint(
+                lessThanOrEqualTo: prosodyLabel.leadingAnchor,
+                constant: -12
+            ),
+            statsLabel.bottomAnchor.constraint(
+                equalTo: contentHost.bottomAnchor,
+                constant: -12
+            ),
+            prosodyLabel.trailingAnchor.constraint(
+                equalTo: contentHost.trailingAnchor,
+                constant: -PanelMetrics.horizontalInset
+            ),
+            prosodyLabel.firstBaselineAnchor.constraint(
+                equalTo: statsLabel.firstBaselineAnchor
             ),
         ])
         renderMetadata()
@@ -401,16 +484,20 @@ final class LiveTranscriptPanel {
         latestSnapshot = nil
         contextOverride = nil
         inputSpectrumView.isHidden = false
-        accentRail.layer?.backgroundColor = ParloqVisuals.listening.cgColor
+        centerMetricLabel.isHidden = true
+        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
+            .withAlphaComponent(0.13)
+            .cgColor
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.listening
         setMode(
-            title: "LISTENING",
-            hint: "ESC CANCEL · ⌥SPACE FINISH",
+            title: "Listening",
+            hint: "Esc  Cancel   ·   ⌥ Space  Finish",
             color: ParloqVisuals.listening
         )
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         renderMetadata()
+        renderTelemetry()
         renderPlaceholder("Start speaking")
         presentIfNeeded()
     }
@@ -422,23 +509,36 @@ final class LiveTranscriptPanel {
         guard !snapshot.text.isEmpty else { return }
         latestSnapshot = snapshot
         inputSpectrumView.isHidden = false
+        centerMetricLabel.isHidden = true
         metadata.updateElapsed(elapsedSeconds)
-        accentRail.layer?.backgroundColor = ParloqVisuals.listening.cgColor
+        telemetry.updateTranscript(
+            snapshot.text,
+            elapsedSeconds: elapsedSeconds
+        )
+        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
+            .withAlphaComponent(0.13)
+            .cgColor
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.listening
         setMode(
-            title: "LISTENING",
-            hint: "ESC CANCEL · ⌥SPACE FINISH",
+            title: "Listening",
+            hint: "Esc  Cancel   ·   ⌥ Space  Finish",
             color: ParloqVisuals.listening
         )
         renderMetadata()
+        renderTelemetry()
         render(snapshot: snapshot, showCursor: true)
         presentIfNeeded()
     }
 
     func updateElapsed(_ elapsedSeconds: Double?) {
         metadata.updateElapsed(elapsedSeconds)
+        telemetry.updateTranscript(
+            latestSnapshot?.text ?? "",
+            elapsedSeconds: elapsedSeconds
+        )
         renderMetadata()
+        renderTelemetry()
     }
 
     func updateDeliveryMode(_ mode: DictationDeliveryMode) {
@@ -446,33 +546,77 @@ final class LiveTranscriptPanel {
         renderMetadata()
     }
 
+    func updateDetails(_ details: DictationDetails) {
+        telemetry.updateDetails(details)
+        renderTelemetry()
+    }
+
     func updateInput(
         spectrum: InputSpectrum,
         level: InputLevelMeter
     ) {
+        telemetry.updateInputPeak(level.dbFS)
         inputSpectrumView.update(spectrum, fallback: level)
         iconView.image = StatusIcon.listening(
             level: level,
             spectrum: spectrum
         )
+        renderTelemetry()
     }
 
     func showFinishing() {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         inputSpectrumView.isHidden = true
-        accentRail.layer?.backgroundColor = ParloqVisuals.cyan.cgColor
+        setCenterMetric("Accuracy pass")
+        stateHalo.layer?.backgroundColor = ParloqVisuals.cyan
+            .withAlphaComponent(0.13)
+            .cgColor
         iconView.contentTintColor = ParloqVisuals.cyan
         iconView.image = StatusIcon.finishing
         setMode(
-            title: "FINALIZING",
-            hint: "ESC CANCEL",
+            title: "Finalizing",
+            hint: "Esc  Cancel",
             color: ParloqVisuals.cyan
         )
+        renderTelemetry()
         if let latestSnapshot {
             render(snapshot: latestSnapshot, showCursor: false)
         } else {
             renderPlaceholder("Preparing final text")
         }
+    }
+
+    func showCompleted(
+        snapshot: LiveTranscriptSnapshot,
+        details: DictationDetails
+    ) {
+        latestSnapshot = snapshot
+        telemetry.updateTranscript(
+            snapshot.text,
+            elapsedSeconds: details.lastAudioSeconds
+        )
+        telemetry.updateDetails(details, showLatestProsodyResult: true)
+        inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
+        inputSpectrumView.isHidden = true
+        setCenterMetric(
+            telemetry.completionPerformanceLabel ?? "Processed locally"
+        )
+        stateHalo.layer?.backgroundColor = ParloqVisuals.listening
+            .withAlphaComponent(0.13)
+            .cgColor
+        iconView.contentTintColor = ParloqVisuals.listening
+        iconView.image = StatusIcon.ready
+        let copied = metadata.deliveryMode == .clipboardFallback
+            || metadata.deliveryMode == .targetChanged
+        setMode(
+            title: copied ? "Copied" : "Complete",
+            hint: "⌥ Space  Dictate again",
+            color: ParloqVisuals.listening
+        )
+        renderMetadata()
+        renderTelemetry()
+        render(snapshot: snapshot, showCursor: false)
+        presentIfNeeded()
     }
 
     func showRecovery(
@@ -481,18 +625,22 @@ final class LiveTranscriptPanel {
     ) {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         inputSpectrumView.isHidden = true
-        contextOverride = "COPIED TO CLIPBOARD"
+        setCenterMetric("Transcript preserved")
+        contextOverride = "Copied to clipboard"
         latestSnapshot = snapshot
-        accentRail.layer?.backgroundColor = ParloqVisuals.coral.cgColor
+        stateHalo.layer?.backgroundColor = ParloqVisuals.coral
+            .withAlphaComponent(0.14)
+            .cgColor
         iconView.contentTintColor = ParloqVisuals.coral
         iconView.image = StatusIcon.error
         setMode(
-            title: "RECOVERED",
-            hint: "TRANSCRIPT COPIED · ESC DISMISS",
+            title: "Recovered",
+            hint: "Transcript copied   ·   Esc  Dismiss",
             color: ParloqVisuals.coral,
             toolTip: message
         )
         renderMetadata()
+        renderTelemetry()
         render(snapshot: snapshot, showCursor: false)
         presentIfNeeded()
     }
@@ -539,11 +687,11 @@ final class LiveTranscriptPanel {
                 string: snapshot.settledText,
                 attributes: [
                     .font: NSFont.systemFont(
-                        ofSize: 14.5,
+                        ofSize: 15,
                         weight: .regular
                     ),
                     .foregroundColor:
-                        ParloqVisuals.text.withAlphaComponent(0.50),
+                        ParloqVisuals.secondaryText.withAlphaComponent(0.78),
                     .paragraphStyle: paragraph,
                 ]
             ))
@@ -559,7 +707,7 @@ final class LiveTranscriptPanel {
                 string: snapshot.activeText,
                 attributes: [
                     .font: NSFont.systemFont(
-                        ofSize: 15.5,
+                        ofSize: 16.5,
                         weight: .regular
                     ),
                     .foregroundColor: ParloqVisuals.text,
@@ -572,8 +720,8 @@ final class LiveTranscriptPanel {
                 string: "\u{00A0}\u{00A0}│",
                 attributes: [
                     .font: NSFont.systemFont(
-                        ofSize: 16.5,
-                        weight: .semibold
+                        ofSize: 17,
+                        weight: .medium
                     ),
                     .foregroundColor: ParloqVisuals.cyan,
                     .paragraphStyle: paragraph,
@@ -592,9 +740,9 @@ final class LiveTranscriptPanel {
         transcriptLabel.attributedStringValue = NSAttributedString(
             string: text,
             attributes: [
-                .font: NSFont.systemFont(ofSize: 15.5, weight: .regular),
+                .font: NSFont.systemFont(ofSize: 16, weight: .regular),
                 .foregroundColor:
-                    ParloqVisuals.text.withAlphaComponent(0.52),
+                    ParloqVisuals.secondaryText.withAlphaComponent(0.78),
                 .paragraphStyle: paragraph,
             ]
         )
@@ -607,18 +755,14 @@ final class LiveTranscriptPanel {
         let contextColor = (
             contextOverride != nil
                 || metadata.deliveryMode == .targetChanged
-                ? ParloqVisuals.coral.withAlphaComponent(0.82)
-                : ParloqVisuals.text.withAlphaComponent(0.38)
+                ? ParloqVisuals.coral.withAlphaComponent(0.90)
+                : ParloqVisuals.secondaryText.withAlphaComponent(0.88)
         )
         contextLabel.attributedStringValue = NSAttributedString(
             string: context,
             attributes: [
-                .font: NSFont.monospacedSystemFont(
-                    ofSize: 8.5,
-                    weight: .medium
-                ),
+                .font: NSFont.systemFont(ofSize: 10.5, weight: .medium),
                 .foregroundColor: contextColor,
-                .kern: 0.55,
             ]
         )
         contextLabel.setAccessibilityLabel("Dictation destination")
@@ -628,16 +772,56 @@ final class LiveTranscriptPanel {
             string: metadata.elapsedLabel,
             attributes: [
                 .font: NSFont.monospacedDigitSystemFont(
-                    ofSize: 9,
+                    ofSize: 10,
                     weight: .medium
                 ),
                 .foregroundColor:
-                    ParloqVisuals.text.withAlphaComponent(0.48),
-                .kern: 0.35,
+                    ParloqVisuals.secondaryText.withAlphaComponent(0.78),
             ]
         )
         elapsedLabel.setAccessibilityLabel("Elapsed dictation time")
         elapsedLabel.setAccessibilityValue(metadata.elapsedLabel)
+    }
+
+    private func renderTelemetry() {
+        let summary = telemetry.summaryLabel
+        statsLabel.attributedStringValue = NSAttributedString(
+            string: summary,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 9.5, weight: .regular),
+                .foregroundColor:
+                    ParloqVisuals.tertiaryText.withAlphaComponent(0.90),
+            ]
+        )
+        statsLabel.setAccessibilityLabel("Dictation telemetry")
+        statsLabel.setAccessibilityValue(summary)
+
+        let prosody = telemetry.prosodyLabel ?? ""
+        prosodyLabel.isHidden = prosody.isEmpty
+        prosodyLabel.attributedStringValue = NSAttributedString(
+            string: prosody,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 9.5, weight: .medium),
+                .foregroundColor: telemetry.hasElevatedEnergy
+                    ? ParloqVisuals.listening
+                    : ParloqVisuals.secondaryText.withAlphaComponent(0.82),
+            ]
+        )
+        prosodyLabel.setAccessibilityLabel("Prosody")
+        prosodyLabel.setAccessibilityValue(prosody)
+    }
+
+    private func setCenterMetric(_ text: String) {
+        centerMetricLabel.isHidden = false
+        centerMetricLabel.attributedStringValue = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 9.5, weight: .medium),
+                .foregroundColor:
+                    ParloqVisuals.secondaryText.withAlphaComponent(0.78),
+            ]
+        )
+        centerMetricLabel.setAccessibilityValue(text)
     }
 
     private func growToFitTranscript() {
@@ -672,12 +856,8 @@ final class LiveTranscriptPanel {
         stateLabel.attributedStringValue = NSAttributedString(
             string: title,
             attributes: [
-                .font: NSFont.monospacedSystemFont(
-                    ofSize: 10.5,
-                    weight: .semibold
-                ),
+                .font: NSFont.systemFont(ofSize: 12.5, weight: .semibold),
                 .foregroundColor: color,
-                .kern: 1.0,
             ]
         )
         stateLabel.toolTip = toolTip
@@ -685,12 +865,9 @@ final class LiveTranscriptPanel {
         hintLabel.attributedStringValue = NSAttributedString(
             string: hint,
             attributes: [
-                .font: NSFont.monospacedSystemFont(
-                    ofSize: 9.5,
-                    weight: .medium
-                ),
-                .foregroundColor: ParloqVisuals.text.withAlphaComponent(0.42),
-                .kern: 0.7,
+                .font: NSFont.systemFont(ofSize: 10.5, weight: .regular),
+                .foregroundColor:
+                    ParloqVisuals.secondaryText.withAlphaComponent(0.76),
             ]
         )
     }

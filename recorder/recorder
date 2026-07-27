@@ -109,6 +109,13 @@ def device_label(device: str) -> str:
     return device
 
 
+def device_name(device: str) -> str:
+    """Return a human-facing AVFoundation input name when it can be resolved."""
+    label = device_label(device)
+    match = re.fullmatch(r":\d+ \((.+)\)", label)
+    return match.group(1) if match else label
+
+
 def auto_detect_device(user_device: str, env_set: bool) -> str:
     """Resolve the device to use when the user hasn't pinned one.
 
@@ -3801,7 +3808,7 @@ class DictateSessionController:
         self._legacy_mode = False
         self._legacy_paste = False
         self._energy_hist: list[float] = []
-        self._device_name = device_label(args.device)
+        self._device_name = device_name(args.device)
 
     def _next_sequence(self) -> int:
         with self._sequence_lock:

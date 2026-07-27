@@ -9,13 +9,13 @@ public enum DictationDeliveryMode: Equatable, Sendable {
     public var displayName: String {
         switch self {
         case .directInsertion:
-            return "LIVE INSERT"
+            return "Live insert"
         case .keyboardFallback:
-            return "TYPE ON FINISH"
+            return "Type on finish"
         case .clipboardFallback:
-            return "COPIES FINAL"
+            return "Copies final"
         case .targetChanged:
-            return "FOCUS CHANGED · COPIES FINAL"
+            return "Focus changed · copies final"
         }
     }
 }
@@ -41,7 +41,7 @@ public struct DictationHUDMetadata: Equatable, Sendable {
             return deliveryMode.displayName
         }
         let target = targetApplication
-            .flatMap { $0.isEmpty ? nil : $0.uppercased() }
+            .flatMap { $0.isEmpty ? nil : $0 }
         return [target, deliveryMode.displayName]
             .compactMap(\.self)
             .joined(separator: " · ")

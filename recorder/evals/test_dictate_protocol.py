@@ -159,6 +159,17 @@ def main() -> int:
     assert -20.2 < max(low_spectrum) < -19.8, low_spectrum
     assert -20.2 < max(high_spectrum) < -19.8, high_spectrum
 
+    original_devices = rec.avfoundation_devices
+    rec.avfoundation_devices = lambda: [
+        ("0", "Studio Display Microphone"),
+    ]
+    try:
+        assert rec.device_name(":0") == "Studio Display Microphone"
+        assert rec.device_name(":7") == ":7"
+        assert rec.device_name("Custom Input") == "Custom Input"
+    finally:
+        rec.avfoundation_devices = original_devices
+
     print("PASS: dictate JSONL protocol and bounded subscriber fan-out")
     return 0
 

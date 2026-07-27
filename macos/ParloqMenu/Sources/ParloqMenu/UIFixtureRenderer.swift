@@ -14,6 +14,7 @@ enum UIFixtureRenderer {
         rendered.append(try renderListeningLong(to: directory))
         rendered.append(try renderTargetChanged(to: directory))
         rendered.append(try renderFinalizing(to: directory))
+        rendered.append(try renderCompleted(to: directory))
         rendered.append(try renderRecovery(to: directory))
         rendered.append(try renderStatusIcons(to: directory))
         return rendered
@@ -152,18 +153,45 @@ enum UIFixtureRenderer {
         )
     }
 
+    private static func renderCompleted(
+        to directory: URL
+    ) throws -> URL {
+        let details = fixtureDetails(
+            latestProsodyState: .elevated,
+            latestProsodyEnergyZ: 1.36,
+            prosodyBaselineCount: 7,
+            lastAudioSeconds: 24,
+            lastASRSeconds: 2.4
+        )
+        let panel = makePanel(elapsedSeconds: 24, details: details)
+        let snapshot = LiveTranscriptSnapshot(
+            text: "The final pass corrected the live draft and preserved my wording.",
+            settledText:
+                "The final pass corrected the live draft and preserved my wording.",
+            activeText: ""
+        )
+        panel.showListening()
+        panel.update(snapshot: snapshot, elapsedSeconds: 24)
+        panel.showCompleted(snapshot: snapshot, details: details)
+        return try write(
+            panel,
+            name: "hud-completed.png",
+            to: directory
+        )
+    }
+
     private static func renderStatusIcons(
         to directory: URL
     ) throws -> URL {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 92))
         view.wantsLayer = true
-        view.layer?.backgroundColor = ParloqVisuals.navy.cgColor
-        view.layer?.cornerRadius = 12
+        view.layer?.backgroundColor = ParloqVisuals.surfaceTint.cgColor
+        view.layer?.cornerRadius = 16
 
         let items: [(String, NSImage, NSColor)] = [
-            ("READY", StatusIcon.ready, ParloqVisuals.text),
+            ("Ready", StatusIcon.ready, ParloqVisuals.text),
             (
-                "LISTENING",
+                "Listening",
                 StatusIcon.listening(
                     level: InputLevelMeter(dbFS: -16),
                     spectrum: InputSpectrum(dbFS: [
@@ -172,9 +200,9 @@ enum UIFixtureRenderer {
                 ),
                 ParloqVisuals.listening
             ),
-            ("FINALIZING", StatusIcon.finishing, ParloqVisuals.cyan),
-            ("OFFLINE", StatusIcon.offline, ParloqVisuals.text),
-            ("ERROR", StatusIcon.error, ParloqVisuals.coral),
+            ("Finalizing", StatusIcon.finishing, ParloqVisuals.cyan),
+            ("Offline", StatusIcon.offline, ParloqVisuals.text),
+            ("Error", StatusIcon.error, ParloqVisuals.coral),
         ]
 
         let stack = NSStackView()
@@ -201,8 +229,8 @@ enum UIFixtureRenderer {
             ])
 
             let label = NSTextField(labelWithString: title)
-            label.font = NSFont.monospacedSystemFont(
-                ofSize: 8,
+            label.font = NSFont.systemFont(
+                ofSize: 9,
                 weight: .medium
             )
             label.textColor = color.withAlphaComponent(0.78)
@@ -227,7 +255,8 @@ enum UIFixtureRenderer {
     }
 
     private static func makePanel(
-        elapsedSeconds: Double = 0
+        elapsedSeconds: Double = 0,
+        details: DictationDetails = fixtureDetails()
     ) -> LiveTranscriptPanel {
         LiveTranscriptPanel(
             metadata: DictationHUDMetadata(
@@ -235,8 +264,34 @@ enum UIFixtureRenderer {
                 deliveryMode: .keyboardFallback,
                 elapsedSeconds: elapsedSeconds
             ),
+            details: details,
             targetApplicationIcon: fixtureTargetApplicationIcon(),
             presentsWindow: false
+        )
+    }
+
+    private static func fixtureDetails(
+        latestProsodyState: DictationProsodyState? = nil,
+        latestProsodyEnergyZ: Double? = nil,
+        prosodyBaselineCount: Int? = 2,
+        lastAudioSeconds: Double? = nil,
+        lastASRSeconds: Double? = nil
+    ) -> DictationDetails {
+        DictationDetails(
+            device: ":0",
+            deviceName: "Studio Display Microphone",
+            model: "mlx-community/parakeet-tdt-0.6b-v3",
+            prosodyEnabled: true,
+            latestProsodyState: latestProsodyState,
+            latestProsodyEnergyZ: latestProsodyEnergyZ,
+            prosodyBaselineCount: prosodyBaselineCount,
+            polishEnabled: false,
+            chimeEnabled: false,
+            saveEnabled: false,
+            vocabCount: 0,
+            streamIntervalSeconds: 0.5,
+            lastAudioSeconds: lastAudioSeconds,
+            lastASRSeconds: lastASRSeconds
         )
     }
 
