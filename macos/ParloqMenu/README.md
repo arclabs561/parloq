@@ -122,6 +122,23 @@ opens a permission prompt, global shortcut, daemon connection, or microphone.
 Use it to inspect the real macOS 26 glass compositor without starting a
 dictation or asking for a manual screenshot.
 
+For normal development against the installed app:
+
+```sh
+just reload-macos-app
+just dev-macos-app
+```
+
+`reload-macos-app` builds and signs a staging bundle while the current app
+continues running. It waits for any recording, finalization, or polishing pass
+to finish, installs the staged bundle, terminates only the exact installed
+Parloq process, and relaunches with `open -g`. It never force-kills the app and
+checks that Parloq did not become frontmost. `dev-macos-app` wraps the same
+operation in Watchexec, watches only the Swift package sources and resources,
+debounces save bursts, and queues one follow-up build when files change during
+a build. This is rebuild-and-relaunch rather than runtime code injection; the
+stable signed bundle preserves macOS permissions.
+
 Set `RECORDER_DICTATE_SOCK` for an isolated daemon socket. The production
 default is `/tmp/recorder-dictate-$UID.sock`.
 

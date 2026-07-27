@@ -43,6 +43,22 @@ macos-app:
     codesign --force --sign "${PARLOQ_CODESIGN_IDENTITY:-stela-dev}" --identifier net.attobop.parloq.menu "$HOME/Library/Caches/Parloq/Parloq.app"
     codesign --verify --deep --strict "$HOME/Library/Caches/Parloq/Parloq.app"
 
-install-macos-app: macos-app
+install-staged-macos-app:
     ditto "$HOME/Library/Caches/Parloq/Parloq.app" /Applications/Parloq.app
     codesign --verify --deep --strict /Applications/Parloq.app
+    cmp "$HOME/Library/Caches/Parloq/Parloq.app/Contents/MacOS/ParloqMenu" /Applications/Parloq.app/Contents/MacOS/ParloqMenu
+
+install-macos-app: macos-app install-staged-macos-app
+
+reload-macos-app:
+    ./macos/ParloqMenu/dev-reload.sh
+
+dev-macos-app:
+    watchexec \
+        --watch macos/ParloqMenu/Sources \
+        --watch macos/ParloqMenu/Resources \
+        --watch macos/ParloqMenu/Package.swift \
+        --exts swift,plist,png,icns \
+        --debounce 300ms \
+        --on-busy-update queue \
+        -- ./macos/ParloqMenu/dev-reload.sh
