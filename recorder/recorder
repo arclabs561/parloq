@@ -3967,16 +3967,35 @@ class DictateSessionController:
         self._legacy_mode = False
         self._legacy_paste = False
         self._energy_hist: list[float] = []
+        available_devices = self._device_provider()
+        bootstrap_matches = [
+            device
+            for device in available_devices
+            if device.identifier == args.device
+        ]
         self._capture_device: str | None = args.device
         self._display_device = args.device
-        self._device_name = device_name(args.device)
+        self._device_name = (
+            bootstrap_matches[0].name
+            if len(bootstrap_matches) == 1
+            else device_name(args.device)
+        )
         self._device_available = True
-        self._configuration_warning = configuration_warning
+        self._configuration_file_warning = configuration_warning
+        self._device_warning: str | None = None
+        self._managed_device_identity = bool(bootstrap_matches)
+        if re.fullmatch(r":\d+", args.device) and not bootstrap_matches:
+            self._capture_device = None
+            self._device_available = False
+            self._device_warning = (
+                f"Microphone {args.device} is not connected")
+            self._managed_device_identity = True
         if saved_device is not None:
             resolved, resolution_warning = _resolve_saved_dictation_device(
                 saved_device,
-                self._device_provider(),
+                available_devices,
             )
+            self._managed_device_identity = True
             self._display_device = saved_device.identifier
             self._device_name = saved_device.name
             if resolved is None:
@@ -3986,8 +4005,7 @@ class DictateSessionController:
                 self._capture_device = resolved.identifier
                 self._display_device = resolved.identifier
                 self._device_name = resolved.name
-            self._configuration_warning = (
-                resolution_warning or configuration_warning)
+            self._device_warning = resolution_warning
 
     def _next_sequence(self) -> int:
         with self._sequence_lock:
@@ -4006,7 +4024,8 @@ class DictateSessionController:
             display_device = self._display_device
             device_name_value = self._device_name
             device_available = self._device_available
-            configuration_warning = self._configuration_warning
+            configuration_warning = (
+                self._device_warning or self._configuration_file_warning)
             elapsed = (
                 time.time() - self._started_at
                 if phase in (
@@ -4063,6 +4082,26 @@ class DictateSessionController:
 
     def devices_event(self) -> DictateEvent:
         devices = self._device_provider()
+        with self._lock:
+            if self._managed_device_identity:
+                selected = DictationDevice(
+                    self._display_device,
+                    self._device_name,
+                )
+                resolved, warning = _resolve_saved_dictation_device(
+                    selected,
+                    devices,
+                )
+                if resolved is None:
+                    self._capture_device = None
+                    self._device_available = False
+                    self._device_warning = warning
+                else:
+                    self._capture_device = resolved.identifier
+                    self._display_device = resolved.identifier
+                    self._device_name = resolved.name
+                    self._device_available = True
+                    self._device_warning = None
         return self.status_event(available_devices=devices)
 
     def configure_device(
@@ -4096,7 +4135,9 @@ class DictateSessionController:
             self._display_device = selected.identifier
             self._device_name = selected.name
             self._device_available = True
-            self._configuration_warning = None
+            self._managed_device_identity = True
+            self._configuration_file_warning = None
+            self._device_warning = None
         event = self.status_event(
             event_type=DictateEventType.ACK,
             message=f"Microphone set to {selected.name}",
@@ -4114,7 +4155,8 @@ class DictateSessionController:
                 return None, f"already {self._phase.value}"
             if self._capture_device is None:
                 return None, (
-                    self._configuration_warning
+                    self._device_warning
+                    or self._configuration_file_warning
                     or f"microphone “{self._device_name}” is unavailable"
                 )
             capture_device = self._capture_device

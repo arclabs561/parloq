@@ -281,6 +281,24 @@ def main() -> int:
         assert idle.stream_interval_seconds == args.stream_interval
         assert controller.phase() == rec.DictatePhase.IDLE
 
+        available_devices[:] = [
+            rec.DictationDevice(":0", "MacBook Pro Microphone"),
+        ]
+        disconnected = controller.devices_event()
+        assert disconnected.device_available is False
+        assert "not connected" in disconnected.configuration_warning
+        unavailable_id, error = controller.start(legacy=False)
+        assert unavailable_id is None
+        assert "not connected" in error
+
+        available_devices.append(
+            rec.DictationDevice(":4", "Studio Display Microphone"))
+        reconnected = controller.devices_event()
+        assert reconnected.device == ":4"
+        assert reconnected.device_name == selected.name
+        assert reconnected.device_available is True
+        assert reconnected.configuration_warning is None
+
         cancelled_id, error = controller.start(legacy=False)
         assert error is None
         assert cancelled_id
