@@ -133,6 +133,75 @@ private final class InputSpectrumView: NSView {
 }
 
 @MainActor
+private final class SpectralEdgeView: NSView {
+    private let cornerRadius: CGFloat
+    private let gradient = CAGradientLayer()
+    private let strokeMask = CAShapeLayer()
+
+    init(cornerRadius: CGFloat, intensity: CGFloat) {
+        self.cornerRadius = cornerRadius
+        super.init(frame: .zero)
+        wantsLayer = true
+
+        gradient.startPoint = CGPoint(x: 0.02, y: 0.12)
+        gradient.endPoint = CGPoint(x: 0.98, y: 0.88)
+        gradient.colors = [
+            NSColor.clear.cgColor,
+            ParloqVisuals.cyan
+                .withAlphaComponent(0.24 * intensity)
+                .cgColor,
+            NSColor.white
+                .withAlphaComponent(0.40 * intensity)
+                .cgColor,
+            NSColor.clear.cgColor,
+            NSColor.clear.cgColor,
+            NSColor.systemPink
+                .withAlphaComponent(0.18 * intensity)
+                .cgColor,
+            NSColor.clear.cgColor,
+            ParloqVisuals.listening
+                .withAlphaComponent(0.16 * intensity)
+                .cgColor,
+            NSColor.white
+                .withAlphaComponent(0.26 * intensity)
+                .cgColor,
+            NSColor.clear.cgColor,
+        ]
+        gradient.locations = [
+            0, 0.09, 0.18, 0.31, 0.58, 0.68, 0.76, 0.86, 0.94, 1,
+        ]
+        gradient.mask = strokeMask
+        layer?.addSublayer(gradient)
+        setAccessibilityElement(false)
+    }
+
+    required init?(coder: NSCoder) {
+        nil
+    }
+
+    override func layout() {
+        super.layout()
+        let scale = window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor
+            ?? 2
+        gradient.contentsScale = scale
+        gradient.frame = bounds
+        strokeMask.contentsScale = scale
+        strokeMask.frame = gradient.bounds
+        strokeMask.fillColor = NSColor.clear.cgColor
+        strokeMask.strokeColor = NSColor.white.cgColor
+        strokeMask.lineWidth = 1.35
+        let inset: CGFloat = 0.8
+        strokeMask.path = CGPath(
+            roundedRect: bounds.insetBy(dx: inset, dy: inset),
+            cornerWidth: max(0, cornerRadius - inset),
+            cornerHeight: max(0, cornerRadius - inset),
+            transform: nil
+        )
+    }
+}
+
+@MainActor
 private struct PanelSurfaceGroup {
     let root: NSView
     let rootContent: NSView
@@ -174,14 +243,8 @@ private func makePanelSurfaceGroup(
             return (surface, content)
         }
 
-        let (main, mainContent) = glass(
-            radius: 45,
-            tint: NSColor.white.withAlphaComponent(0.06)
-        )
-        let (shelf, shelfContent) = glass(
-            radius: 26,
-            tint: NSColor.white.withAlphaComponent(0.035)
-        )
+        let (main, mainContent) = glass(radius: 45)
+        let (shelf, shelfContent) = glass(radius: 26)
         let (state, stateContent) = glass(
             radius: 38,
             tint: ParloqVisuals.listening.withAlphaComponent(0.22)
@@ -311,6 +374,27 @@ final class LiveTranscriptPanel {
                 ? 0.90
                 : (surfaces.usesNativeGlass ? 0 : 0.24)
         )
+        let mainEdgeView = SpectralEdgeView(
+            cornerRadius: 45,
+            intensity: surfaces.usesNativeGlass ? 1 : 0.72
+        )
+        let shelfEdgeView = SpectralEdgeView(
+            cornerRadius: 26,
+            intensity: surfaces.usesNativeGlass ? 0.68 : 0.48
+        )
+        let stateEdgeView = SpectralEdgeView(
+            cornerRadius: 38,
+            intensity: surfaces.usesNativeGlass ? 0.82 : 0.58
+        )
+        for (edge, content) in [
+            (mainEdgeView, surfaces.mainContent),
+            (shelfEdgeView, surfaces.shelfContent),
+            (stateEdgeView, surfaces.stateContent),
+        ] {
+            edge.frame = content.bounds
+            edge.autoresizingMask = [.width, .height]
+            edge.isHidden = reduceTransparency
+        }
         stateTintView = makeTintView(
             color: ParloqVisuals.listening,
             alpha: reduceTransparency
@@ -436,14 +520,17 @@ final class LiveTranscriptPanel {
         surfaces.state.translatesAutoresizingMaskIntoConstraints = false
 
         surfaces.mainContent.addSubview(mainTintView)
+        surfaces.mainContent.addSubview(mainEdgeView)
         surfaces.mainContent.addSubview(stateLabel)
         surfaces.mainContent.addSubview(hintLabel)
         surfaces.mainContent.addSubview(transcriptLabel)
 
         surfaces.stateContent.addSubview(stateTintView)
+        surfaces.stateContent.addSubview(stateEdgeView)
         surfaces.stateContent.addSubview(iconView)
 
         surfaces.shelfContent.addSubview(shelfTintView)
+        surfaces.shelfContent.addSubview(shelfEdgeView)
         surfaces.shelfContent.addSubview(targetApplicationIconView)
         surfaces.shelfContent.addSubview(contextLabel)
         surfaces.shelfContent.addSubview(inputSpectrumView)
