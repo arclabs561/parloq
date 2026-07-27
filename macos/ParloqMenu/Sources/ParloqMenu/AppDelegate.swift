@@ -259,6 +259,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
         case .final:
             deliverySession?.deliver(event: event)
+            var clipboardWarning: String?
+            if let text = event.text, !text.isEmpty,
+               deliverySession?.publishFinalToPasteboard() != true
+            {
+                clipboardWarning =
+                    "Dictation complete; clipboard could not be updated"
+            }
             var historyWarning: String?
             if let text = event.text, !text.isEmpty {
                 do {
@@ -277,6 +284,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             } else if let warning = deliverySession?.warning {
                 lastDeliveryWarning = warning
                 updateStatus(warning)
+            } else if let clipboardWarning {
+                lastDeliveryWarning = clipboardWarning
+                updateStatus(clipboardWarning)
             } else if let historyWarning {
                 updateStatus(historyWarning)
             } else {
@@ -686,7 +696,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             }
         }
         addModeDetail("Polish final text", enabled: details.polishEnabled)
-        addModeDetail("Prosody", enabled: details.prosodyEnabled)
+        addModeDetail("Voice energy analysis", enabled: details.prosodyEnabled)
         addModeDetail("Save recordings", enabled: details.saveEnabled)
         addModeDetail("Chimes", enabled: details.chimeEnabled)
 
@@ -697,7 +707,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 showLatestProsodyResult: true
             )
             if let label = telemetry.prosodyLabel {
-                addDetail("Latest prosody: \(label)")
+                addDetail("Latest voice energy: \(label)")
             }
         }
 
@@ -834,7 +844,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         hotKey?.setTargetActivityMonitoringEnabled(false)
         liveTranscriptPanel?.updateDeliveryMode(.targetChanged)
-        updateStatus("Target changed; final transcript will be copied")
+        updateStatus("Safe copy mode; final transcript will be copied")
     }
 
     func menuWillOpen(_ menu: NSMenu) {

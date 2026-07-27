@@ -13,9 +13,9 @@ public enum DictationDeliveryMode: Equatable, Sendable {
         case .keyboardFallback:
             return "Type on finish"
         case .clipboardFallback:
-            return "Copies final"
+            return "Final goes to clipboard"
         case .targetChanged:
-            return "Focus changed · copies final"
+            return "Safe copy mode · final goes to clipboard"
         }
     }
 }

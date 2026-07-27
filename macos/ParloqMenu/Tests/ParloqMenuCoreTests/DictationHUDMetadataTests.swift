@@ -18,7 +18,7 @@ import Testing
 
     #expect(
         metadata.contextLabel
-            == "Focus changed · copies final"
+            == "Safe copy mode · final goes to clipboard"
     )
 }
 
@@ -29,7 +29,7 @@ import Testing
         elapsedSeconds: 8
     )
 
-    #expect(metadata.contextLabel == "Copies final")
+    #expect(metadata.contextLabel == "Final goes to clipboard")
     metadata.updateElapsed(4)
     metadata.updateElapsed(nil)
     metadata.updateElapsed(.infinity)

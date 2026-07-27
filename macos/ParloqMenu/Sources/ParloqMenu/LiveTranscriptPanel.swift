@@ -27,6 +27,12 @@ enum ParloqVisuals {
         blue: 0.45,
         alpha: 1
     )
+    static let caution = NSColor(
+        srgbRed: 1.0,
+        green: 0.72,
+        blue: 0.25,
+        alpha: 1
+    )
     static let text = NSColor.labelColor
     static let secondaryText = NSColor.secondaryLabelColor
     static let tertiaryText = NSColor.tertiaryLabelColor
@@ -35,6 +41,7 @@ enum ParloqVisuals {
 @MainActor
 private final class InputSpectrumView: NSView {
     private let bars: [CALayer]
+    private let cursor = CALayer()
     private var displayedBands = Array(
         repeating: 0.0,
         count: InputSpectrum.bandCount
@@ -48,7 +55,11 @@ private final class InputSpectrumView: NSView {
             bar.cornerRadius = 1
             layer?.addSublayer(bar)
         }
-        setAccessibilityLabel("Live microphone frequency spectrum")
+        cursor.cornerRadius = 1.2
+        layer?.addSublayer(cursor)
+        setAccessibilityLabel(
+            "Live microphone frequency spectrum and insertion cursor"
+        )
         update(InputSpectrum(dbFS: nil), fallback: nil)
     }
 
@@ -58,19 +69,30 @@ private final class InputSpectrumView: NSView {
 
     override func layout() {
         super.layout()
-        let width: CGFloat = 2.4
-        let gap: CGFloat = 1.8
-        let contentWidth = CGFloat(bars.count) * width
+        let width: CGFloat = 2.2
+        let gap: CGFloat = 1.4
+        let cursorGap: CGFloat = 4
+        let cursorWidth: CGFloat = 2.4
+        let barsWidth = CGFloat(bars.count) * width
             + CGFloat(max(0, bars.count - 1)) * gap
+        let contentWidth = barsWidth + cursorGap + cursorWidth
         let leading = max(0, (bounds.width - contentWidth) / 2)
         for (index, bar) in bars.enumerated() {
+            let height = max(1.5, bar.frame.height)
             bar.frame = CGRect(
                 x: leading + CGFloat(index) * (width + gap),
-                y: 0,
+                y: (bounds.height - height) / 2,
                 width: width,
-                height: max(1.5, bar.frame.height)
+                height: height
             )
         }
+        let cursorHeight = min(28, max(14, bounds.height - 4))
+        cursor.frame = CGRect(
+            x: leading + barsWidth + cursorGap,
+            y: (bounds.height - cursorHeight) / 2,
+            width: cursorWidth,
+            height: cursorHeight
+        )
     }
 
     func update(
@@ -110,7 +132,7 @@ private final class InputSpectrumView: NSView {
             let height = 1.5 + CGFloat(value) * (availableHeight - 1.5)
             bar.frame = CGRect(
                 x: bar.frame.minX,
-                y: 0,
+                y: (bounds.height - height) / 2,
                 width: bar.frame.width,
                 height: height
             )
@@ -118,6 +140,9 @@ private final class InputSpectrumView: NSView {
                 .withAlphaComponent(0.22 + 0.78 * value)
                 .cgColor
         }
+        cursor.backgroundColor = ParloqVisuals.listening
+            .withAlphaComponent(0.94)
+            .cgColor
         CATransaction.commit()
         let audibleBands = displayedBands.filter { $0 >= 0.18 }.count
         setAccessibilityValue("\(audibleBands) active frequency bands")
@@ -527,13 +552,13 @@ final class LiveTranscriptPanel {
 
         surfaces.stateContent.addSubview(stateTintView)
         surfaces.stateContent.addSubview(stateEdgeView)
+        surfaces.stateContent.addSubview(inputSpectrumView)
         surfaces.stateContent.addSubview(iconView)
 
         surfaces.shelfContent.addSubview(shelfTintView)
         surfaces.shelfContent.addSubview(shelfEdgeView)
         surfaces.shelfContent.addSubview(targetApplicationIconView)
         surfaces.shelfContent.addSubview(contextLabel)
-        surfaces.shelfContent.addSubview(inputSpectrumView)
         surfaces.shelfContent.addSubview(centerMetricLabel)
         surfaces.shelfContent.addSubview(elapsedLabel)
         surfaces.shelfContent.addSubview(statsLabel)
@@ -636,6 +661,14 @@ final class LiveTranscriptPanel {
             ),
             iconView.widthAnchor.constraint(equalToConstant: 24),
             iconView.heightAnchor.constraint(equalToConstant: 24),
+            inputSpectrumView.centerYAnchor.constraint(
+                equalTo: surfaces.stateContent.centerYAnchor
+            ),
+            inputSpectrumView.centerXAnchor.constraint(
+                equalTo: surfaces.stateContent.centerXAnchor
+            ),
+            inputSpectrumView.widthAnchor.constraint(equalToConstant: 48),
+            inputSpectrumView.heightAnchor.constraint(equalToConstant: 32),
             stateLabel.leadingAnchor.constraint(
                 equalTo: surfaces.mainContent.leadingAnchor,
                 constant: 32
@@ -686,23 +719,15 @@ final class LiveTranscriptPanel {
             ),
             contextLeadingConstraint,
             contextLabel.trailingAnchor.constraint(
-                lessThanOrEqualTo: inputSpectrumView.leadingAnchor,
+                lessThanOrEqualTo: centerMetricLabel.leadingAnchor,
                 constant: -16
             ),
             contextLabel.bottomAnchor.constraint(
                 equalTo: statsLabel.topAnchor,
                 constant: -6
             ),
-            inputSpectrumView.widthAnchor.constraint(equalToConstant: 40),
-            inputSpectrumView.heightAnchor.constraint(equalToConstant: 12),
-            inputSpectrumView.centerXAnchor.constraint(
-                equalTo: surfaces.shelfContent.centerXAnchor
-            ),
-            inputSpectrumView.centerYAnchor.constraint(
-                equalTo: contextLabel.centerYAnchor
-            ),
             elapsedLabel.leadingAnchor.constraint(
-                greaterThanOrEqualTo: inputSpectrumView.trailingAnchor,
+                greaterThanOrEqualTo: centerMetricLabel.trailingAnchor,
                 constant: 16
             ),
             elapsedLabel.trailingAnchor.constraint(
@@ -713,10 +738,10 @@ final class LiveTranscriptPanel {
                 equalTo: contextLabel.firstBaselineAnchor
             ),
             centerMetricLabel.centerXAnchor.constraint(
-                equalTo: inputSpectrumView.centerXAnchor
+                equalTo: surfaces.shelfContent.centerXAnchor
             ),
             centerMetricLabel.centerYAnchor.constraint(
-                equalTo: inputSpectrumView.centerYAnchor
+                equalTo: contextLabel.centerYAnchor
             ),
             centerMetricLabel.widthAnchor.constraint(equalToConstant: 112),
             statsLabel.leadingAnchor.constraint(
@@ -747,6 +772,7 @@ final class LiveTranscriptPanel {
         contextOverride = nil
         inputSpectrumView.isHidden = false
         centerMetricLabel.isHidden = true
+        iconView.isHidden = true
         iconView.contentTintColor = ParloqVisuals.listening
         iconView.image = StatusIcon.listening
         setMode(
@@ -769,6 +795,7 @@ final class LiveTranscriptPanel {
         latestSnapshot = snapshot
         inputSpectrumView.isHidden = false
         centerMetricLabel.isHidden = true
+        iconView.isHidden = true
         metadata.updateElapsed(elapsedSeconds)
         telemetry.updateTranscript(
             snapshot.text,
@@ -813,16 +840,13 @@ final class LiveTranscriptPanel {
     ) {
         telemetry.updateInputPeak(level.dbFS)
         inputSpectrumView.update(spectrum, fallback: level)
-        iconView.image = StatusIcon.listening(
-            level: level,
-            spectrum: spectrum
-        )
         renderTelemetry()
     }
 
     func showFinishing() {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         inputSpectrumView.isHidden = true
+        iconView.isHidden = false
         setCenterMetric("Accuracy pass")
         iconView.contentTintColor = ParloqVisuals.cyan
         iconView.image = StatusIcon.finishing
@@ -851,6 +875,7 @@ final class LiveTranscriptPanel {
         telemetry.updateDetails(details, showLatestProsodyResult: true)
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         inputSpectrumView.isHidden = true
+        iconView.isHidden = false
         setCenterMetric(
             telemetry.completionPerformanceLabel ?? "Processed locally"
         )
@@ -875,6 +900,7 @@ final class LiveTranscriptPanel {
     ) {
         inputSpectrumView.update(InputSpectrum(dbFS: nil), fallback: nil)
         inputSpectrumView.isHidden = true
+        iconView.isHidden = false
         setCenterMetric("Transcript preserved")
         contextOverride = "Copied to clipboard"
         latestSnapshot = snapshot
@@ -1013,8 +1039,9 @@ final class LiveTranscriptPanel {
         let context = contextOverride ?? metadata.contextLabel
         let contextColor = (
             contextOverride != nil
-                || metadata.deliveryMode == .targetChanged
                 ? ParloqVisuals.coral.withAlphaComponent(0.90)
+                : metadata.deliveryMode == .targetChanged
+                ? ParloqVisuals.caution.withAlphaComponent(0.92)
                 : ParloqVisuals.secondaryText.withAlphaComponent(0.88)
         )
         contextLabel.attributedStringValue = NSAttributedString(
@@ -1066,7 +1093,7 @@ final class LiveTranscriptPanel {
                     : ParloqVisuals.secondaryText.withAlphaComponent(0.82),
             ]
         )
-        prosodyLabel.setAccessibilityLabel("Prosody")
+        prosodyLabel.setAccessibilityLabel("Voice energy analysis")
         prosodyLabel.setAccessibilityValue(prosody)
     }
 

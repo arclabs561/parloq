@@ -19,7 +19,7 @@ enum DeliveryError: LocalizedError {
         case .noEditableTarget:
             return "The focused control does not expose editable text"
         case .ownershipLost:
-            return "Text or focus changed; final transcript copied"
+            return "Live insertion stopped; final transcript copied"
         case .cancelOwnershipLost:
             return "Cancelled; live text could not be removed safely"
         case .secureInput:
@@ -42,6 +42,7 @@ final class TextDeliverySession {
     private let target: Target
     private var planner: DeliveryPlanner
     private var didDeliverText = false
+    private var didPublishFinalToPasteboard = false
     private var targetChanged = false
     private(set) var lastTranscript = ""
     private(set) var warning: String?
@@ -147,6 +148,12 @@ final class TextDeliverySession {
         return true
     }
 
+    @discardableResult
+    func publishFinalToPasteboard() -> Bool {
+        guard !lastTranscript.isEmpty else { return false }
+        return copyToPasteboard(lastTranscript)
+    }
+
     func cancel() -> String? {
         guard didDeliverText else { return nil }
         switch target {
@@ -201,9 +208,16 @@ final class TextDeliverySession {
         }
     }
 
-    private func copyToPasteboard(_ text: String) {
+    @discardableResult
+    private func copyToPasteboard(_ text: String) -> Bool {
+        guard !didPublishFinalToPasteboard else { return true }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(text, forType: .string)
+        let published = NSPasteboard.general.setString(
+            text,
+            forType: .string
+        )
+        didPublishFinalToPasteboard = published
+        return published
     }
 }
 

@@ -20,7 +20,7 @@ import Testing
         telemetry.summaryLabel
             == "Studio Display Mic  ·  Parakeet 0.6B v3  ·  60 wpm  ·  −17 dBFS"
     )
-    #expect(telemetry.prosodyLabel == "Prosody calibrating 2/3")
+    #expect(telemetry.prosodyLabel == "Voice energy · learning 2/3")
 }
 
 @Test func hudTelemetryKeepsFinalProsodyNarrowAndHonest() {
@@ -37,7 +37,7 @@ import Testing
         showLatestProsodyResult: true
     )
 
-    #expect(telemetry.prosodyLabel == "Elevated energy  +1.4σ")
+    #expect(telemetry.prosodyLabel == "Voice energy · elevated")
     #expect(telemetry.completionPerformanceLabel == "0.15× realtime")
     #expect(telemetry.hasElevatedEnergy)
 }
@@ -52,5 +52,5 @@ import Testing
         showLatestProsodyResult: true
     )
 
-    #expect(telemetry.prosodyLabel == "Prosody measured")
+    #expect(telemetry.prosodyLabel == "Voice level measured")
 }

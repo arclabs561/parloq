@@ -50,28 +50,25 @@ public struct DictationHUDTelemetry: Equatable, Sendable {
 
     public var prosodyLabel: String? {
         guard let enabled = details.prosodyEnabled else { return nil }
-        guard enabled else { return "Prosody off" }
+        guard enabled else { return "Voice energy off" }
 
         if showsLatestProsodyResult, let state = details.latestProsodyState {
             switch state {
             case .elevated:
-                if let score = formattedSigma {
-                    return "Elevated energy  +\(score)σ"
-                }
-                return "Elevated energy"
+                return "Voice energy · elevated"
             case .baseline:
-                return "Baseline energy"
+                return "Voice energy · typical"
             case .calibrating:
                 return calibrationLabel
             case .insufficientAudio:
-                return "Prosody needs more audio"
+                return "Voice level · need more speech"
             case .unknown:
-                return "Prosody measured"
+                return "Voice level measured"
             }
         }
 
         let count = details.prosodyBaselineCount ?? 0
-        return count < 3 ? calibrationLabel : "Prosody ready"
+        return count < 3 ? calibrationLabel : "Voice energy · ready"
     }
 
     public var completionPerformanceLabel: String? {
@@ -122,14 +119,7 @@ public struct DictationHUDTelemetry: Equatable, Sendable {
 
     private var calibrationLabel: String {
         let count = min(3, max(0, details.prosodyBaselineCount ?? 0))
-        return "Prosody calibrating \(count)/3"
-    }
-
-    private var formattedSigma: String? {
-        guard let score = details.latestProsodyEnergyZ, score.isFinite else {
-            return nil
-        }
-        return format(abs(score), fractionDigits: 1)
+        return "Voice energy · learning \(count)/3"
     }
 
     private func format(_ value: Double, fractionDigits: Int) -> String {
