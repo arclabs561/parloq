@@ -1,4 +1,5 @@
 import AppKit
+import ParloqMenuCore
 
 private enum ParloqVisuals {
     static let navy = NSColor(
@@ -34,11 +35,11 @@ final class LiveTranscriptPanel {
     private let stateLabel: NSTextField
     private let hintLabel: NSTextField
     private let transcriptLabel: NSTextField
-    private var latestText = ""
+    private var latestSnapshot: LiveTranscriptSnapshot?
 
     init() {
         panel = NSPanel(
-            contentRect: NSRect(x: 0, y: 0, width: 574, height: 92),
+            contentRect: NSRect(x: 0, y: 0, width: 574, height: 132),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false
@@ -100,7 +101,7 @@ final class LiveTranscriptPanel {
         hintLabel.translatesAutoresizingMaskIntoConstraints = false
 
         transcriptLabel = NSTextField(wrappingLabelWithString: "")
-        transcriptLabel.maximumNumberOfLines = 2
+        transcriptLabel.maximumNumberOfLines = 4
         transcriptLabel.lineBreakMode = .byTruncatingHead
         transcriptLabel.isSelectable = false
         transcriptLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -126,17 +127,17 @@ final class LiveTranscriptPanel {
                 constant: 18
             ),
             iconView.centerYAnchor.constraint(
-                equalTo: material.centerYAnchor
+                equalTo: stateLabel.centerYAnchor
             ),
-            iconView.widthAnchor.constraint(equalToConstant: 26),
-            iconView.heightAnchor.constraint(equalToConstant: 24),
+            iconView.widthAnchor.constraint(equalToConstant: 22),
+            iconView.heightAnchor.constraint(equalToConstant: 20),
             stateLabel.leadingAnchor.constraint(
                 equalTo: iconView.trailingAnchor,
-                constant: 14
+                constant: 10
             ),
             stateLabel.topAnchor.constraint(
                 equalTo: material.topAnchor,
-                constant: 14
+                constant: 15
             ),
             hintLabel.trailingAnchor.constraint(
                 equalTo: material.trailingAnchor,
@@ -150,7 +151,8 @@ final class LiveTranscriptPanel {
                 constant: -12
             ),
             transcriptLabel.leadingAnchor.constraint(
-                equalTo: stateLabel.leadingAnchor
+                equalTo: material.leadingAnchor,
+                constant: 18
             ),
             transcriptLabel.trailingAnchor.constraint(
                 equalTo: material.trailingAnchor,
@@ -158,7 +160,7 @@ final class LiveTranscriptPanel {
             ),
             transcriptLabel.topAnchor.constraint(
                 equalTo: stateLabel.bottomAnchor,
-                constant: 6
+                constant: 12
             ),
             transcriptLabel.bottomAnchor.constraint(
                 lessThanOrEqualTo: material.bottomAnchor,
@@ -168,20 +170,20 @@ final class LiveTranscriptPanel {
     }
 
     func showListening() {
-        latestText = ""
+        latestSnapshot = nil
         iconView.image = StatusIcon.listening
-        setMode(title: "LISTENING", hint: "⌥SPACE TO FINISH")
-        render(text: "Start speaking", placeholder: true)
+        setMode(title: "LISTENING", hint: "ESC CANCEL · ⌥SPACE FINISH")
+        renderPlaceholder("Start speaking")
         positionOnActiveScreen()
         panel.orderFrontRegardless()
     }
 
-    func update(text: String) {
-        guard !text.isEmpty else { return }
-        latestText = text
+    func update(snapshot: LiveTranscriptSnapshot) {
+        guard !snapshot.text.isEmpty else { return }
+        latestSnapshot = snapshot
         iconView.image = StatusIcon.listening
-        setMode(title: "LISTENING", hint: "⌥SPACE TO FINISH")
-        render(text: text, placeholder: false)
+        setMode(title: "LISTENING", hint: "ESC CANCEL · ⌥SPACE FINISH")
+        render(snapshot: snapshot, showCursor: true)
         if !panel.isVisible {
             positionOnActiveScreen()
             panel.orderFrontRegardless()
@@ -190,43 +192,92 @@ final class LiveTranscriptPanel {
 
     func showFinishing() {
         iconView.image = StatusIcon.finishing
-        setMode(title: "FINALIZING", hint: "WORKING")
-        if latestText.isEmpty {
-            render(text: "Preparing final text", placeholder: true)
+        setMode(title: "FINALIZING", hint: "ESC CANCEL")
+        if let latestSnapshot {
+            render(snapshot: latestSnapshot, showCursor: false)
+        } else {
+            renderPlaceholder("Preparing final text")
         }
     }
 
     func hide() {
-        latestText = ""
+        latestSnapshot = nil
         panel.orderOut(nil)
     }
 
-    private func render(text: String, placeholder: Bool) {
+    private func render(
+        snapshot: LiveTranscriptSnapshot,
+        showCursor: Bool
+    ) {
         let paragraph = NSMutableParagraphStyle()
         paragraph.lineBreakMode = .byTruncatingHead
-        paragraph.lineSpacing = 1
+        paragraph.lineSpacing = 3
+        paragraph.paragraphSpacing = 0
 
-        let value = NSMutableAttributedString(
-            string: text,
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 15.5, weight: .regular),
-                .foregroundColor: placeholder
-                    ? ParloqVisuals.text.withAlphaComponent(0.52)
-                    : ParloqVisuals.text,
-                .paragraphStyle: paragraph,
-            ]
-        )
-        if !placeholder {
+        let value = NSMutableAttributedString(string: "")
+        if !snapshot.settledText.isEmpty {
+            value.append(NSAttributedString(
+                string: snapshot.settledText,
+                attributes: [
+                    .font: NSFont.systemFont(
+                        ofSize: 14.5,
+                        weight: .regular
+                    ),
+                    .foregroundColor:
+                        ParloqVisuals.text.withAlphaComponent(0.50),
+                    .paragraphStyle: paragraph,
+                ]
+            ))
+        }
+        if !snapshot.activeText.isEmpty {
+            if !value.string.isEmpty {
+                value.append(NSAttributedString(
+                    string: " ",
+                    attributes: [.paragraphStyle: paragraph]
+                ))
+            }
+            value.append(NSAttributedString(
+                string: snapshot.activeText,
+                attributes: [
+                    .font: NSFont.systemFont(
+                        ofSize: 15.5,
+                        weight: .regular
+                    ),
+                    .foregroundColor: ParloqVisuals.text,
+                    .paragraphStyle: paragraph,
+                ]
+            ))
+        }
+        if showCursor {
             value.append(NSAttributedString(
                 string: "  │",
                 attributes: [
-                    .font: NSFont.systemFont(ofSize: 16.5, weight: .semibold),
+                    .font: NSFont.systemFont(
+                        ofSize: 16.5,
+                        weight: .semibold
+                    ),
                     .foregroundColor: ParloqVisuals.cyan,
                     .paragraphStyle: paragraph,
                 ]
             ))
         }
         transcriptLabel.attributedStringValue = value
+        transcriptLabel.setAccessibilityValue(snapshot.text)
+    }
+
+    private func renderPlaceholder(_ text: String) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.lineBreakMode = .byTruncatingHead
+        paragraph.lineSpacing = 3
+        transcriptLabel.attributedStringValue = NSAttributedString(
+            string: text,
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 15.5, weight: .regular),
+                .foregroundColor:
+                    ParloqVisuals.text.withAlphaComponent(0.52),
+                .paragraphStyle: paragraph,
+            ]
+        )
         transcriptLabel.setAccessibilityValue(text)
     }
 

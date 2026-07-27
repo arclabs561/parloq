@@ -120,9 +120,11 @@ def main() -> int:
     rec = load_recorder()
     chunk_samples = int(rec.SAMPLE_RATE * 0.1)
     audio = np.full(chunk_samples, 0.05, dtype=np.float32).tobytes()
-    fake_process = FakeProcess(audio)
+    processes = queue.Queue()
+    processes.put(FakeProcess(audio))
+    processes.put(FakeProcess(audio))
     original_popen = rec.subprocess.Popen
-    rec.subprocess.Popen = lambda *_args, **_kwargs: fake_process
+    rec.subprocess.Popen = lambda *_args, **_kwargs: processes.get(timeout=2)
 
     args = SimpleNamespace(
         device=":test",
@@ -176,12 +178,40 @@ def main() -> int:
         while idle.phase != rec.DictatePhase.IDLE:
             idle = next_type(subscriber, "status")
         assert controller.phase() == rec.DictatePhase.IDLE
+
+        cancelled_id, error = controller.start(legacy=False)
+        assert error is None
+        assert cancelled_id
+        cancelled_transcript = next_type(subscriber, "transcript")
+        assert cancelled_transcript.session_id == cancelled_id
+
+        completion, error = controller.cancel()
+        assert error is None
+        assert completion is not None
+        assert completion.event.wait(timeout=2), "cancelled session did not finish"
+        assert completion.message == "○ dictation cancelled", completion.message
+
+        cancelled_events = []
+        while True:
+            event = subscriber.get(timeout=2)
+            if event.session_id == cancelled_id:
+                cancelled_events.append(event)
+            if (
+                event.event_type == rec.DictateEventType.STATUS
+                and event.phase == rec.DictatePhase.IDLE
+            ):
+                break
+        assert not any(
+            event.event_type == rec.DictateEventType.FINAL
+            for event in cancelled_events
+        ), cancelled_events
+        assert controller.phase() == rec.DictatePhase.IDLE
     finally:
         rec.subprocess.Popen = original_popen
         broker.unsubscribe(subscriber)
         engine.shutdown()
 
-    print("PASS: streaming session publishes live text and offline final")
+    print("PASS: streaming session finalizes or cancels without a final event")
     return 0
 
 

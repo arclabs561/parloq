@@ -35,7 +35,7 @@ def expect_protocol_error(rec, line: str, message: str) -> None:
 def main() -> int:
     rec = load_recorder()
 
-    for command in ("status", "start", "stop", "subscribe"):
+    for command in ("status", "start", "stop", "cancel", "subscribe"):
         request = rec.DictateRequest.parse(json.dumps({
             "version": 1,
             "command": command,

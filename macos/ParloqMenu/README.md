@@ -12,7 +12,12 @@ The Python daemon remains the speech engine.
 - Parloq remaps only that HID key while it is running, preserves unrelated
   mappings, and restores the prior mapping when it quits.
 - A compact, non-activating HUD shows revisable transcript snapshots while
-  recording. It cannot receive keyboard focus or mouse input.
+  recording. Settled context is muted above the bright, changing tail, and
+  older context truncates from the top. It cannot receive keyboard focus or
+  mouse input.
+- **Escape** cancels only while a dictation is active. Parloq consumes the key
+  before the focused app sees it, stops without creating a final/history item,
+  and restores live text when it still owns that text safely.
 - Live transcript snapshots replace only the text range Parloq inserted in the
   control that was focused at start when that control exposes a writable
   Accessibility range.
@@ -23,6 +28,11 @@ The Python daemon remains the speech engine.
   appended where it cannot be revised safely.
 - The daemon runs a higher-quality offline pass after stop; that result replaces
   the live snapshot when range ownership is still intact.
+- Each non-empty completed dictation is saved locally in the
+  **Dictation History** submenu. Selecting an entry copies it. The bounded
+  history lives at
+  `~/Library/Application Support/Parloq/History/dictation-history.json`; drafts,
+  cancellations, and audio are never stored there.
 
 ## Build and install
 

@@ -3113,6 +3113,7 @@ class DictateCommand(str, Enum):
     STATUS = "status"
     START = "start"
     STOP = "stop"
+    CANCEL = "cancel"
     SUBSCRIBE = "subscribe"
 
 
@@ -3648,6 +3649,7 @@ class DictateSessionController:
         self._session_id: str | None = None
         self._started_at = 0.0
         self._stop_event: threading.Event | None = None
+        self._cancel_event: threading.Event | None = None
         self._completion: DictateCompletion | None = None
         self._ffmpeg = None
         self._legacy_mode = False
@@ -3714,11 +3716,13 @@ class DictateSessionController:
                 return None, f"already {self._phase.value}"
             session_id = uuid.uuid4().hex
             stop_event = threading.Event()
+            cancel_event = threading.Event()
             completion = DictateCompletion()
             self._phase = DictatePhase.RECORDING
             self._session_id = session_id
             self._started_at = time.time()
             self._stop_event = stop_event
+            self._cancel_event = cancel_event
             self._completion = completion
             self._ffmpeg = None
             self._legacy_mode = legacy
@@ -3728,7 +3732,7 @@ class DictateSessionController:
         if not self._args.no_chime:
             _play_sound(_CHIME_START)
         self._session_submit(
-            self._run_session, session_id, stop_event, completion,
+            self._run_session, session_id, stop_event, cancel_event, completion,
         )
         return session_id, None
 
@@ -3763,6 +3767,31 @@ class DictateSessionController:
                 pass
         self._broker.publish(self.status_event())
         return completion, error
+
+    def cancel(self) -> tuple[DictateCompletion | None, str | None]:
+        with self._lock:
+            if self._phase in (
+                DictatePhase.RECORDING,
+                DictatePhase.FINALIZING,
+                DictatePhase.POLISHING,
+            ):
+                stop_event = self._stop_event
+                cancel_event = self._cancel_event
+                completion = self._completion
+                ffmpeg = self._ffmpeg
+            else:
+                return None, "not recording"
+
+        if cancel_event is not None:
+            cancel_event.set()
+        if stop_event is not None:
+            stop_event.set()
+        if ffmpeg is not None and ffmpeg.poll() is None:
+            try:
+                ffmpeg.send_signal(signal.SIGINT)
+            except ProcessLookupError:
+                pass
+        return completion, None
 
     def _set_phase(self, phase: DictatePhase, message: str | None = None) -> None:
         with self._lock:
@@ -3885,6 +3914,7 @@ class DictateSessionController:
 
     def _run_session(
         self, session_id: str, stop_event: threading.Event,
+        cancel_event: threading.Event,
         completion: DictateCompletion,
     ) -> None:
         flac_tmp = (
@@ -3956,6 +3986,9 @@ class DictateSessionController:
                     final_fragments.append(draft)
 
             self._stop_ffmpeg(ffmpeg)
+            if cancel_event.is_set():
+                completion.message = "○ dictation cancelled"
+                return
             record_s = len(samples_buf) / 4 / SAMPLE_RATE
             if not samples_buf:
                 completion.message = "○ no audio captured"
@@ -3984,6 +4017,9 @@ class DictateSessionController:
                     file=sys.stderr,
                 )
                 offline_text = ""
+            if cancel_event.is_set():
+                completion.message = "○ dictation cancelled"
+                return
             asr_s = time.time() - asr_t0
             text = offline_text or live_text
             if not text:
@@ -4003,6 +4039,9 @@ class DictateSessionController:
                 return
 
             text = self._polish(text)
+            if cancel_event.is_set():
+                completion.message = "○ dictation cancelled"
+                return
             text = _apply_vocab(text, self._vocab)
             if getattr(self._args, "prosody", False):
                 samples = np.frombuffer(bytes(samples_buf), dtype=np.float32)
@@ -4061,6 +4100,7 @@ class DictateSessionController:
                         self._phase = DictatePhase.IDLE
                         self._session_id = None
                         self._stop_event = None
+                        self._cancel_event = None
                         self._completion = None
                     resulting_phase = self._phase
             completion.event.set()
@@ -4202,7 +4242,20 @@ def _dictate_daemon(args) -> int:
             ).to_line())
             return
 
-        completion, error = controller.stop(paste=False)
+        if request.command == DictateCommand.CANCEL:
+            completion, error = controller.cancel()
+            message = "dictation cancelled"
+            if completion is None:
+                conn.sendall(DictateEvent(
+                    DictateEventType.ACK,
+                    controller.phase(),
+                    controller._next_sequence(),
+                    message=error or "nothing to cancel",
+                ).to_line())
+                return
+        else:
+            completion, error = controller.stop(paste=False)
+            message = "recording stopped"
         if completion is None:
             send_json_error(conn, error or "not recording")
             return
@@ -4210,7 +4263,7 @@ def _dictate_daemon(args) -> int:
             DictateEventType.ACK,
             controller.phase(),
             controller._next_sequence(),
-            message=error or "recording stopped",
+            message=error or message,
         ).to_line())
 
     def handle_connection(conn) -> None:

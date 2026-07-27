@@ -24,15 +24,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var hotKeyRetry: DispatchWorkItem?
     private var statusItem: NSStatusItem?
     private var statusMenuItem: NSMenuItem?
-    private var copyMenuItem: NSMenuItem?
+    private var toggleMenuItem: NSMenuItem?
+    private var cancelMenuItem: NSMenuItem?
+    private var historyMenuItem: NSMenuItem?
+    private let historyMenu = NSMenu()
+    private let historyStore = TranscriptHistoryStore()
     private var launchAtLoginMenuItem: NSMenuItem?
     private var phase: DictatePhase?
     private var connected = false
     private var deliverySession: TextDeliverySession?
     private var liveTranscript = LiveTranscriptBuffer()
-    private var lastTranscript = ""
     private var lastSequence = 0
     private var lastDeliveryWarning: String?
+    private var cancellationWarning: String?
+    private var cancelRequested = false
     private var hotKeyWarning: String?
     private var iconState: IconState?
 
@@ -65,6 +70,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.phase = nil
                 self.lastSequence = 0
                 self.deliverySession = nil
+                self.cancelRequested = false
+                self.cancellationWarning = nil
+                self.hotKey?.setEscapeEnabled(false)
                 self.liveTranscript.reset()
                 self.liveTranscriptPanel?.hide()
                 self.updateStatus(message ?? "Daemon unavailable")
@@ -92,17 +100,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         toggle.target = self
+        toggleMenuItem = toggle
         menu.addItem(toggle)
 
-        let copy = NSMenuItem(
-            title: "Copy Last Transcript",
-            action: #selector(copyLastTranscript),
+        let cancel = NSMenuItem(
+            title: "Cancel Dictation (Esc)",
+            action: #selector(cancelFromMenu),
             keyEquivalent: ""
         )
-        copy.target = self
-        copy.isEnabled = false
-        copyMenuItem = copy
-        menu.addItem(copy)
+        cancel.target = self
+        cancel.isHidden = true
+        cancelMenuItem = cancel
+        menu.addItem(cancel)
+
+        menu.addItem(.separator())
+        let history = NSMenuItem(
+            title: "Dictation History",
+            action: nil,
+            keyEquivalent: ""
+        )
+        history.submenu = historyMenu
+        historyMenuItem = history
+        menu.addItem(history)
+        refreshHistoryMenu()
 
         menu.addItem(.separator())
         let permission = NSMenuItem(
@@ -137,6 +157,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         toggleDictation()
     }
 
+    @objc private func cancelFromMenu() {
+        cancelDictation()
+    }
+
     private func toggleDictation() {
         guard connected else {
             updateStatus("Daemon unavailable")
@@ -150,34 +174,55 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             updateStatus("Finishing current dictation…")
         default:
             lastDeliveryWarning = nil
+            cancellationWarning = nil
+            cancelRequested = false
             liveTranscript.reset()
             deliverySession = TextDeliverySession()
             let panel = LiveTranscriptPanel()
             liveTranscriptPanel = panel
             panel.showListening()
+            hotKey?.setEscapeEnabled(true)
             client.send(.start)
+            updateMenuActions()
         }
     }
 
     private func handle(_ event: DictateEvent) {
         guard event.sequence > lastSequence else { return }
         lastSequence = event.sequence
+        if cancelRequested {
+            handleCancellationEvent(event)
+            updateIcon()
+            return
+        }
         phase = event.phase
         switch event.type {
         case .transcript:
             if let text = event.text, !text.isEmpty {
                 deliverySession?.deliver(event: event)
-                if let visibleText = liveTranscript.update(snapshot: text) {
-                    liveTranscriptPanel?.update(text: visibleText)
+                if let visibleSnapshot = liveTranscript.update(
+                    snapshot: text,
+                    finalizedText: event.finalizedText,
+                    draftText: event.draftText
+                ) {
+                    liveTranscriptPanel?.update(snapshot: visibleSnapshot)
                 }
             }
             updateStatus(statusText(for: event))
 
         case .final:
             deliverySession?.deliver(event: event)
+            var historyWarning: String?
             if let text = event.text, !text.isEmpty {
-                lastTranscript = text
-                copyMenuItem?.isEnabled = true
+                do {
+                    try historyStore.append(text)
+                    refreshHistoryMenu()
+                } catch {
+                    historyWarning = "Dictation complete; history not saved"
+                    appLogger.error(
+                        "History append failed: \(error.localizedDescription, privacy: .public)"
+                    )
+                }
             }
             if let message = event.message {
                 lastDeliveryWarning = message
@@ -185,10 +230,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             } else if let warning = deliverySession?.warning {
                 lastDeliveryWarning = warning
                 updateStatus(warning)
+            } else if let historyWarning {
+                updateStatus(historyWarning)
             } else {
                 updateStatus("Dictation complete")
             }
             deliverySession = nil
+            hotKey?.setEscapeEnabled(false)
             liveTranscript.reset()
             liveTranscriptPanel?.hide()
             liveTranscriptPanel = nil
@@ -196,6 +244,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .error:
             updateStatus(event.message ?? "Dictation error")
             deliverySession = nil
+            hotKey?.setEscapeEnabled(false)
             liveTranscript.reset()
             liveTranscriptPanel?.hide()
             liveTranscriptPanel = nil
@@ -204,6 +253,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if event.phase == .finalizing || event.phase == .polishing {
                 liveTranscriptPanel?.showFinishing()
             } else if event.phase == .idle, deliverySession != nil {
+                hotKey?.setEscapeEnabled(false)
                 liveTranscript.reset()
                 liveTranscriptPanel?.hide()
                 liveTranscriptPanel = nil
@@ -215,6 +265,49 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         updateIcon()
+    }
+
+    private func cancelDictation() {
+        guard deliverySession != nil
+                || phase == .recording
+                || phase == .finalizing
+                || phase == .polishing
+        else {
+            return
+        }
+
+        cancellationWarning = deliverySession?.cancel()
+        cancelRequested = true
+        phase = .finalizing
+        deliverySession = nil
+        hotKey?.setEscapeEnabled(false)
+        liveTranscript.reset()
+        liveTranscriptPanel?.hide()
+        liveTranscriptPanel = nil
+        updateStatus(cancellationWarning ?? "Cancelling dictation…")
+        updateIcon()
+        client.send(.cancel)
+    }
+
+    private func handleCancellationEvent(_ event: DictateEvent) {
+        if event.type == .error {
+            cancelRequested = false
+            phase = .error
+            hotKey?.setEscapeEnabled(false)
+            updateStatus(event.message ?? "Could not cancel dictation")
+            cancellationWarning = nil
+            return
+        }
+
+        guard event.phase == .idle else {
+            phase = .finalizing
+            return
+        }
+        cancelRequested = false
+        phase = .idle
+        hotKey?.setEscapeEnabled(false)
+        updateStatus(cancellationWarning ?? "Dictation cancelled")
+        cancellationWarning = nil
     }
 
     private func statusText(for event: DictateEvent) -> String {
@@ -255,6 +348,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 state = .idle
             }
         }
+        updateMenuActions()
         guard iconState != state else { return }
         iconState = state
         guard let button = statusItem?.button else { return }
@@ -264,6 +358,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.title = ""
         button.setAccessibilityLabel("Parloq")
         button.setAccessibilityValue(accessibilityValue(for: state))
+    }
+
+    private func updateMenuActions() {
+        let canCancel = deliverySession != nil && !cancelRequested
+        cancelMenuItem?.isHidden = !canCancel
+        switch phase {
+        case .recording:
+            toggleMenuItem?.title =
+                "Finish Dictation (⌥Space or Microphone key)"
+        case .finalizing, .polishing:
+            toggleMenuItem?.title = "Finishing Dictation…"
+        default:
+            toggleMenuItem?.title =
+                "Start Dictation (⌥Space or Microphone key)"
+        }
     }
 
     private func statusIcon(for state: IconState) -> NSImage {
@@ -296,11 +405,90 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    @objc private func copyLastTranscript() {
-        guard !lastTranscript.isEmpty else { return }
+    @objc private func copyHistoryItem(_ sender: NSMenuItem) {
+        guard let identifier = sender.representedObject as? String,
+              let id = UUID(uuidString: identifier),
+              let entry = historyStore.history.entries.first(
+                  where: { $0.id == id })
+        else {
+            return
+        }
         NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(lastTranscript, forType: .string)
-        updateStatus("Copied last transcript")
+        NSPasteboard.general.setString(entry.text, forType: .string)
+        updateStatus("Copied dictation from history")
+    }
+
+    @objc private func clearHistory() {
+        let alert = NSAlert()
+        alert.messageText = "Clear dictation history?"
+        alert.informativeText =
+            "This permanently removes saved transcripts from this Mac."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Clear History")
+        alert.addButton(withTitle: "Cancel")
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+
+        do {
+            try historyStore.removeAll()
+            refreshHistoryMenu()
+            updateStatus("Dictation history cleared")
+        } catch {
+            updateStatus("Could not clear dictation history")
+            appLogger.error(
+                "History clear failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+
+    private func refreshHistoryMenu() {
+        historyMenu.removeAllItems()
+        let entries = historyStore.history.entries
+
+        if entries.isEmpty {
+            let empty = NSMenuItem(
+                title: historyStore.loadError == nil
+                    ? "No completed dictations yet"
+                    : "History could not be loaded",
+                action: nil,
+                keyEquivalent: ""
+            )
+            empty.isEnabled = false
+            historyMenu.addItem(empty)
+        } else {
+            for entry in entries {
+                let item = NSMenuItem(
+                    title: Self.historyTitle(entry.text),
+                    action: #selector(copyHistoryItem(_:)),
+                    keyEquivalent: ""
+                )
+                item.target = self
+                item.representedObject = entry.id.uuidString
+                item.toolTip = entry.text
+                historyMenu.addItem(item)
+            }
+        }
+
+        historyMenu.addItem(.separator())
+        let clear = NSMenuItem(
+            title: entries.isEmpty && historyStore.loadError != nil
+                ? "Reset Dictation History…"
+                : "Clear Dictation History…",
+            action: #selector(clearHistory),
+            keyEquivalent: ""
+        )
+        clear.target = self
+        clear.isEnabled = !entries.isEmpty || historyStore.loadError != nil
+        historyMenu.addItem(clear)
+        historyMenuItem?.isEnabled = true
+    }
+
+    private static func historyTitle(_ text: String) -> String {
+        let compact = text
+            .split(whereSeparator: \.isWhitespace)
+            .joined(separator: " ")
+        let limit = 76
+        guard compact.count > limit else { return compact }
+        return String(compact.prefix(limit - 1)) + "…"
     }
 
     @objc private func requestPermission() {
@@ -315,10 +503,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hotKeyRetry?.cancel()
         hotKeyRetry = nil
         do {
-            let installedHotKey = try GlobalHotKey { [weak self] in
-                self?.toggleDictation()
-            }
+            let installedHotKey = try GlobalHotKey(
+                action: { [weak self] in
+                    self?.toggleDictation()
+                },
+                cancelAction: { [weak self] in
+                    self?.cancelDictation()
+                }
+            )
             hotKey = installedHotKey
+            installedHotKey.setEscapeEnabled(deliverySession != nil)
             hotKeyWarning = installedHotKey.warning
             updateStatus(
                 connected

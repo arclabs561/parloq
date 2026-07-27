@@ -49,21 +49,26 @@ final class GlobalHotKey: @unchecked Sendable {
     private enum Trigger: Hashable {
         case dictationKey
         case optionSpace
+        case escape
     }
 
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var healthTimer: DispatchSourceTimer?
     private var keyOverride: DictationKeyOverride?
-    private let actionBox: HotKeyActionBox
+    private let toggleActionBox: HotKeyActionBox
+    private let cancelActionBox: HotKeyActionBox
     private var pressedTriggers: Set<Trigger> = []
+    private var escapeEnabled = false
     private(set) var warning: String?
 
     init(
         installKeyOverride: Bool = true,
-        action: @escaping Action
+        action: @escaping Action,
+        cancelAction: @escaping Action = {}
     ) throws {
-        actionBox = HotKeyActionBox(action: action)
+        toggleActionBox = HotKeyActionBox(action: action)
+        cancelActionBox = HotKeyActionBox(action: cancelAction)
 
         guard AXIsProcessTrusted() else {
             throw GlobalHotKeyError.accessibilityMissing
@@ -146,8 +151,13 @@ final class GlobalHotKey: @unchecked Sendable {
 
         if type == .keyDown {
             if pressedTriggers.insert(trigger).inserted {
-                hotKeyLogger.info("Received dictation shortcut")
-                actionBox.invoke()
+                if trigger == .escape {
+                    hotKeyLogger.info("Received dictation cancellation")
+                    cancelActionBox.invoke()
+                } else {
+                    hotKeyLogger.info("Received dictation shortcut")
+                    toggleActionBox.invoke()
+                }
             }
         } else if type == .keyUp {
             pressedTriggers.remove(trigger)
@@ -162,6 +172,12 @@ final class GlobalHotKey: @unchecked Sendable {
         event: CGEvent
     ) -> Trigger? {
         let keyCode = event.getIntegerValueField(.keyboardEventKeycode)
+        if keyCode == Int64(kVK_Escape) {
+            if type == .keyUp, pressedTriggers.contains(.escape) {
+                return .escape
+            }
+            return escapeEnabled ? .escape : nil
+        }
         if keyCode == DictationKeyOverride.keyCode {
             return .dictationKey
         }
@@ -181,6 +197,11 @@ final class GlobalHotKey: @unchecked Sendable {
         return event.flags.intersection(shortcutModifiers) == .maskAlternate
             ? .optionSpace
             : nil
+    }
+
+    @MainActor
+    func setEscapeEnabled(_ enabled: Bool) {
+        escapeEnabled = enabled
     }
 
     private func startHealthTimer() {

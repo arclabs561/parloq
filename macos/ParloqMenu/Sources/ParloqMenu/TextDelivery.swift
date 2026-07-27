@@ -7,6 +7,7 @@ enum DeliveryError: LocalizedError {
     case accessibilityNotTrusted
     case noEditableTarget
     case ownershipLost
+    case cancelOwnershipLost
     case secureInput
     case keyboardEventFailed
 
@@ -18,6 +19,8 @@ enum DeliveryError: LocalizedError {
             return "The focused control does not expose editable text"
         case .ownershipLost:
             return "Text or focus changed; final transcript copied"
+        case .cancelOwnershipLost:
+            return "Cancelled; live text could not be removed safely"
         case .secureInput:
             return "Secure input is active; final transcript copied"
         case .keyboardEventFailed:
@@ -35,6 +38,7 @@ final class TextDeliverySession {
 
     private let target: Target
     private var planner: DeliveryPlanner
+    private var didDeliverText = false
     private(set) var lastTranscript = ""
     private(set) var warning: String?
 
@@ -89,12 +93,35 @@ final class TextDeliverySession {
         )
         do {
             try perform(action)
+            switch action {
+            case .replace, .append:
+                didDeliverText = true
+            case .copy, .none:
+                break
+            }
         } catch {
             warning = error.localizedDescription
             planner.disableReplacement()
             if isFinal, !text.isEmpty {
                 copyToPasteboard(text)
             }
+        }
+    }
+
+    func cancel() -> String? {
+        guard didDeliverText else { return nil }
+        switch target {
+        case let .accessibility(range):
+            do {
+                try range.restoreOriginalText()
+                return nil
+            } catch {
+                return DeliveryError.cancelOwnershipLost.localizedDescription
+            }
+        case .keyboard:
+            return "Cancelled; finalized text already inserted"
+        case .unavailable:
+            return nil
         }
     }
 
@@ -218,6 +245,8 @@ private final class FocusedTextTarget {
 
 private final class OwnedTextRange {
     private let element: AXUIElement
+    private let originalRange: CFRange
+    private let originalText: String
     private var ownedRange: CFRange
     private var expectedSelection: CFRange
     private var expectedText: String
@@ -228,6 +257,8 @@ private final class OwnedTextRange {
         selectedText: String
     ) {
         self.element = element
+        self.originalRange = selectedRange
+        self.originalText = selectedText
         self.ownedRange = selectedRange
         self.expectedSelection = selectedRange
         self.expectedText = selectedText
@@ -335,6 +366,24 @@ private final class OwnedTextRange {
             )
         }
         expectedSelection = cursor
+    }
+
+    func restoreOriginalText() throws {
+        try replaceOwnedText(with: originalText)
+        var selection = CFRange(
+            location: originalRange.location,
+            length: originalText.utf16.count
+        )
+        guard let selectionValue = AXValueCreate(.cfRange, &selection),
+              AXUIElementSetAttributeValue(
+                element,
+                kAXSelectedTextRangeAttribute as CFString,
+                selectionValue
+              ) == .success
+        else {
+            throw DeliveryError.noEditableTarget
+        }
+        expectedSelection = selection
     }
 
     private static func copyString(

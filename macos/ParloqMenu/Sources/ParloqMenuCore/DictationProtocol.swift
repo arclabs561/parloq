@@ -6,6 +6,7 @@ public enum DictateCommand: String, Encodable, Sendable {
     case status
     case start
     case stop
+    case cancel
     case subscribe
 }
 
