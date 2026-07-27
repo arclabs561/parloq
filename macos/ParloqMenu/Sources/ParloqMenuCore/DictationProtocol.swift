@@ -48,8 +48,15 @@ public struct DictateEvent: Decodable, Sendable {
     public let draftText: String?
     public let message: String?
     public let elapsedSeconds: Double?
+    public let asrSeconds: Double?
     public let device: String?
     public let model: String?
+    public let prosodyEnabled: Bool?
+    public let polishEnabled: Bool?
+    public let chimeEnabled: Bool?
+    public let saveEnabled: Bool?
+    public let vocabCount: Int?
+    public let streamIntervalSeconds: Double?
 
     enum CodingKeys: String, CodingKey {
         case version
@@ -62,8 +69,15 @@ public struct DictateEvent: Decodable, Sendable {
         case draftText = "draft_text"
         case message
         case elapsedSeconds = "elapsed_seconds"
+        case asrSeconds = "asr_seconds"
         case device
         case model
+        case prosodyEnabled = "prosody_enabled"
+        case polishEnabled = "polish_enabled"
+        case chimeEnabled = "chime_enabled"
+        case saveEnabled = "save_enabled"
+        case vocabCount = "vocab_count"
+        case streamIntervalSeconds = "stream_interval_seconds"
     }
 
     public init(from decoder: Decoder) throws {
@@ -87,7 +101,21 @@ public struct DictateEvent: Decodable, Sendable {
         message = try values.decodeIfPresent(String.self, forKey: .message)
         elapsedSeconds = try values.decodeIfPresent(
             Double.self, forKey: .elapsedSeconds)
+        asrSeconds = try values.decodeIfPresent(
+            Double.self, forKey: .asrSeconds)
         device = try values.decodeIfPresent(String.self, forKey: .device)
         model = try values.decodeIfPresent(String.self, forKey: .model)
+        prosodyEnabled = try values.decodeIfPresent(
+            Bool.self, forKey: .prosodyEnabled)
+        polishEnabled = try values.decodeIfPresent(
+            Bool.self, forKey: .polishEnabled)
+        chimeEnabled = try values.decodeIfPresent(
+            Bool.self, forKey: .chimeEnabled)
+        saveEnabled = try values.decodeIfPresent(
+            Bool.self, forKey: .saveEnabled)
+        vocabCount = try values.decodeIfPresent(
+            Int.self, forKey: .vocabCount)
+        streamIntervalSeconds = try values.decodeIfPresent(
+            Double.self, forKey: .streamIntervalSeconds)
     }
 }

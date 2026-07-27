@@ -58,6 +58,15 @@ def main() -> int:
         finalized_text="Hello,",
         draft_text=" café",
         elapsed_seconds=1.25,
+        asr_seconds=0.4,
+        device=":0",
+        model="model/example",
+        prosody_enabled=False,
+        polish_enabled=True,
+        chime_enabled=False,
+        save_enabled=False,
+        vocab_count=3,
+        stream_interval_seconds=0.5,
     )
     line = event.to_line()
     assert line.endswith(b"\n")
@@ -72,6 +81,15 @@ def main() -> int:
         "finalized_text": "Hello,",
         "draft_text": " café",
         "elapsed_seconds": 1.25,
+        "asr_seconds": 0.4,
+        "device": ":0",
+        "model": "model/example",
+        "prosody_enabled": False,
+        "polish_enabled": True,
+        "chime_enabled": False,
+        "save_enabled": False,
+        "vocab_count": 3,
+        "stream_interval_seconds": 0.5,
     }, body
 
     broker = rec.DictateEventBroker()

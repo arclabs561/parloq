@@ -26,6 +26,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusMenuItem: NSMenuItem?
     private var toggleMenuItem: NSMenuItem?
     private var cancelMenuItem: NSMenuItem?
+    private let detailsMenu = NSMenu()
     private var historyMenuItem: NSMenuItem?
     private let historyMenu = NSMenu()
     private let historyStore = TranscriptHistoryStore()
@@ -40,6 +41,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancelRequested = false
     private var hotKeyWarning: String?
     private var iconState: IconState?
+    private var details = DictationDetails()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -72,11 +74,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.deliverySession = nil
                 self.cancelRequested = false
                 self.cancellationWarning = nil
+                self.details = DictationDetails()
                 self.hotKey?.setEscapeEnabled(false)
                 self.liveTranscript.reset()
                 self.liveTranscriptPanel?.hide()
                 self.updateStatus(message ?? "Daemon unavailable")
             }
+            self.refreshDetailsMenu()
             self.updateIcon()
         }
     }
@@ -114,6 +118,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(cancel)
 
         menu.addItem(.separator())
+        let details = NSMenuItem(
+            title: "Dictation Details",
+            action: nil,
+            keyEquivalent: ""
+        )
+        details.submenu = detailsMenu
+        menu.addItem(details)
+        refreshDetailsMenu()
+
         let history = NSMenuItem(
             title: "Dictation History",
             action: nil,
@@ -190,6 +203,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func handle(_ event: DictateEvent) {
         guard event.sequence > lastSequence else { return }
         lastSequence = event.sequence
+        details.update(from: event)
+        refreshDetailsMenu()
         if cancelRequested {
             handleCancellationEvent(event)
             updateIcon()
@@ -480,6 +495,102 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         clear.isEnabled = !entries.isEmpty || historyStore.loadError != nil
         historyMenu.addItem(clear)
         historyMenuItem?.isEnabled = true
+    }
+
+    private func refreshDetailsMenu() {
+        detailsMenu.removeAllItems()
+        guard connected else {
+            addDetail("Waiting for dictation daemon…")
+            return
+        }
+
+        if let device = details.device {
+            addDetail("Microphone: \(device)")
+        }
+        if let model = details.model {
+            addDetail(
+                "Model: \(Self.shortModelName(model))",
+                toolTip: model
+            )
+        }
+        if let vocabCount = details.vocabCount {
+            addDetail(
+                vocabCount == 1
+                    ? "Vocabulary: 1 correction"
+                    : "Vocabulary: \(vocabCount) corrections"
+            )
+        }
+        if let interval = details.streamIntervalSeconds {
+            addDetail(
+                "Live updates: every \(Self.seconds(interval)) s"
+            )
+        }
+
+        if details.polishEnabled != nil
+            || details.prosodyEnabled != nil
+            || details.saveEnabled != nil
+            || details.chimeEnabled != nil
+        {
+            if !detailsMenu.items.isEmpty {
+                detailsMenu.addItem(.separator())
+            }
+        }
+        addModeDetail("Polish final text", enabled: details.polishEnabled)
+        addModeDetail("Prosody", enabled: details.prosodyEnabled)
+        addModeDetail("Save recordings", enabled: details.saveEnabled)
+        addModeDetail("Chimes", enabled: details.chimeEnabled)
+
+        if let audio = details.lastAudioSeconds {
+            if !detailsMenu.items.isEmpty {
+                detailsMenu.addItem(.separator())
+            }
+            let asr = details.lastASRSeconds.map {
+                " · \(Self.seconds($0)) s ASR"
+            } ?? ""
+            addDetail(
+                "Latest: \(Self.seconds(audio)) s audio\(asr)"
+            )
+        }
+        if detailsMenu.items.isEmpty {
+            addDetail("Waiting for daemon details…")
+        }
+    }
+
+    private func addDetail(
+        _ title: String,
+        toolTip: String? = nil
+    ) {
+        let item = NSMenuItem(
+            title: title,
+            action: nil,
+            keyEquivalent: ""
+        )
+        item.isEnabled = false
+        item.toolTip = toolTip
+        detailsMenu.addItem(item)
+    }
+
+    private func addModeDetail(
+        _ title: String,
+        enabled: Bool?
+    ) {
+        guard let enabled else { return }
+        let item = NSMenuItem(
+            title: title,
+            action: nil,
+            keyEquivalent: ""
+        )
+        item.isEnabled = false
+        item.state = enabled ? .on : .off
+        detailsMenu.addItem(item)
+    }
+
+    private static func shortModelName(_ model: String) -> String {
+        model.split(separator: "/").last.map(String.init) ?? model
+    }
+
+    private static func seconds(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(1)))
     }
 
     private static func historyTitle(_ text: String) -> String {

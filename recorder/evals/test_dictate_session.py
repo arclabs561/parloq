@@ -172,11 +172,20 @@ def main() -> int:
         assert final.session_id == session_id
         assert final.text == "Hello world."
         assert final.finalized_text == "Hello world."
+        assert final.asr_seconds is not None
         assert completion.message.startswith("✓ 2 words"), completion.message
 
         idle = next_type(subscriber, "status")
         while idle.phase != rec.DictatePhase.IDLE:
             idle = next_type(subscriber, "status")
+        assert idle.device == args.device
+        assert idle.model == args.model
+        assert idle.prosody_enabled is False
+        assert idle.polish_enabled is False
+        assert idle.chime_enabled is False
+        assert idle.save_enabled is False
+        assert idle.vocab_count == 0
+        assert idle.stream_interval_seconds == args.stream_interval
         assert controller.phase() == rec.DictatePhase.IDLE
 
         cancelled_id, error = controller.start(legacy=False)

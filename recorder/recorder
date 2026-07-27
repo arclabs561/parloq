@@ -3163,7 +3163,9 @@ class DictateEvent:
     __slots__ = (
         "event_type", "phase", "sequence", "session_id", "text",
         "finalized_text", "draft_text", "message", "elapsed_seconds",
-        "device", "model",
+        "asr_seconds", "device", "model", "prosody_enabled",
+        "polish_enabled", "chime_enabled", "save_enabled", "vocab_count",
+        "stream_interval_seconds",
     )
 
     def __init__(
@@ -3178,8 +3180,15 @@ class DictateEvent:
         draft_text: str | None = None,
         message: str | None = None,
         elapsed_seconds: float | None = None,
+        asr_seconds: float | None = None,
         device: str | None = None,
         model: str | None = None,
+        prosody_enabled: bool | None = None,
+        polish_enabled: bool | None = None,
+        chime_enabled: bool | None = None,
+        save_enabled: bool | None = None,
+        vocab_count: int | None = None,
+        stream_interval_seconds: float | None = None,
     ):
         self.event_type = event_type
         self.phase = phase
@@ -3190,8 +3199,15 @@ class DictateEvent:
         self.draft_text = draft_text
         self.message = message
         self.elapsed_seconds = elapsed_seconds
+        self.asr_seconds = asr_seconds
         self.device = device
         self.model = model
+        self.prosody_enabled = prosody_enabled
+        self.polish_enabled = polish_enabled
+        self.chime_enabled = chime_enabled
+        self.save_enabled = save_enabled
+        self.vocab_count = vocab_count
+        self.stream_interval_seconds = stream_interval_seconds
 
     def to_dict(self) -> dict:
         body = {
@@ -3207,8 +3223,15 @@ class DictateEvent:
             ("draft_text", self.draft_text),
             ("message", self.message),
             ("elapsed_seconds", self.elapsed_seconds),
+            ("asr_seconds", self.asr_seconds),
             ("device", self.device),
             ("model", self.model),
+            ("prosody_enabled", self.prosody_enabled),
+            ("polish_enabled", self.polish_enabled),
+            ("chime_enabled", self.chime_enabled),
+            ("save_enabled", self.save_enabled),
+            ("vocab_count", self.vocab_count),
+            ("stream_interval_seconds", self.stream_interval_seconds),
         )
         for key, value in optional:
             if value is not None:
@@ -3687,6 +3710,12 @@ class DictateSessionController:
             elapsed_seconds=elapsed,
             device=self._args.device,
             model=self._args.model,
+            prosody_enabled=bool(getattr(self._args, "prosody", False)),
+            polish_enabled=bool(self._args.polish),
+            chime_enabled=not self._args.no_chime,
+            save_enabled=bool(self._args.save),
+            vocab_count=len(self._vocab),
+            stream_interval_seconds=float(self._args.stream_interval),
         )
 
     def legacy_status(self, sock_path: Path) -> str:
@@ -4073,6 +4102,7 @@ class DictateSessionController:
                 finalized_text=text,
                 draft_text="",
                 elapsed_seconds=record_s,
+                asr_seconds=asr_s,
             ))
             final_published = True
             if not self._args.no_chime:
