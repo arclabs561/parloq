@@ -171,46 +171,6 @@ final class TextDeliverySession {
     }
 }
 
-private enum FocusedElement {
-    static func capture() -> AXUIElement? {
-        let systemWide = AXUIElementCreateSystemWide()
-        if let focused = copy(
-            from: systemWide,
-            attribute: kAXFocusedUIElementAttribute
-        ) {
-            return focused
-        }
-
-        guard let application = NSWorkspace.shared.frontmostApplication else {
-            return nil
-        }
-        let applicationElement = AXUIElementCreateApplication(
-            application.processIdentifier)
-        return copy(
-            from: applicationElement,
-            attribute: kAXFocusedUIElementAttribute
-        )
-    }
-
-    private static func copy(
-        from element: AXUIElement,
-        attribute: String
-    ) -> AXUIElement? {
-        var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(
-            element,
-            attribute as CFString,
-            &value
-        ) == .success,
-        let value,
-        CFGetTypeID(value) == AXUIElementGetTypeID()
-        else {
-            return nil
-        }
-        return (value as! AXUIElement)
-    }
-}
-
 private final class FocusedTextTarget {
     private enum Identity {
         case element(AXUIElement)

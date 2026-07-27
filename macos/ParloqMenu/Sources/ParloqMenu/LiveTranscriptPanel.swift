@@ -199,7 +199,7 @@ final class LiveTranscriptPanel {
             color: ParloqVisuals.mint
         )
         renderPlaceholder("Start speaking")
-        positionOnActiveScreen()
+        positionNearFocusedTarget()
         panel.orderFrontRegardless()
     }
 
@@ -215,7 +215,7 @@ final class LiveTranscriptPanel {
         )
         render(snapshot: snapshot, showCursor: true)
         if !panel.isVisible {
-            positionOnActiveScreen()
+            positionNearFocusedTarget()
             panel.orderFrontRegardless()
         }
     }
@@ -250,7 +250,7 @@ final class LiveTranscriptPanel {
         )
         render(snapshot: snapshot, showCursor: false)
         if !panel.isVisible {
-            positionOnActiveScreen()
+            positionNearFocusedTarget()
             panel.orderFrontRegardless()
         }
     }
@@ -393,11 +393,14 @@ final class LiveTranscriptPanel {
         )
     }
 
-    private func positionOnActiveScreen() {
+    private func positionNearFocusedTarget() {
         let pointer = NSEvent.mouseLocation
-        let screen = NSScreen.screens.first {
-            NSMouseInRect(pointer, $0.frame, false)
-        } ?? NSScreen.main ?? NSScreen.screens.first
+        let screen = FocusedTargetScreen.capture()
+            ?? NSScreen.screens.first {
+                NSMouseInRect(pointer, $0.frame, false)
+            }
+            ?? NSScreen.main
+            ?? NSScreen.screens.first
         guard let visibleFrame = screen?.visibleFrame else { return }
 
         let origin = NSPoint(
