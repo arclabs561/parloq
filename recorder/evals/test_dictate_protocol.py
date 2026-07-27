@@ -58,6 +58,7 @@ def main() -> int:
         finalized_text="Hello,",
         draft_text=" café",
         elapsed_seconds=1.25,
+        input_peak_db=-18.5,
         asr_seconds=0.4,
         device=":0",
         model="model/example",
@@ -81,6 +82,7 @@ def main() -> int:
         "finalized_text": "Hello,",
         "draft_text": " café",
         "elapsed_seconds": 1.25,
+        "input_peak_db": -18.5,
         "asr_seconds": 0.4,
         "device": ":0",
         "model": "model/example",
@@ -108,6 +110,16 @@ def main() -> int:
     assert len(snapshots) == 64, len(snapshots)
     assert snapshots[-1].text == "69"
     assert snapshots[0].text == "6"
+
+    capture_command = rec.build_dictate_ffmpeg_cmd(":0")
+    assert capture_command[-1] == "pipe:1", capture_command
+    assert "-c:a" in capture_command
+    assert "flac" not in capture_command
+
+    assert -26.1 < rec._peak_dbfs(
+        rec.np.full(1_600, 0.05, dtype=rec.np.float32)
+    ) < -25.9
+    assert rec._peak_dbfs(rec.np.zeros(1_600, dtype=rec.np.float32)) == -120.0
 
     print("PASS: dictate JSONL protocol and bounded subscriber fan-out")
     return 0

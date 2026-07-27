@@ -1,7 +1,7 @@
 #!/usr/bin/env -S uv run --script
 # /// script
 # requires-python = ">=3.10"
-# dependencies = ["numpy"]
+# dependencies = ["numpy", "soundfile>=0.12"]
 # ///
 """Exercise the streaming dictation session without a mic or ASR model."""
 from __future__ import annotations
@@ -10,11 +10,13 @@ import importlib.machinery
 import importlib.util
 import queue
 import threading
+import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
 
 import numpy as np
+import soundfile as sf
 
 
 RECORDER = Path(__file__).resolve().parent.parent / "recorder"
@@ -116,8 +118,33 @@ def next_type(subscriber, event_type: str, timeout=2):
             return event
 
 
+def next_meter(subscriber, timeout=2):
+    while True:
+        event = subscriber.get(timeout=timeout)
+        if event.input_peak_db is not None:
+            return event
+
+
 def main() -> int:
     rec = load_recorder()
+    with tempfile.TemporaryDirectory() as temporary_directory:
+        flac_path = Path(temporary_directory) / "dictation.flac"
+        expected_samples = np.array(
+            [0.0, 0.25, -0.25, 0.5],
+            dtype=np.float32,
+        )
+        rec._write_dictate_flac(flac_path, expected_samples.tobytes())
+        actual_samples, sample_rate = sf.read(
+            flac_path,
+            dtype="float32",
+        )
+        assert sample_rate == rec.SAMPLE_RATE
+        np.testing.assert_allclose(
+            actual_samples,
+            expected_samples,
+            atol=4e-5,
+        )
+
     chunk_samples = int(rec.SAMPLE_RATE * 0.1)
     audio = np.full(chunk_samples, 0.05, dtype=np.float32).tobytes()
     processes = queue.Queue()
@@ -125,6 +152,14 @@ def main() -> int:
     processes.put(FakeProcess(audio))
     original_popen = rec.subprocess.Popen
     rec.subprocess.Popen = lambda *_args, **_kwargs: processes.get(timeout=2)
+    original_write_flac = rec._write_dictate_flac
+    written_audio = []
+
+    def write_fake_flac(path, audio):
+        written_audio.append(bytes(audio))
+        path.write_bytes(b"fake flac")
+
+    rec._write_dictate_flac = write_fake_flac
 
     args = SimpleNamespace(
         device=":test",
@@ -157,6 +192,12 @@ def main() -> int:
         assert error is None
         assert session_id
 
+        meter = next_meter(subscriber)
+        assert meter.phase == rec.DictatePhase.RECORDING
+        assert meter.session_id == session_id
+        assert meter.elapsed_seconds == 0.1
+        assert -26.1 < meter.input_peak_db < -25.9
+
         transcript = next_type(subscriber, "transcript")
         assert transcript.phase == rec.DictatePhase.RECORDING
         assert transcript.text == "hello wor", transcript.text
@@ -174,6 +215,7 @@ def main() -> int:
         assert final.finalized_text == "Hello world."
         assert final.asr_seconds is not None
         assert completion.message.startswith("✓ 2 words"), completion.message
+        assert len(written_audio) == 1
 
         idle = next_type(subscriber, "status")
         while idle.phase != rec.DictatePhase.IDLE:
@@ -217,6 +259,7 @@ def main() -> int:
         assert controller.phase() == rec.DictatePhase.IDLE
     finally:
         rec.subprocess.Popen = original_popen
+        rec._write_dictate_flac = original_write_flac
         broker.unsubscribe(subscriber)
         engine.shutdown()
 
