@@ -104,6 +104,22 @@ recorder dictate install-agent
 open -g /Applications/Parloq.app
 ```
 
+## End-to-end verification
+
+Run the real recorded-audio/ASR protocol path and the signed cross-process
+Accessibility delivery path together:
+
+```sh
+just e2e
+```
+
+The ASR probe uses an isolated socket and temporary configuration, so it does
+not contact or reconfigure the login daemon. The delivery probe briefly opens
+a dedicated editable target, verifies live replacement, cancellation, final
+replacement, and clipboard publication, then restores the prior frontmost app
+and clipboard text. It requires the installed Parloq identity to have
+Accessibility permission.
+
 The app does not open a permission prompt at launch. When you are ready, use
 the menu item **Request Accessibility Permission**, then enable Parloq under
 System Settings > Privacy & Security > Accessibility. Accessibility lets

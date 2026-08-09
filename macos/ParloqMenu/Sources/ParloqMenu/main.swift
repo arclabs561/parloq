@@ -3,6 +3,26 @@ import ApplicationServices
 
 let arguments = Array(CommandLine.arguments.dropFirst())
 
+if arguments == ["--e2e-delivery"] {
+    let application = NSApplication.shared
+    application.setActivationPolicy(.prohibited)
+    do {
+        try DeliveryE2ERunner.run()
+        exit(EXIT_SUCCESS)
+    } catch {
+        fputs("delivery e2e failed: \(error)\n", stderr)
+        exit(EXIT_FAILURE)
+    }
+}
+
+if arguments.first == "--e2e-target", arguments.count == 2 {
+    let application = NSApplication.shared
+    application.setActivationPolicy(.regular)
+    DeliveryE2ERunner.runTarget(
+        readyFile: URL(fileURLWithPath: arguments[1]))
+    application.run()
+}
+
 if arguments.first == "--capture-native-ui-fixture" {
     guard arguments.count == 2 else {
         fputs(

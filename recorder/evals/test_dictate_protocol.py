@@ -276,6 +276,10 @@ def main() -> int:
     assert capture_command[-1] == "pipe:1", capture_command
     assert "-c:a" in capture_command
     assert "flac" not in capture_command
+    fixture_command = rec.build_dictate_ffmpeg_cmd(
+        ":0", "/tmp/known-speech.flac")
+    assert fixture_command[4:6] == ["-i", "/tmp/known-speech.flac"]
+    assert "avfoundation" not in fixture_command
 
     assert -26.1 < rec._peak_dbfs(
         rec.np.full(1_600, 0.05, dtype=rec.np.float32)

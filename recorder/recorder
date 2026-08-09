@@ -236,16 +236,24 @@ def build_ffmpeg_cmd(device: str, from_file: str | None, flac_path: Path) -> lis
     ]
 
 
-def build_dictate_ffmpeg_cmd(device: str) -> list[str]:
+def build_dictate_ffmpeg_cmd(
+    device: str,
+    from_file: str | None = None,
+) -> list[str]:
     """Capture dictation PCM through the parent-owned pipe only.
 
     A second file output lets ffmpeg survive a broken stdout pipe when the
     daemon dies. The session already retains every PCM sample, so the parent
     writes its temporary FLAC after capture instead.
     """
+    input_args = (
+        ["-i", from_file]
+        if from_file is not None
+        else ["-f", "avfoundation", "-i", device]
+    )
     return [
         "ffmpeg", "-hide_banner", "-loglevel", "warning",
-        "-f", "avfoundation", "-i", device,
+        *input_args,
         "-ac", "1", "-ar", str(SAMPLE_RATE),
         "-f", "f32le", "-c:a", "pcm_f32le",
         "pipe:1",
@@ -4233,6 +4241,7 @@ class DictateSessionController:
         self._configuration_file_warning = configuration_warning
         self._device_warning: str | None = None
         self._managed_device_identity = bool(bootstrap_matches)
+        self._audio_fixture = getattr(args, "from_file", None)
         self._save_enabled = (
             self._runtime_config.save_recordings
             if self._runtime_config.save_recordings is not None
@@ -4268,6 +4277,13 @@ class DictateSessionController:
                 self._display_device = resolved.identifier
                 self._device_name = resolved.name
             self._device_warning = resolution_warning
+        if self._audio_fixture is not None:
+            self._capture_device = args.device
+            self._display_device = "file"
+            self._device_name = Path(self._audio_fixture).name
+            self._device_available = True
+            self._managed_device_identity = False
+            self._device_warning = None
 
     def _next_sequence(self) -> int:
         with self._sequence_lock:
@@ -4778,7 +4794,10 @@ class DictateSessionController:
         asr_s = 0.0
         final_published = False
         try:
-            cmd = build_dictate_ffmpeg_cmd(capture_device)
+            cmd = build_dictate_ffmpeg_cmd(
+                capture_device,
+                self._audio_fixture,
+            )
             ffmpeg = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
             with self._lock:
@@ -5306,6 +5325,11 @@ def cmd_dictate(rest: list[str]) -> int:
 
     p = argparse.ArgumentParser(prog="recorder dictate")
     p.add_argument("--device", default=os.environ.get("MEETING_DEVICE", ":0"))
+    p.add_argument(
+        "--from-file",
+        type=Path,
+        help=argparse.SUPPRESS,
+    )
     p.add_argument("--model", default=os.environ.get(
         "PARAKEET_MODEL", "mlx-community/parakeet-tdt-0.6b-v3"))
     p.add_argument("--no-clipboard", action="store_true",
@@ -5337,6 +5361,12 @@ def cmd_dictate(rest: list[str]) -> int:
         help="seconds of audio per live transcript update (default: 0.5)",
     )
     args = p.parse_args(rest)
+    if args.from_file is not None:
+        args.from_file = args.from_file.expanduser().resolve()
+        if not args.daemon:
+            p.error("--from-file requires --daemon")
+        if not args.from_file.is_file():
+            p.error(f"audio fixture does not exist: {args.from_file}")
     if not 0.1 <= args.stream_interval <= 2.0:
         p.error("--stream-interval must be between 0.1 and 2.0 seconds")
 

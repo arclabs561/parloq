@@ -2,7 +2,7 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 check:
     uvx ruff check --select F recorder/recorder prosody-bench/ recorder/evals/ experiments/
-    PYTHONPYCACHEPREFIX=/tmp/parloq-pycache python3 -m py_compile recorder/recorder recorder/evals/run_eval.py recorder/evals/test_ui_fixture.py recorder/evals/test_device_resolution.py recorder/evals/test_dictate_protocol.py recorder/evals/test_dictate_session.py recorder/evals/test_dictate_trigger.py recorder/evals/test_eval_corpus_paths.py recorder/evals/test_eval_report_format.py recorder/evals/test_fragment_join.py recorder/evals/test_polish_edits.py recorder/evals/test_render_md.py recorder/evals/test_search_cli.py recorder/evals/test_vocab.py recorder/evals/test_agent_plist.py prosody-bench/test_emphasis_tag.py
+    PYTHONPYCACHEPREFIX=/tmp/parloq-pycache python3 -m py_compile recorder/recorder recorder/evals/run_eval.py recorder/evals/run_dictate_e2e.py recorder/evals/test_ui_fixture.py recorder/evals/test_device_resolution.py recorder/evals/test_dictate_protocol.py recorder/evals/test_dictate_session.py recorder/evals/test_dictate_trigger.py recorder/evals/test_eval_corpus_paths.py recorder/evals/test_eval_report_format.py recorder/evals/test_fragment_join.py recorder/evals/test_polish_edits.py recorder/evals/test_render_md.py recorder/evals/test_search_cli.py recorder/evals/test_vocab.py recorder/evals/test_agent_plist.py prosody-bench/test_emphasis_tag.py
     python3 recorder/evals/test_device_resolution.py
     uv run recorder/evals/test_dictate_protocol.py
     uv run recorder/evals/test_dictate_session.py
@@ -32,6 +32,14 @@ ui-fixtures output="test-results/ui-fixtures":
 
 ui-native-fixture output="test-results/ui-fixtures/native-glass.png":
     swift run --package-path macos/ParloqMenu ParloqMenu --capture-native-ui-fixture "{{output}}"
+
+dictate-e2e audio="data/corpora/recorder/extended/short-dictation/ls_1272_0000_5s.flac" expect="apostle":
+    python3 recorder/evals/run_dictate_e2e.py "{{audio}}" --expect "{{expect}}"
+
+delivery-e2e: install-macos-app
+    /Applications/Parloq.app/Contents/MacOS/ParloqMenu --e2e-delivery
+
+e2e: dictate-e2e delivery-e2e
 
 macos-app:
     swift build -c release --package-path macos/ParloqMenu
