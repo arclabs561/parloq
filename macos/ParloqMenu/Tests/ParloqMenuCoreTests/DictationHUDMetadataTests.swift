@@ -17,8 +17,7 @@ import Testing
     metadata.updateDeliveryMode(.targetChanged)
 
     #expect(
-        metadata.contextLabel
-            == "Safe copy · final goes to clipboard"
+        metadata.contextLabel == "Copied on finish"
     )
 }
 
@@ -29,7 +28,7 @@ import Testing
         elapsedSeconds: 8
     )
 
-    #expect(metadata.contextLabel == "Final goes to clipboard")
+    #expect(metadata.contextLabel == "Copied on finish")
     metadata.updateElapsed(4)
     metadata.updateElapsed(nil)
     metadata.updateElapsed(.infinity)

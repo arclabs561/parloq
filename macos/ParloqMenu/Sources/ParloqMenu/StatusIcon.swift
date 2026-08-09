@@ -20,42 +20,32 @@ enum StatusIcon {
 
     static let finishing = makeFinishing(description: "Parloq finishing")
 
-    static let offline = symbol(
-        named: "waveform.slash",
+    static let offline = makeWaveform(
         description: "Parloq offline",
-        pointSize: 16,
-        weight: .medium
+        modifier: .slash
     )
 
-    static let error = symbol(
-        named: "exclamationmark.triangle.fill",
+    static let error = makeWaveform(
         description: "Parloq error",
-        pointSize: 14,
-        weight: .semibold
+        modifier: .alert
     )
 
-    private static func symbol(
-        named name: String,
-        description: String,
-        pointSize: CGFloat,
-        weight: NSFont.Weight
-    ) -> NSImage {
-        guard let symbol = NSImage(
-            systemSymbolName: name,
-            accessibilityDescription: description
-        ) else {
-            return makeReady(description: description)
-        }
-        let configuration = NSImage.SymbolConfiguration(
-            pointSize: pointSize,
-            weight: weight
-        )
-        let image = symbol.withSymbolConfiguration(configuration) ?? symbol
-        image.isTemplate = true
-        return image
+    private enum Modifier {
+        case cursor
+        case listening
+        case finishing
+        case slash
+        case alert
     }
 
     private static func makeReady(description: String) -> NSImage {
+        makeWaveform(description: description, modifier: .cursor)
+    }
+
+    private static func makeWaveform(
+        description: String,
+        modifier: Modifier
+    ) -> NSImage {
         let image = NSImage(
             size: NSSize(width: 20, height: 18),
             flipped: false
@@ -91,10 +81,48 @@ enum StatusIcon {
                 controlPoint1: NSPoint(x: 12.8, y: 12.2),
                 controlPoint2: NSPoint(x: 13.3, y: 9)
             )
-            path.line(to: NSPoint(x: 18.2, y: 9))
-            path.move(to: NSPoint(x: 18.2, y: 4.2))
-            path.line(to: NSPoint(x: 18.2, y: 13.8))
+            path.line(to: NSPoint(x: 15.7, y: 9))
             path.stroke()
+
+            switch modifier {
+            case .cursor:
+                let cursor = NSBezierPath()
+                cursor.lineWidth = 2.0
+                cursor.lineCapStyle = .round
+                cursor.move(to: NSPoint(x: 18.0, y: 4.5))
+                cursor.line(to: NSPoint(x: 18.0, y: 13.5))
+                cursor.stroke()
+            case .listening:
+                NSColor.black.setFill()
+                NSBezierPath(
+                    ovalIn: NSRect(x: 16.2, y: 6.7, width: 4.6, height: 4.6)
+                ).fill()
+            case .finishing:
+                NSColor.black.setFill()
+                for x in [15.8, 18.4] {
+                    NSBezierPath(
+                        ovalIn: NSRect(x: x, y: 7.7, width: 2.4, height: 2.4)
+                    ).fill()
+                }
+            case .slash:
+                let slash = NSBezierPath()
+                slash.lineWidth = 2.2
+                slash.lineCapStyle = .round
+                slash.move(to: NSPoint(x: 3.0, y: 15.0))
+                slash.line(to: NSPoint(x: 17.0, y: 3.0))
+                slash.stroke()
+            case .alert:
+                NSColor.black.setFill()
+                NSBezierPath(
+                    ovalIn: NSRect(x: 16.2, y: 2.8, width: 3.6, height: 3.6)
+                ).fill()
+                let alert = NSBezierPath()
+                alert.lineWidth = 2.0
+                alert.lineCapStyle = .round
+                alert.move(to: NSPoint(x: 18.0, y: 8.3))
+                alert.line(to: NSPoint(x: 18.0, y: 14.0))
+                alert.stroke()
+            }
             return true
         }
         image.isTemplate = true
@@ -107,69 +135,12 @@ enum StatusIcon {
         normalizedLevel: Double = 0.18,
         spectrum: [Double]? = nil
     ) -> NSImage {
-        let image = NSImage(
-            size: NSSize(width: 20, height: 18),
-            flipped: false
-        ) { _ in
-            NSColor.black.setFill()
-            NSColor.black.setStroke()
-
-            NSBezierPath(
-                ovalIn: NSRect(x: 0.6, y: 7.2, width: 3.6, height: 3.6)
-            ).fill()
-
-            let bars: [(x: CGFloat, minimum: CGFloat, maximum: CGFloat)] = [
-                (5.0, 2.8, 6.0),
-                (8.5, 3.4, 12.5),
-                (12.0, 3.0, 9.0),
-                (15.5, 2.6, 5.5),
-            ]
-            for (index, bar) in bars.enumerated() {
-                let bandLevel = spectrum?[index] ?? normalizedLevel
-                let height = bar.minimum
-                    + (bar.maximum - bar.minimum) * bandLevel
-                NSBezierPath(
-                    roundedRect: NSRect(
-                        x: bar.x,
-                        y: 9 - height / 2,
-                        width: 2.3,
-                        height: height
-                    ),
-                    xRadius: 1.15,
-                    yRadius: 1.15
-                ).fill()
-            }
-            return true
-        }
-        image.isTemplate = true
-        image.accessibilityDescription = description
-        return image
+        _ = normalizedLevel
+        _ = spectrum
+        return makeWaveform(description: description, modifier: .listening)
     }
 
     private static func makeFinishing(description: String) -> NSImage {
-        let image = NSImage(
-            size: NSSize(width: 20, height: 18),
-            flipped: false
-        ) { _ in
-            NSColor.black.setFill()
-            NSColor.black.setStroke()
-
-            for x in [2.0, 7.4, 12.8] {
-                NSBezierPath(
-                    ovalIn: NSRect(x: x, y: 7.2, width: 3.6, height: 3.6)
-                ).fill()
-            }
-
-            let cursor = NSBezierPath()
-            cursor.lineWidth = 2.1
-            cursor.lineCapStyle = .round
-            cursor.move(to: NSPoint(x: 18.1, y: 4.0))
-            cursor.line(to: NSPoint(x: 18.1, y: 14.0))
-            cursor.stroke()
-            return true
-        }
-        image.isTemplate = true
-        image.accessibilityDescription = description
-        return image
+        makeWaveform(description: description, modifier: .finishing)
     }
 }

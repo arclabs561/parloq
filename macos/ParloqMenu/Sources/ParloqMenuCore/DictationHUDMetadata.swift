@@ -11,11 +11,11 @@ public enum DictationDeliveryMode: Equatable, Sendable {
         case .directInsertion:
             return "Live insert"
         case .keyboardFallback:
-            return "Type on finish"
+            return "Types on finish"
         case .clipboardFallback:
-            return "Final goes to clipboard"
+            return "Copied on finish"
         case .targetChanged:
-            return "Safe copy · final goes to clipboard"
+            return "Copied on finish"
         }
     }
 }
