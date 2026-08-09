@@ -4508,11 +4508,7 @@ class DictateSessionController:
 
         if stop_event is not None:
             stop_event.set()
-        if ffmpeg is not None and ffmpeg.poll() is None:
-            try:
-                ffmpeg.send_signal(signal.SIGINT)
-            except ProcessLookupError:
-                pass
+        self._stop_ffmpeg(ffmpeg)
         self._broker.publish(self.status_event())
         return completion, error
 
@@ -4534,11 +4530,7 @@ class DictateSessionController:
             cancel_event.set()
         if stop_event is not None:
             stop_event.set()
-        if ffmpeg is not None and ffmpeg.poll() is None:
-            try:
-                ffmpeg.send_signal(signal.SIGINT)
-            except ProcessLookupError:
-                pass
+        self._stop_ffmpeg(ffmpeg)
         return completion, None
 
     def _set_phase(self, phase: DictatePhase, message: str | None = None) -> None:

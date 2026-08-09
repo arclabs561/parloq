@@ -9,6 +9,7 @@ from __future__ import annotations
 import importlib.machinery
 import importlib.util
 import queue
+import subprocess
 import threading
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
@@ -51,10 +52,12 @@ class FakeStdout:
 
 
 class FakeProcess:
-    def __init__(self, audio: bytes):
+    def __init__(self, audio: bytes, *, ignore_sigint: bool = False):
         self.stdout = FakeStdout(audio)
         self.returncode = None
         self._signalled = False
+        self.ignore_sigint = ignore_sigint
+        self.killed = False
 
     def poll(self):
         return self.returncode
@@ -62,13 +65,17 @@ class FakeProcess:
     def send_signal(self, _signal) -> None:
         if not self._signalled:
             self._signalled = True
-            self.stdout.finish()
+            if not self.ignore_sigint:
+                self.stdout.finish()
 
     def wait(self, timeout=None):
+        if self.returncode is None and timeout is not None:
+            raise subprocess.TimeoutExpired("ffmpeg", timeout)
         self.returncode = 0
         return 0
 
     def kill(self) -> None:
+        self.killed = True
         self.returncode = -9
         self.stdout.finish()
 
@@ -155,7 +162,8 @@ def main() -> int:
     chunk_samples = int(rec.SAMPLE_RATE * 0.5)
     audio = np.full(chunk_samples, 0.05, dtype=np.float32).tobytes()
     processes = queue.Queue()
-    processes.put(FakeProcess(audio))
+    stubborn_process = FakeProcess(audio, ignore_sigint=True)
+    processes.put(stubborn_process)
     processes.put(FakeProcess(audio))
     processes.put(FakeProcess(audio))
     original_popen = rec.subprocess.Popen
@@ -273,6 +281,7 @@ def main() -> int:
         assert error is None
         assert completion is not None
         assert completion.event.wait(timeout=2), "session did not finish"
+        assert stubborn_process.killed, "stop did not kill a stuck capture"
 
         final = next_type(subscriber, "final")
         assert final.session_id == session_id
