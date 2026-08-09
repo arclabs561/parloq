@@ -31,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let microphoneMenu = NSMenu()
     private let detailsMenu = NSMenu()
     private var saveRecordingsMenuItem: NSMenuItem?
+    private var polishMenuItem: NSMenuItem?
     private var historyMenuItem: NSMenuItem?
     private var teachCorrectionMenuItem: NSMenuItem?
     private let historyMenu = NSMenu()
@@ -53,6 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var applicationBeforeMenu: NSRunningApplication?
     private var microphoneChangePending = false
     private var saveRecordingsChangePending = false
+    private var polishChangePending = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -94,6 +96,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 self.correctionChangePending = false
                 self.microphoneChangePending = false
                 self.saveRecordingsChangePending = false
+                self.polishChangePending = false
                 let failure = message ?? "Daemon unavailable"
                 if !self.recoverTranscript(message: failure) {
                     self.clearOverlay()
@@ -241,6 +244,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         client.send(DictateRequest(saveRecordings: !enabled))
     }
 
+    @objc private func togglePolish() {
+        guard !polishChangePending,
+              phase == .idle || phase == .error,
+              let enabled = details.polishEnabled
+        else {
+            return
+        }
+        polishChangePending = true
+        updateStatus(enabled ? "Turning polish off…" : "Turning polish on…")
+        refreshDetailsMenu()
+        updateMenuActions()
+        client.send(DictateRequest(polishEnabled: !enabled))
+    }
+
     private func toggleDictation() {
         guard !correctionPromptActive else { return }
         guard connected else {
@@ -304,6 +321,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             )
         {
             saveRecordingsChangePending = false
+        }
+        if polishChangePending,
+           event.type == .error
+            || (
+                event.type == .ack
+                && event.message?.hasPrefix("Polish Final Text turned ") == true
+            )
+        {
+            polishChangePending = false
         }
         if correctionChangePending,
            event.type == .error
@@ -599,6 +625,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         saveRecordingsMenuItem?.isEnabled =
             connected
             && !saveRecordingsChangePending
+            && (phase == .idle || phase == .error)
+        polishMenuItem?.isEnabled =
+            connected
+            && !polishChangePending
             && (phase == .idle || phase == .error)
         teachCorrectionMenuItem?.isEnabled =
             connected
@@ -1014,6 +1044,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private func refreshDetailsMenu() {
         detailsMenu.removeAllItems()
         saveRecordingsMenuItem = nil
+        polishMenuItem = nil
         guard connected else {
             addDetail("Waiting for dictation daemon…")
             addCopyDiagnosticsItem()
@@ -1068,7 +1099,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
                 detailsMenu.addItem(.separator())
             }
         }
-        addModeDetail("Polish final text", enabled: details.polishEnabled)
+        if let polishEnabled = details.polishEnabled {
+            let polish = NSMenuItem(
+                title: "Polish Final Text",
+                action: #selector(togglePolish),
+                keyEquivalent: ""
+            )
+            polish.target = self
+            polish.state = polishEnabled ? .on : .off
+            polish.isEnabled =
+                !polishChangePending
+                && (phase == .idle || phase == .error)
+            polish.toolTip = polishEnabled
+                ? "A local Ollama model may make constrained final-text edits. Raw ASR remains recoverable in history."
+                : "Off: final text uses raw ASR plus deterministic vocabulary corrections."
+            polishMenuItem = polish
+            detailsMenu.addItem(polish)
+        }
         addModeDetail(
             "Voice level analysis",
             enabled: details.prosodyEnabled

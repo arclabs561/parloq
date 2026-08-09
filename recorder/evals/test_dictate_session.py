@@ -212,6 +212,7 @@ def main() -> int:
         session_submit=engine.submit,
         config_path=config_path,
         device_provider=lambda: available_devices,
+        polish_provider=lambda _model: (True, None),
         vocab_path=vocab_path,
     )
     # Exercise the provenance boundary even though the fixture does not run
@@ -246,6 +247,11 @@ def main() -> int:
         assert event.event_type == rec.DictateEventType.ACK
         assert event.save_enabled is True
 
+        event, error = controller.configure_polish(True)
+        assert error is None
+        assert event.event_type == rec.DictateEventType.ACK
+        assert event.polish_enabled is True
+
         candidate_correction = rec.DictationCorrection("par lock", "Parloq")
         session_id, error = controller.start(legacy=False)
         assert error is None
@@ -258,6 +264,9 @@ def main() -> int:
         event, error = controller.configure_save_recordings(False)
         assert event is None
         assert error == "recording retention cannot change during dictation"
+        event, error = controller.configure_polish(False)
+        assert event is None
+        assert error == "polish cannot change during dictation"
         event, error = controller.configure_vocabulary_correction(
             candidate_correction)
         assert event is None
@@ -305,7 +314,7 @@ def main() -> int:
         assert idle.model == args.model
         assert idle.prosody_enabled is True
         assert idle.prosody_baseline_count == 1
-        assert idle.polish_enabled is False
+        assert idle.polish_enabled is True
         assert idle.chime_enabled is False
         assert idle.save_enabled is True
         assert idle.recordings_path == str(recordings_path)
@@ -324,6 +333,25 @@ def main() -> int:
         assert warning is None
         assert saved_config.device.identifier == selected.identifier
         assert saved_config.save_recordings is False
+        assert saved_config.polish_enabled is True
+
+        event, error = controller.configure_polish(False)
+        assert error is None
+        assert event.polish_enabled is False
+        saved_config, warning = rec._load_dictate_runtime_config(config_path)
+        assert warning is None
+        assert saved_config.polish_enabled is False
+
+        controller._polish_provider = lambda _model: (
+            False,
+            "Ollama model is not installed",
+        )
+        event, error = controller.configure_polish(True)
+        assert event is None
+        assert error == "Ollama model is not installed"
+        saved_config, warning = rec._load_dictate_runtime_config(config_path)
+        assert warning is None
+        assert saved_config.polish_enabled is False
 
         available_devices[:] = [
             rec.DictationDevice(":0", "MacBook Pro Microphone"),

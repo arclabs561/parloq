@@ -2570,6 +2570,31 @@ def ollama_chat(model: str, messages: list[dict], stream: bool = False,
         raise RuntimeError(f"ollama unreachable at {OLLAMA_HOST}: {e}") from e
 
 
+def _ollama_model_available(
+    model: str,
+    timeout: float = 2.0,
+) -> tuple[bool, str | None]:
+    """Bounded readiness check used before persisting opt-in polish."""
+    import urllib.error
+    import urllib.request
+    try:
+        with urllib.request.urlopen(
+            f"{OLLAMA_HOST}/api/tags",
+            timeout=timeout,
+        ) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        return False, f"Ollama is unavailable: {error}"
+    names = {
+        item.get("name")
+        for item in body.get("models", [])
+        if isinstance(item, dict)
+    }
+    if model not in names:
+        return False, f"Ollama model {model!r} is not installed"
+    return True, None
+
+
 def chunk_text(text: str, max_chars: int = 6000, overlap: int = 200) -> list[str]:
     """Split text on sentence boundaries with small overlap so context bleeds across chunks."""
     text = text.strip()
@@ -3229,23 +3254,27 @@ class DictationCorrection:
 class DictationRuntimeConfig:
     """Versioned settings explicitly saved by a dictation client."""
 
-    __slots__ = ("device", "save_recordings")
+    __slots__ = ("device", "save_recordings", "polish_enabled")
 
     def __init__(
         self,
         *,
         device: DictationDevice | None = None,
         save_recordings: bool | None = None,
+        polish_enabled: bool | None = None,
     ):
         self.device = device
         self.save_recordings = save_recordings
+        self.polish_enabled = polish_enabled
 
     @classmethod
     def from_dict(cls, body) -> "DictationRuntimeConfig":
         if not isinstance(body, dict) or body.get("version") != 1:
             raise DictateProtocolError(
                 "saved settings use an unsupported format")
-        unknown = set(body) - {"version", "device", "save_recordings"}
+        unknown = set(body) - {
+            "version", "device", "save_recordings", "polish_enabled",
+        }
         if unknown:
             raise DictateProtocolError(
                 f"saved settings contain unknown fields: {sorted(unknown)}")
@@ -3261,7 +3290,15 @@ class DictationRuntimeConfig:
         ):
             raise DictateProtocolError(
                 "save_recordings must be true or false")
-        return cls(device=device, save_recordings=save_recordings)
+        polish_enabled = body.get("polish_enabled")
+        if polish_enabled is not None and not isinstance(polish_enabled, bool):
+            raise DictateProtocolError(
+                "polish_enabled must be true or false")
+        return cls(
+            device=device,
+            save_recordings=save_recordings,
+            polish_enabled=polish_enabled,
+        )
 
     def to_dict(self) -> dict:
         body = {"version": 1}
@@ -3269,6 +3306,8 @@ class DictationRuntimeConfig:
             body["device"] = self.device.to_dict()
         if self.save_recordings is not None:
             body["save_recordings"] = self.save_recordings
+        if self.polish_enabled is not None:
+            body["polish_enabled"] = self.polish_enabled
         return body
 
 
@@ -3276,7 +3315,8 @@ class DictateRequest:
     """Validated v1 JSON Lines request from a native dictation client."""
 
     __slots__ = (
-        "command", "device", "save_recordings", "vocabulary_correction",
+        "command", "device", "save_recordings", "polish_enabled",
+        "vocabulary_correction",
     )
 
     def __init__(
@@ -3284,11 +3324,13 @@ class DictateRequest:
         command: DictateCommand,
         device: DictationDevice | None = None,
         save_recordings: bool | None = None,
+        polish_enabled: bool | None = None,
         vocabulary_correction: DictationCorrection | None = None,
     ):
         self.command = command
         self.device = device
         self.save_recordings = save_recordings
+        self.polish_enabled = polish_enabled
         self.vocabulary_correction = vocabulary_correction
 
     @classmethod
@@ -3324,6 +3366,12 @@ class DictateRequest:
                     raise DictateProtocolError(
                         "save_recordings must be true or false")
                 return cls(command, save_recordings=save_recordings)
+            if set(settings) == {"polish_enabled"}:
+                polish_enabled = settings["polish_enabled"]
+                if not isinstance(polish_enabled, bool):
+                    raise DictateProtocolError(
+                        "polish_enabled must be true or false")
+                return cls(command, polish_enabled=polish_enabled)
             if set(settings) == {"vocabulary_correction"}:
                 return cls(
                     command,
@@ -4137,6 +4185,7 @@ class DictateSessionController:
         runtime_config: DictationRuntimeConfig | None = None,
         configuration_warning: str | None = None,
         device_provider=None,
+        polish_provider=None,
         vocab_path: Path | None = None,
         vocab_warning: str | None = None,
     ):
@@ -4153,6 +4202,7 @@ class DictateSessionController:
         self._config_path = config_path
         self._runtime_config = runtime_config or DictationRuntimeConfig()
         self._device_provider = device_provider or _available_dictation_devices
+        self._polish_provider = polish_provider or _ollama_model_available
         self._lock = threading.Lock()
         self._sequence_lock = threading.Lock()
         self._sequence = 0
@@ -4187,6 +4237,11 @@ class DictateSessionController:
             self._runtime_config.save_recordings
             if self._runtime_config.save_recordings is not None
             else bool(args.save)
+        )
+        self._polish_enabled = (
+            self._runtime_config.polish_enabled
+            if self._runtime_config.polish_enabled is not None
+            else bool(args.polish)
         )
         if self._save_enabled:
             self._out_dir.mkdir(parents=True, exist_ok=True)
@@ -4263,7 +4318,7 @@ class DictateSessionController:
             configuration_warning=configuration_warning,
             model=self._args.model,
             prosody_enabled=bool(getattr(self._args, "prosody", False)),
-            polish_enabled=bool(self._args.polish),
+            polish_enabled=self._polish_enabled,
             chime_enabled=not self._args.no_chime,
             save_enabled=self._save_enabled,
             recordings_path=str(self._out_dir),
@@ -4285,7 +4340,7 @@ class DictateSessionController:
             f"device={event.device}",
             f"model={self._args.model}",
             f"prosody={'on' if getattr(self._args, 'prosody', False) else 'off'}",
-            f"polish={'on' if self._args.polish else 'off'}",
+            f"polish={'on' if self._polish_enabled else 'off'}",
             f"chime={'off' if self._args.no_chime else 'on'}",
             f"clipboard={'off' if self._args.no_clipboard else 'on'}",
             f"save={'on' if event.save_enabled else 'off'}",
@@ -4347,6 +4402,7 @@ class DictateSessionController:
             updated_config = DictationRuntimeConfig(
                 device=selected,
                 save_recordings=self._runtime_config.save_recordings,
+                polish_enabled=self._runtime_config.polish_enabled,
             )
             try:
                 _write_dictate_runtime_config(
@@ -4387,6 +4443,7 @@ class DictateSessionController:
             updated_config = DictationRuntimeConfig(
                 device=self._runtime_config.device,
                 save_recordings=enabled,
+                polish_enabled=self._runtime_config.polish_enabled,
             )
             try:
                 _write_dictate_runtime_config(
@@ -4402,6 +4459,43 @@ class DictateSessionController:
         event = self.status_event(
             event_type=DictateEventType.ACK,
             message=f"Save Audio & Transcript turned {state}",
+        )
+        self._broker.publish(event)
+        return event, None
+
+    def configure_polish(
+        self,
+        enabled: bool,
+    ) -> tuple[DictateEvent | None, str | None]:
+        with self._lock:
+            if self._phase not in (DictatePhase.IDLE, DictatePhase.ERROR):
+                return None, "polish cannot change during dictation"
+            if self._config_path is None:
+                return None, "runtime configuration is unavailable"
+            if enabled:
+                available, availability_error = self._polish_provider(
+                    self._args.polish_model)
+                if not available:
+                    return None, availability_error or "polish is unavailable"
+            updated_config = DictationRuntimeConfig(
+                device=self._runtime_config.device,
+                save_recordings=self._runtime_config.save_recordings,
+                polish_enabled=enabled,
+            )
+            try:
+                _write_dictate_runtime_config(
+                    self._config_path,
+                    updated_config,
+                )
+            except OSError as error:
+                return None, f"polish setting could not be saved: {error}"
+            self._runtime_config = updated_config
+            self._polish_enabled = enabled
+            self._configuration_file_warning = None
+        state = "on" if enabled else "off"
+        event = self.status_event(
+            event_type=DictateEventType.ACK,
+            message=f"Polish Final Text turned {state}",
         )
         self._broker.publish(event)
         return event, None
@@ -4647,7 +4741,7 @@ class DictateSessionController:
             shutil.copy(flac_tmp, self._out_dir / f"dict-{ts}.flac")
 
     def _polish(self, text: str) -> str:
-        if not self._args.polish:
+        if not self._polish_enabled:
             return text
         self._set_phase(DictatePhase.POLISHING)
         try:
@@ -4657,7 +4751,7 @@ class DictateSessionController:
                     {"role": "system", "content": STREAMING_POLISH_PROMPT},
                     {"role": "user", "content": text},
                 ],
-                stream=False, timeout=15, num_predict=300,
+                stream=False, timeout=60, num_predict=300,
             )
             parsed = parse_edits(edits)
             if parsed:
@@ -4859,7 +4953,7 @@ class DictateSessionController:
 
             final_phase = (
                 DictatePhase.POLISHING
-                if self._args.polish else DictatePhase.FINALIZING
+                if self._polish_enabled else DictatePhase.FINALIZING
             )
             self._broker.publish(DictateEvent(
                 DictateEventType.FINAL,
@@ -5069,6 +5163,9 @@ def _dictate_daemon(args) -> int:
             elif request.vocabulary_correction is not None:
                 event, error = controller.configure_vocabulary_correction(
                     request.vocabulary_correction)
+            elif request.polish_enabled is not None:
+                event, error = controller.configure_polish(
+                    request.polish_enabled)
             else:
                 event, error = controller.configure_save_recordings(
                     request.save_recordings)

@@ -69,6 +69,14 @@ def main() -> int:
     assert save_configure.device is None
     assert save_configure.save_recordings is True
 
+    polish_configure = rec.DictateRequest.parse(json.dumps({
+        "version": 1,
+        "command": "configure",
+        "settings": {"polish_enabled": True},
+    }))
+    assert polish_configure.command == rec.DictateCommand.CONFIGURE
+    assert polish_configure.polish_enabled is True
+
     correction_configure = rec.DictateRequest.parse(json.dumps({
         "version": 1,
         "command": "configure",
@@ -123,6 +131,15 @@ def main() -> int:
             "version": 1,
             "command": "configure",
             "settings": {"save_recordings": "yes"},
+        }),
+        "true or false",
+    )
+    expect_protocol_error(
+        rec,
+        json.dumps({
+            "version": 1,
+            "command": "configure",
+            "settings": {"polish_enabled": "yes"},
         }),
         "true or false",
     )
@@ -330,6 +347,7 @@ def main() -> int:
         config = rec.DictationRuntimeConfig(
             device=saved,
             save_recordings=True,
+            polish_enabled=True,
         )
         rec._write_dictate_runtime_config(config_path, config)
         loaded, warning = rec._load_dictate_runtime_config(config_path)
@@ -337,12 +355,14 @@ def main() -> int:
         assert loaded.device.identifier == saved.identifier
         assert loaded.device.name == saved.name
         assert loaded.save_recordings is True
+        assert loaded.polish_enabled is True
         assert stat.S_IMODE(config_path.stat().st_mode) == 0o600
 
         config_path.write_text('{"version":2}\n', encoding="utf-8")
         loaded, warning = rec._load_dictate_runtime_config(config_path)
         assert loaded.device is None
         assert loaded.save_recordings is None
+        assert loaded.polish_enabled is None
         assert "unsupported format" in warning
 
     print("PASS: dictate JSONL protocol and bounded subscriber fan-out")

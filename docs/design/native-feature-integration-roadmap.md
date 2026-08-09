@@ -155,6 +155,24 @@ After choosing configuration authority, expose in this order:
 5. `Prosody` only under a Labs/experimental section after a real-use quality
    comparison justifies it.
 
+Execution checkpoint:
+
+- microphone selection, vocabulary correction, and recording retention are
+  integrated with daemon-owned persistence;
+- `Polish Final Text` is integrated as an idle-only opt-in whose enable path
+  verifies that Ollama is reachable and the configured model is installed;
+- raw ASR remains attached to the final event and native history, and any
+  polish request failure falls back to raw ASR;
+- the cold-model request budget is deliberately longer than ordinary local
+  requests, because a persisted opt-in must not routinely degrade into a
+  silent no-op after Ollama has evicted the model.
+
+Before polish can become a recommended default, add per-utterance outcome
+telemetry (`applied`, `no edits`, or `fallback`), expose fallback in history or
+diagnostics, and reuse the meeting polisher's edit-count, content-preservation,
+and length-ratio guards. These are quality gates, not reasons to hide the
+current explicit opt-in.
+
 Do not expose model selection or stream interval as everyday knobs. They are
 diagnostic/advanced settings and should remain stable during quality trials.
 
@@ -184,6 +202,23 @@ knobs:
 - let a deliberately saved recording be reprocessed with alternative
   vocab/polish/model settings;
 - compare raw ASR and polished final text when polish is enabled.
+
+Concrete delivery slices:
+
+1. Add typed, transcript-free polish outcome fields to the final event and
+   `DictationDetails`; show only failures in the ordinary menu and include all
+   outcomes in copied diagnostics.
+2. Store raw/final comparison metadata with the existing bounded history entry
+   rather than creating another history store.
+3. Add `Reprocess Saved Dictation…` only for deliberately retained recordings;
+   it must never imply that temporary audio can be recovered.
+4. Establish a fixed local speech corpus containing names, numbers, commands,
+   and disfluencies; compare raw ASR, vocabulary-only, and polish output before
+   changing defaults or prompts.
+5. Keep prosody observational: first extend the evaluator with pitch range,
+   speaking-rate, pause, and energy features, then decide which results are
+   stable enough to display. Do not label emotion, intent, confidence, or
+   speaker identity from those signals.
 
 Gate:
 

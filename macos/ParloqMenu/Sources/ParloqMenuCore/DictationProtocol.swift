@@ -102,29 +102,41 @@ public struct DictationVocabularyCorrection:
 public struct DictationSettings: Encodable, Sendable {
     public let device: DictationDevice?
     public let saveRecordings: Bool?
+    public let polishEnabled: Bool?
     public let vocabularyCorrection: DictationVocabularyCorrection?
 
     public init(device: DictationDevice) {
         self.device = device
         self.saveRecordings = nil
+        self.polishEnabled = nil
         self.vocabularyCorrection = nil
     }
 
     public init(saveRecordings: Bool) {
         self.device = nil
         self.saveRecordings = saveRecordings
+        self.polishEnabled = nil
+        self.vocabularyCorrection = nil
+    }
+
+    public init(polishEnabled: Bool) {
+        self.device = nil
+        self.saveRecordings = nil
+        self.polishEnabled = polishEnabled
         self.vocabularyCorrection = nil
     }
 
     public init(vocabularyCorrection: DictationVocabularyCorrection) {
         self.device = nil
         self.saveRecordings = nil
+        self.polishEnabled = nil
         self.vocabularyCorrection = vocabularyCorrection
     }
 
     enum CodingKeys: String, CodingKey {
         case device
         case saveRecordings = "save_recordings"
+        case polishEnabled = "polish_enabled"
         case vocabularyCorrection = "vocabulary_correction"
     }
 }
@@ -152,6 +164,12 @@ public struct DictateRequest: Encodable, Sendable {
         self.settings = DictationSettings(
             saveRecordings: saveRecordings
         )
+    }
+
+    public init(polishEnabled: Bool) {
+        self.version = dictateProtocolVersion
+        self.command = .configure
+        self.settings = DictationSettings(polishEnabled: polishEnabled)
     }
 
     public init(vocabularyCorrection: DictationVocabularyCorrection) {

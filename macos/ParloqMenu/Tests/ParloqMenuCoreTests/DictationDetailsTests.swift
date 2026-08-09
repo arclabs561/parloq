@@ -172,6 +172,19 @@ import Testing
     #expect(settings["device"] == nil)
 }
 
+@Test func configureRequestEncodesPolishSetting() throws {
+    let request = DictateRequest(polishEnabled: true)
+    let object = try #require(
+        JSONSerialization.jsonObject(
+            with: JSONEncoder().encode(request)
+        ) as? [String: Any]
+    )
+    #expect(object["command"] as? String == "configure")
+    let settings = try #require(object["settings"] as? [String: Any])
+    #expect(settings["polish_enabled"] as? Bool == true)
+    #expect(settings["device"] == nil)
+}
+
 private func decodeEvent(_ json: String) throws -> DictateEvent {
     try JSONDecoder().decode(DictateEvent.self, from: Data(json.utf8))
 }
