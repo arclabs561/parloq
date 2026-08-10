@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import ParloqMenuCore
 
 @MainActor
@@ -49,7 +50,15 @@ enum DeliveryE2ERunner {
         defer {
             if target.isRunning {
                 target.terminate()
-                target.waitUntilExit()
+                let deadline = Date(timeIntervalSinceNow: 2)
+                while target.isRunning, Date() < deadline {
+                    RunLoop.current.run(
+                        until: Date(timeIntervalSinceNow: 0.05))
+                }
+                if target.isRunning {
+                    kill(target.processIdentifier, SIGKILL)
+                    target.waitUntilExit()
+                }
             }
             try? FileManager.default.removeItem(at: readyFile)
             pasteboard.clearContents()

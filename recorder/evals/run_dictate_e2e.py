@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import collections
 import json
 import os
 import signal
 import socket
 import subprocess
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -94,6 +96,14 @@ def main() -> int:
             stderr=subprocess.PIPE,
             text=True,
         )
+        daemon_errors: collections.deque[str] = collections.deque(maxlen=200)
+
+        def drain_errors() -> None:
+            if process.stderr is not None:
+                daemon_errors.extend(process.stderr)
+
+        error_thread = threading.Thread(target=drain_errors, daemon=True)
+        error_thread.start()
         try:
             wait_for_socket(socket_path, process, args.startup_timeout)
             subscriber = connect(socket_path, args.transcription_timeout)
@@ -115,12 +125,16 @@ def main() -> int:
                 deadline = time.monotonic() + args.transcription_timeout
                 final = None
                 phases = []
+                phase_counts: collections.Counter[str] = collections.Counter()
                 while time.monotonic() < deadline:
                     line = events.readline()
                     if not line:
                         raise RuntimeError("subscription ended before final ASR")
                     event = json.loads(line)
-                    phases.append(event.get("phase"))
+                    phase = event.get("phase")
+                    phase_counts[phase] += 1
+                    if not phases or phases[-1] != phase:
+                        phases.append(phase)
                     if event.get("type") == "error":
                         raise RuntimeError(
                             f"daemon error: {event.get('message')}")
@@ -149,6 +163,7 @@ def main() -> int:
                 "audio_seconds": final.get("elapsed_seconds"),
                 "asr_seconds": final.get("asr_seconds"),
                 "phases": phases,
+                "phase_event_counts": phase_counts,
             }, ensure_ascii=False))
             return 0
         finally:
@@ -159,8 +174,9 @@ def main() -> int:
                 except subprocess.TimeoutExpired:
                     process.kill()
                     process.wait()
+            error_thread.join(timeout=2)
             if process.returncode not in (0, -signal.SIGTERM):
-                error_output = process.stderr.read() if process.stderr else ""
+                error_output = "".join(daemon_errors)
                 if error_output:
                     print(error_output, end="", file=os.sys.stderr)
 
