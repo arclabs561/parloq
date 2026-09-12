@@ -41,7 +41,9 @@ So: trust the decoding, distrust the corpus as evidence for live emphasis.
 
 ## Open gate: naturalistic validation (not yet run)
 
-The roadmap names EMOVOME as the first naturalistic affect corpus
-(`docs/design/parloq-recorder-roadmap.md:234`). Until the separability bench is
-re-run against a spontaneous-speech corpus, the emphasis tag's validity rests
-only on acted RAVDESS. That re-run is the next eval gate and has not been done.
+The current gate is naturalistic validation on
+[MSP-Podcast](https://www.lab-msp.com/MSP/MSP-Podcast.html), a naturalistic
+speech-emotion corpus. Its free academic release requires an
+institution-signed agreement. Until the separability bench is re-run against
+an accessed spontaneous-speech corpus, the emphasis tag's validity rests only
+on acted RAVDESS. That re-run has not been done.
