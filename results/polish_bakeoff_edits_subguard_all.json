@@ -1,0 +1,230 @@
+{
+  "n": 125,
+  "seed": 0,
+  "path": "edits",
+  "models": {
+    "gemma4:e2b": {
+      "pass_rate": 0.872,
+      "by_category": {
+        "fidelity": 0.92,
+        "initial_filler": 1.0,
+        "mid_filler": 0.84,
+        "numbers": 1.0,
+        "punct_cap": 0.6
+      },
+      "median_latency_s": 0.8206100463867188,
+      "failures": [
+        {
+          "cat": "fidelity",
+          "input": "he gave up work some time ago i have been told my husband went on but evidently a great case still has its allurement for him",
+          "output": "he gave up work some time ago, iI, have been told my husband went on butbut, evidentlyevidently, a great casegreat case still has itsits allurementallurement for himhim."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it appeared that the terms would be five guineas but there was no mention of the length of time which that fee would cover",
+          "output": "it appeared that the terms would be, five guineas but there was no mention of the length of time which that fee would cover"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "the man no longer produced on her the effect of being old or poor she thought jean valjean handsome just as she thought the hovel pretty",
+          "output": "The man no longer produced on her the effect of being old or poor she thought Jean Valjean handsome just as she thought the hovel pretty"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "we will what can i do for you, davy, asked, christie, wonderfully, supported, by the thought, that she, was, going. too"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it was as though he had reached the crisis of a disease which had been for days gathering force",
+          "output": "it was as though, he had reached the crisis of a disease which had been for days, gathering force."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "listen said he like motioning them to stoop",
+          "output": "listen said he, motioning them to stoop."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "this book in its original form was received with favour and settled the claim of rossetti to rank as a poetic like translator or indeed as a poet in his own right",
+          "output": "The book in its original form, was received, with favour, and settled, the claim, of rossetti, to rank as a poetic like translator or indeed as a poet. in his own right"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "and he walked immediately out of the apartment by another door",
+          "output": "and He walked immediately out of the apartment by another door,"
+        }
+      ]
+    },
+    "gemma4:12b": {
+      "pass_rate": 0.896,
+      "by_category": {
+        "fidelity": 0.96,
+        "initial_filler": 1.0,
+        "mid_filler": 0.84,
+        "numbers": 0.96,
+        "punct_cap": 0.72
+      },
+      "median_latency_s": 2.9923129081726074,
+      "failures": [
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state to night she murmured. after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "We will What can I do for you, Davy asked. christie wonderfully supported by the thought that she was going to"
+        },
+        {
+          "cat": "numbers",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad room 4 12 chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets, tomato baskets are charming accessories for holding vegetable salad room, 4  12  chicken shrimps, cold beans, asparagus tips, shredded celery cucumbers cut in cubes, and minced peppers."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "i picked it up and coming up to him just as he was going down the steps i handed it to him",
+          "output": "I picked it up and coming up to him, just as he was going down the steps. i handed it to him"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "he knew that she would like not awake for a hundred years",
+          "output": "he knew that she would not awake for a hundred years."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "cold water is the most nourishing thing we've touched since last night",
+          "output": "cold water is the most nourishing thing we've touched since last night."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "this book in its original form was received with favour and settled the claim of rossetti to rank as a poetic like translator or indeed as a poet in his own right",
+          "output": "This book in its original form was received with favor and settled the claim of rossetti to rank as a poetic like translator or indeed as a poet in his own right."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "bill chandler the zoologist had been going deeper and deeper into the old sea bottom of syrtis",
+          "output": "Bill Chandler the zoologist had been going deeper and deeper into the old sea bottom of Syrtis"
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.048,
+        0.096
+      ],
+      "latency_ratio": 3.646449274351751
+    },
+    "gemma4:latest": {
+      "pass_rate": 0.704,
+      "by_category": {
+        "fidelity": 0.92,
+        "initial_filler": 0.76,
+        "mid_filler": 0.64,
+        "numbers": 0.92,
+        "punct_cap": 0.28
+      },
+      "median_latency_s": 1.0719411373138428,
+      "failures": [
+        {
+          "cat": "punct_cap",
+          "input": "they were not to leave it again till the tops of the wahiti ranges were lit with the first fires of day",
+          "output": "they were not to leave it again till the tops of the wahiti ranges were lit with the first fires of day."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "illustration italian millet like",
+          "output": "illustration italian millet "
+        },
+        {
+          "cat": "punct_cap",
+          "input": "the man no longer produced on her the effect of being old or poor she thought jean valjean handsome just as she thought the hovel pretty",
+          "output": "the man no longer produced on her the effect of being old or poor. she thought jean valjean handsome just as she thought the hovel pretty."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "we will what can i do for you. Davy asked Christie wonderfully supported by the thought that she was going too"
+        },
+        {
+          "cat": "initial_filler",
+          "input": "like tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "like tomato baskets, tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers."
+        },
+        {
+          "cat": "numbers",
+          "input": "also in all loves and friendships one has the experience that nothing of the kind continues when the discovery has been made that in using the at 0930 sharp same words one of the two parties has feelings thoughts intuitions wishes or fears different from those of the other",
+          "output": "also in all loves and friendships one has the experience that nothing of the kind continues when the discovery has been made, that in using the at 9:30 sharp same words one of the two parties has feelings thoughts intuitions wishes or fears different from those of the other"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "some of the preparations of maize flour are very good and when partaken in moderation suitable food for almost everybody",
+          "output": "some of the preparations of maize flour are very good, and when partaken in moderation suitable food for almost everybody."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it was as though he had reached the crisis of a disease which had been for days gathering force",
+          "output": "It was as though he had reached the crisis of a disease which had been for days gathering force"
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.248,
+        -0.088
+      ],
+      "latency_ratio": 1.3062734754878718
+    },
+    "gemma4:e2b#2": {
+      "pass_rate": 0.872,
+      "by_category": {
+        "fidelity": 0.92,
+        "initial_filler": 1.0,
+        "mid_filler": 0.84,
+        "numbers": 1.0,
+        "punct_cap": 0.6
+      },
+      "median_latency_s": 0.9834198951721191,
+      "failures": [
+        {
+          "cat": "fidelity",
+          "input": "he gave up work some time ago i have been told my husband went on but evidently a great case still has its allurement for him",
+          "output": "he gave up work some time ago, iI, have been told my husband went on butbut, evidentlyevidently, a great casegreat case still has itsits allurementallurement for himhim."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it appeared that the terms would be five guineas but there was no mention of the length of time which that fee would cover",
+          "output": "it appeared that the terms would be, five guineas but there was no mention of the length of time which that fee would cover"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "the man no longer produced on her the effect of being old or poor she thought jean valjean handsome just as she thought the hovel pretty",
+          "output": "The man no longer produced on her the effect of being old or poor she thought Jean Valjean handsome just as she thought the hovel pretty"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "we will what can i do for you, davy, asked, christie, wonderfully, supported, by the thought, that she, was, going. too"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it was as though he had reached the crisis of a disease which had been for days gathering force",
+          "output": "it was as though, he had reached the crisis of a disease which had been for days, gathering force."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "listen said he like motioning them to stoop",
+          "output": "listen said he, motioning them to stoop."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "this book in its original form was received with favour and settled the claim of rossetti to rank as a poetic like translator or indeed as a poet in his own right",
+          "output": "The book in its original form, was received, with favour, and settled, the claim, of rossetti, to rank as a poetic like translator or indeed as a poet. in his own right"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "and he walked immediately out of the apartment by another door",
+          "output": "and He walked immediately out of the apartment by another door,"
+        }
+      ]
+    }
+  },
+  "baseline_flip_rate": 0.0
+}

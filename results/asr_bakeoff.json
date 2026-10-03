@@ -1,0 +1,131 @@
+{
+  "n": 200,
+  "seed": 0,
+  "audio_seconds": 1463.9400625000003,
+  "models": {
+    "parakeet-v3": {
+      "repo": "mlx-community/parakeet-tdt-0.6b-v3",
+      "clean": {
+        "wer": 0.017959770114942528,
+        "rtfx": 64.6458154592599,
+        "hyps": {
+          "1919-142785-0028": "Boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": "He gave up work some time ago, I have been told, my husband went on. But evidently a great case still has its alarmment for him,",
+          "3576-138058-0029": "Claudia would not on any account allow him to accompany her, and thanking him for his offers as well as she could, took leave of him in tears.",
+          "7976-105575-0023": "They lay in heaps of dozens, even close up to the works.",
+          "5338-284437-0016": "There is nothing majestic about me, as you know very well."
+        }
+      },
+      "noisy-10dB": {
+        "wer": 0.02274904214559387,
+        "rtfx": 65.70151223456814,
+        "hyps": {
+          "1919-142785-0028": "Boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": "He gave up work some time ago, I have been told, my husband went on. But evidently a great case still has its alarmment for him.",
+          "3576-138058-0029": "Claudia would not on any account allow him to accompany her, and thanking him for his offers as well as she could, took leave of him in tears.",
+          "7976-105575-0023": "They lay in heaps of dozens, even close up to the works.",
+          "5338-284437-0016": "There is nothing majestic about me, as you know very well."
+        }
+      }
+    },
+    "parakeet-v2": {
+      "repo": "mlx-community/parakeet-tdt-0.6b-v2",
+      "clean": {
+        "wer": 0.016044061302681992,
+        "rtfx": 67.53659549950177,
+        "hyps": {
+          "1919-142785-0028": "boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": "He gave up work some time ago, I have been told, my husband went on but evidently a great case still has its allurement for him.",
+          "3576-138058-0029": "Claudia would not, on any account, allow him to accompany her, and thanking him for his offers as well as she could, took leave of him in tears.",
+          "7976-105575-0023": "They lay in heaps of dozens, even close up to the works.",
+          "5338-284437-0016": "There is nothing majestic about me, as you know very well."
+        },
+        "delta_vs_baseline_ci95": [
+          -0.006214732751153567,
+          0.002215963603534162
+        ]
+      },
+      "noisy-10dB": {
+        "wer": 0.018917624521072797,
+        "rtfx": 67.66839724965351,
+        "hyps": {
+          "1919-142785-0028": "boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": "He gave up work some time ago, I have been told, my husband went on, but evidently a great case still has its allurement for him.",
+          "3576-138058-0029": "Claudia would not, on any account, allow him to accompany her, and thanking him for his offers as well as she could, took leave of him in tears.",
+          "7976-105575-0023": "They lay in heaps of dozens, even close up to the works.",
+          "5338-284437-0016": "There is nothing majestic about me, as you know very well."
+        },
+        "delta_vs_baseline_ci95": [
+          -0.008847657594223002,
+          0.0011644594318022082
+        ]
+      }
+    },
+    "qwen3-asr-1.7b": {
+      "repo": "mlx-community/Qwen3-ASR-1.7B-8bit",
+      "clean": {
+        "wer": 0.015086206896551725,
+        "rtfx": 23.275010410204153,
+        "hyps": {
+          "1919-142785-0028": "Boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": "He gave up work some time ago. I have been told. My husband went on, but evidently a great case still has its alarmment for him.",
+          "3576-138058-0029": "Claudia would not, on any account, allow him to accompany her, and thanking him for his offers as well as she could, took leave of him in tears.",
+          "7976-105575-0023": "They lay in heaps of dozens, even close up to the works.",
+          "5338-284437-0016": "There is nothing majestic about me, as you know very well."
+        },
+        "delta_vs_baseline_ci95": [
+          -0.006748778031056146,
+          0.0007091788198452028
+        ]
+      },
+      "noisy-10dB": {
+        "wer": 0.018438697318007662,
+        "rtfx": 22.562835230728883,
+        "hyps": {
+          "1919-142785-0028": "Boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": "He gave up work some time ago. I have been told. My husband went on, but evidently a great case still has its allurement for him.",
+          "3576-138058-0029": "Claudia would not, on any account, allow him to accompany her, and thanking him for his offers as well as she could, took leave of him in tears.",
+          "7976-105575-0023": "They lay in heaps of dozens, even close up to the works.",
+          "5338-284437-0016": "There is nothing majestic about me, as you know very well."
+        },
+        "delta_vs_baseline_ci95": [
+          -0.008953734700282457,
+          0.00047427080863172874
+        ]
+      }
+    },
+    "whisper-turbo": {
+      "repo": "mlx-community/whisper-large-v3-turbo-asr-fp16",
+      "clean": {
+        "wer": 0.0210727969348659,
+        "rtfx": 8.428783648669743,
+        "hyps": {
+          "1919-142785-0028": " Boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": " he gave up work some time ago i have been told my husband went on but evidently a great case still has its allurement for him",
+          "3576-138058-0029": " claudia would not on any account allow him to accompany her and thanking him for his offers as well as she could took leave of him in tears",
+          "7976-105575-0023": " They lay in heaps of dozens even close up to the works",
+          "5338-284437-0016": " There is nothing majestic about me, as you know very well."
+        },
+        "delta_vs_baseline_ci95": [
+          -0.00025314741575360744,
+          0.00696156250403853
+        ]
+      },
+      "noisy-10dB": {
+        "wer": 0.027059386973180076,
+        "rtfx": 7.599921610480491,
+        "hyps": {
+          "1919-142785-0028": " Boil them before they are put into the soup or other dish they may be intended for.",
+          "3081-166546-0023": " He gave up work some time ago, I have been told. My husband went on. But evidently a great case still has its alert for him.",
+          "3576-138058-0029": " Claudia would not on any account allow him to accompany her, and thanking him for his offers as well as she could, took leave of him in tears.",
+          "7976-105575-0023": " They lay in heaps of dozens, even close up to the works.",
+          "5338-284437-0016": " There is nothing majestic about me, as you know very well."
+        },
+        "delta_vs_baseline_ci95": [
+          0.0007186835164377298,
+          0.008185034083866961
+        ]
+      }
+    }
+  }
+}

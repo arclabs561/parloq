@@ -1,0 +1,346 @@
+{
+  "n": 125,
+  "seed": 0,
+  "path": "edits",
+  "models": {
+    "gemma4:e2b": {
+      "pass_rate": 0.704,
+      "by_category": {
+        "fidelity": 0.8,
+        "initial_filler": 0.68,
+        "mid_filler": 0.56,
+        "numbers": 0.88,
+        "punct_cap": 0.6
+      },
+      "median_latency_s": 0.8028430938720703,
+      "failures": [
+        {
+          "cat": "fidelity",
+          "input": "at the two mentioned one pays for the surroundings as well as for the food and sometimes this is worth paying for",
+          "output": "The two mentioned one pays for the surroundings as well as, for the food, and sometimes this is worth. paying for"
+        },
+        {
+          "cat": "numbers",
+          "input": "illustration italian two p m millet",
+          "output": "Illustration Italian two p.m. millet"
+        },
+        {
+          "cat": "fidelity",
+          "input": "he gave up work some time ago i have been told my husband went on but evidently a great case still has its allurement for him",
+          "output": "he gave up work some time ago, iI, have been told my husband went on butbut, evidentlyevidently, a great casegreat case still has itsits allurementallurement for himhim."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it appeared that the terms would be five guineas but there was no mention of the length of time which that fee would cover",
+          "output": "it appeared that the terms were five guineas but there was no mention of the length of time which that fee would cover"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "by his default short while he sojourned here by his default to weeping and to toil he like changed his innocent laughter and sweet play",
+          "output": "By default short while he sojourned here, by his default to weeping, and to toil, he like changed, his innocent laughter, and sweet play."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "the man no longer produced on her the effect of being old or poor she thought jean valjean handsome just as she thought the hovel pretty",
+          "output": "The man no longer produced on her the effect of being old or poor she thought Jean Valjean handsome just as she thought the hovel pretty"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "What can I do for you can i do for you, davy, asked, christie, wonderfully, supported, by the thought, that she, was, going. too"
+        },
+        {
+          "cat": "initial_filler",
+          "input": "like also in all loves and friendships one has the experience that nothing of the kind continues when the discovery has been made that in using the same words one of the two parties has feelings thoughts intuitions wishes or fears different from those of the other",
+          "output": "Also in all loves and friendships one has the experience that nothin,g of the kind, continues, when the discovery, has been made that in using the same, words, one of the two parties, has feelings, thoughts, intuitions, wishes, or fears. different from those of the other"
+        }
+      ]
+    },
+    "gemma4:latest": {
+      "pass_rate": 0.464,
+      "by_category": {
+        "fidelity": 0.52,
+        "initial_filler": 0.6,
+        "mid_filler": 0.12,
+        "numbers": 0.84,
+        "punct_cap": 0.24
+      },
+      "median_latency_s": 1.074235200881958,
+      "failures": [
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "only his heart and lungs worked on at a strong measured rate"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "they were not to leave it again till the tops of the wahiti ranges were lit with the first fires of day",
+          "output": "they were not leave it again till the tops of the wahiti ranges were lit with the first fires of day."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "illustration italian millet like",
+          "output": "illustration italian millet "
+        },
+        {
+          "cat": "fidelity",
+          "input": "he gave up work some time ago i have been told my husband went on but evidently a great case still has its allurement for him",
+          "output": "He left work some time ago. I have been told, My husband went on. But evidently a great case still has its allurement for him."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "by his default short while he sojourned here by his default to weeping and to toil he like changed his innocent laughter and sweet play",
+          "output": "by default short while he sojourned here by default to weeping and to toil he changed his innocent laughter and sweet play"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "the man no longer produced on her the effect of being old or poor she thought jean valjean handsome just as she thought the hovel pretty",
+          "output": "The man no longer showed on her the effect of being old or poor. she thought jean valjean handsome just as she thought the hovel pretty."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight she murmured after a pause which lasted like for three ticks of the clock."
+        },
+        {
+          "cat": "fidelity",
+          "input": "he went in and examined his letters but there was nothing from carrie",
+          "output": "he went in and examined his letters but there were nothing from carrie."
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.344,
+        -0.136
+      ],
+      "latency_ratio": 1.3380387887513334
+    },
+    "gemma4:12b": {
+      "pass_rate": 0.6,
+      "by_category": {
+        "fidelity": 0.72,
+        "initial_filler": 0.88,
+        "mid_filler": 0.16,
+        "numbers": 0.64,
+        "punct_cap": 0.6
+      },
+      "median_latency_s": 3.22548508644104,
+      "failures": [
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "only his heart and lungs worked on at a strong measured rate."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "by his default short while he sojourned here by his default to weeping and to toil he like changed his innocent laughter and sweet play",
+          "output": "by his default short while he sojourned here by his default to weeping and to toil he changed his innocent laughter, and sweet play."
+        },
+        {
+          "cat": "fidelity",
+          "input": "he has given us free passes all the way to the end of our journey and all the way back again and coupons for free board and lodging at the hotel it's a wedding present",
+          "output": "He has given us free passes all the, way to the end of our journey, and back again, plus coupons for free board and lodging at the hotel. It's a wedding present."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight she murmured. after a pause which lasted for three ticks of the clock"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight she murmured. after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "We will. can I do for you, Davy asked. christie wonderfully supported by the thought that she was going to"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery like cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets Are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery like cucumbers cut in cubes and minced peppers."
+        },
+        {
+          "cat": "numbers",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad room 4 12 chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets, they are charming accessories for holding vegetable salad room, 4  12  chicken shrimps, cold beans, asparagus tips, shredded celery cucumbers cut in cubes, and minced peppers."
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.208,
+        0.008
+      ],
+      "latency_ratio": 4.017578417327717
+    },
+    "granite4.2:8b": {
+      "pass_rate": 0.432,
+      "by_category": {
+        "fidelity": 0.36,
+        "initial_filler": 0.68,
+        "mid_filler": 0.12,
+        "numbers": 0.76,
+        "punct_cap": 0.24
+      },
+      "median_latency_s": 1.176238775253296,
+      "failures": [
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "only his heart and lungs worked on at a strong measured rate."
+        },
+        {
+          "cat": "fidelity",
+          "input": "at the two mentioned one pays for the surroundings as well as for the food and sometimes this is worth paying for",
+          "output": "Regarding the two mentioned one pays for the surroundings, as well as for the food, and sometimes this is worth paying for."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "illustration italian millet like",
+          "output": "illustration italian millet "
+        },
+        {
+          "cat": "numbers",
+          "input": "illustration italian two p m millet",
+          "output": "illustration Italian two p.m. m millet"
+        },
+        {
+          "cat": "fidelity",
+          "input": "he gave up work some time ago i have been told my husband went on but evidently a great case still has its allurement for him",
+          "output": "he gave up some time ago, i have been told my husband went on but evidently a great case still has its allurement for him."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it appeared that the terms would be five guineas but there was no mention of the length of time which that fee would cover",
+          "output": "It appeared the terms were five guineas, but there was no mention of the length of time which that fee would cover"
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um by his default short while he sojourned here by his default to weeping and to toil he changed his innocent laughter and sweet play",
+          "output": "By his default, short while he sojourned here by his default to weeping and toil he changed his innocent laughter and sweet play"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "by his default short while he sojourned here by his default to weeping and to toil he like changed his innocent laughter and sweet play",
+          "output": "while he sojourned here he sojourned here by his default weeping and toil he changed his innocent laughter. and sweet play"
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.368,
+        -0.176
+      ],
+      "latency_ratio": 1.4650917274262867
+    },
+    "granite4.2:3b": {
+      "pass_rate": 0.72,
+      "by_category": {
+        "fidelity": 0.84,
+        "initial_filler": 0.88,
+        "mid_filler": 0.56,
+        "numbers": 0.96,
+        "punct_cap": 0.36
+      },
+      "median_latency_s": 0.8184421062469482,
+      "failures": [
+        {
+          "cat": "punct_cap",
+          "input": "it appeared that the terms would be five guineas but there was no mention of the length of time which that fee would cover",
+          "output": "It appeared that the terms would be five guineas but there was no mention of the length of time which that fee would cover,"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "the man no longer produced on her the effect of being old or poor she thought jean valjean handsome just as she thought the hovel pretty",
+          "output": "The man no longer produced on her the effect of being old or poor she thought Jean valjean handsome just as she thought the Hovel pretty"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight She murmured. after a pause which lasted like for three ticks of the clockthree ticks of the clock."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "we will what can i do for you Davy asked Christie wonderfully supported by the thought that she was going too."
+        },
+        {
+          "cat": "fidelity",
+          "input": "mode put the milk and butter into a saucepan and keep shaking it round until the latter is melted",
+          "output": "Mode put the Milk and Butter into a Saucepan and keep shaking keep shaking it round until the latter is melted. it round until the latter is melted"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "some of the preparations of maize flour are very good and when partaken in moderation suitable food for almost everybody",
+          "output": "Some of the preparations of maize flour are very good And When Partaken In moderation Suitable food for almost everybody"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "cold water is the most nourishing thing we've touched since last night",
+          "output": "Cold water is the Most nourishing thing We've touched Since last night"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "this garish display of mirrors and elaborate decoration of ceiling and pillars gives it the appearance of the abode of saturnalia but decorum is the rule like among the patrons",
+          "output": "this garish display of mirrors and elaborate decoration of ceiling and pillars gives it the appearance of the abode of saturnalia but decorum is the rule among the patrons"
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.088,
+        0.12
+      ],
+      "latency_ratio": 1.0194297148396017
+    },
+    "gemma4:e2b#2": {
+      "pass_rate": 0.704,
+      "by_category": {
+        "fidelity": 0.8,
+        "initial_filler": 0.68,
+        "mid_filler": 0.56,
+        "numbers": 0.88,
+        "punct_cap": 0.6
+      },
+      "median_latency_s": 0.854949951171875,
+      "failures": [
+        {
+          "cat": "fidelity",
+          "input": "at the two mentioned one pays for the surroundings as well as for the food and sometimes this is worth paying for",
+          "output": "The two mentioned one pays for the surroundings as well as, for the food, and sometimes this is worth. paying for"
+        },
+        {
+          "cat": "numbers",
+          "input": "illustration italian two p m millet",
+          "output": "Illustration Italian two p.m. millet"
+        },
+        {
+          "cat": "fidelity",
+          "input": "he gave up work some time ago i have been told my husband went on but evidently a great case still has its allurement for him",
+          "output": "he gave up work some time ago, iI, have been told my husband went on butbut, evidentlyevidently, a great casegreat case still has itsits allurementallurement for himhim."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "it appeared that the terms would be five guineas but there was no mention of the length of time which that fee would cover",
+          "output": "it appeared that the terms were five guineas but there was no mention of the length of time which that fee would cover"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "by his default short while he sojourned here by his default to weeping and to toil he like changed his innocent laughter and sweet play",
+          "output": "By default short while he sojourned here, by his default to weeping, and to toil, he like changed, his innocent laughter, and sweet play."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "the man no longer produced on her the effect of being old or poor she thought jean valjean handsome just as she thought the hovel pretty",
+          "output": "The man no longer produced on her the effect of being old or poor she thought Jean Valjean handsome just as she thought the hovel pretty"
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "What can I do for you can i do for you, davy, asked, christie, wonderfully, supported, by the thought, that she, was, going. too"
+        },
+        {
+          "cat": "initial_filler",
+          "input": "like also in all loves and friendships one has the experience that nothing of the kind continues when the discovery has been made that in using the same words one of the two parties has feelings thoughts intuitions wishes or fears different from those of the other",
+          "output": "Also in all loves and friendships one has the experience that nothin,g of the kind, continues, when the discovery, has been made that in using the same, words, one of the two parties, has feelings, thoughts, intuitions, wishes, or fears. different from those of the other"
+        }
+      ]
+    }
+  },
+  "baseline_flip_rate": 0.0
+}

@@ -1,0 +1,346 @@
+{
+  "n": 125,
+  "seed": 0,
+  "path": "rewrite",
+  "models": {
+    "gemma4:e2b": {
+      "pass_rate": 0.648,
+      "by_category": {
+        "fidelity": 0.88,
+        "initial_filler": 0.4,
+        "mid_filler": 0.48,
+        "numbers": 0.68,
+        "punct_cap": 0.8
+      },
+      "median_latency_s": 0.4888949394226074,
+      "failures": [
+        {
+          "cat": "initial_filler",
+          "input": "um only his heart and lungs worked on at a strong measured rate",
+          "output": "Only his heart and lungs worked at a strong measured rate."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "Only his heart and lungs worked at a strong measured rate."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock",
+          "output": "Um that poor boy is in a very excited state tonight she murmured after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight she murmured after a pause which lasted like for three ticks of the clock."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "We will, what can I do for you? Davy asked Christie wonderfully supported by the thought that she was going to."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "like tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets are charming accessories for holding vegetable salad, chicken, shrimps, cold beans, asparagus tips, shredded celery, cucumbers cut in cubes, and minced peppers."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery like cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets are charming accessories for holding vegetable salad, chicken, shrimps, cold beans, asparagus tips, shredded celery, cucumbers cut in cubes, and minced peppers."
+        },
+        {
+          "cat": "numbers",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad room 4 12 chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets are charming accessories for holding vegetable salad, room 412, chicken, shrimps, cold beans, asparagus tips, shredded celery, cucumbers cut in cubes, and minced peppers."
+        }
+      ]
+    },
+    "gemma4:latest": {
+      "pass_rate": 0.784,
+      "by_category": {
+        "fidelity": 0.92,
+        "initial_filler": 0.8,
+        "mid_filler": 0.44,
+        "numbers": 0.88,
+        "punct_cap": 0.88
+      },
+      "median_latency_s": 0.8893029689788818,
+      "failures": [
+        {
+          "cat": "initial_filler",
+          "input": "um only his heart and lungs worked on at a strong measured rate",
+          "output": "Only his heart and lungs worked at a strong measured rate."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "only his heart and lungs worked at a strong, measured rate."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight, she murmured after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight, she murmured after a pause which lasted like for three ticks of the clock."
+        },
+        {
+          "cat": "numbers",
+          "input": "that poor boy is in a very excited state to night she murmured after a call 555 0134 pause which lasted for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight, she murmured after a call to 555 0134, a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery like cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets are charming accessories for holding vegetable salad, chicken, shrimps, cold beans, asparagus tips, shredded celery, like cucumbers cut in cubes, and minced peppers."
+        },
+        {
+          "cat": "fidelity",
+          "input": "mode put the milk and butter into a saucepan and keep shaking it round until the latter is melted",
+          "output": "Put the milk and butter into a saucepan and keep shaking it round until the latter is melted."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "the outside did not depend like on the interior",
+          "output": "The outside did not depend on the interior."
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        0.056,
+        0.216
+      ],
+      "latency_ratio": 1.819006287995459
+    },
+    "gemma4:12b": {
+      "pass_rate": 0.928,
+      "by_category": {
+        "fidelity": 0.92,
+        "initial_filler": 0.96,
+        "mid_filler": 0.84,
+        "numbers": 1.0,
+        "punct_cap": 0.92
+      },
+      "median_latency_s": 2.3087401390075684,
+      "failures": [
+        {
+          "cat": "initial_filler",
+          "input": "um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight, she murmured after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight, she murmured after a pause which lasted like for three ticks of the clock."
+        },
+        {
+          "cat": "fidelity",
+          "input": "mode put the milk and butter into a saucepan and keep shaking it round until the latter is melted",
+          "output": "Put the milk and butter into a saucepan and keep shaking it round until the latter is melted."
+        },
+        {
+          "cat": "fidelity",
+          "input": "you don't understand he began disdainfully but stopped short intimidated by the dead blackness of the cavernous eyes in the face turned slowly towards him with a blind stare as if guided only by the sound",
+          "output": "\"You don't understand,\" he began disdainfully, but stopped short, intimidated by the dead blackness of the cavernous eyes in the face turned slowly towards him with a blind stare, as if guided only by the sound."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "when it was evening he led his like band into a nearby street and in his disguise approached the merchant's house he knocked at the door",
+          "output": "When it was evening, he led his band into a nearby street and, in his disguise, approached the merchant's house. He knocked at the door."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "we finally got him like to select the one prized above all others and this is what chef scheiler gave us",
+          "output": "We finally got him to select the one prized above all others, and this is what Chef Scheiler gave us."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "there are only three sledges left he whispered",
+          "output": "\"There are only three sledges left,\" he whispered."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "he would get one to day it would probably be on his desk when he got back he would look for it at once",
+          "output": "He would get one today. It would probably be on his desk when he got back. He would look for it at once."
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        0.2,
+        0.36
+      ],
+      "latency_ratio": 4.72236456718948
+    },
+    "granite4.2:8b": {
+      "pass_rate": 0.728,
+      "by_category": {
+        "fidelity": 0.84,
+        "initial_filler": 0.36,
+        "mid_filler": 0.64,
+        "numbers": 1.0,
+        "punct_cap": 0.8
+      },
+      "median_latency_s": 0.7734792232513428,
+      "failures": [
+        {
+          "cat": "initial_filler",
+          "input": "um only his heart and lungs worked on at a strong measured rate",
+          "output": "His heart and lungs worked at a strong measured rate."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "His heart and lungs worked at a strong, measured rate."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um illustration italian millet",
+          "output": "Um illustration Italian millet"
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock",
+          "output": "Um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock\n\nWait, I need to follow the rules carefully. The instruction says: \"Remove standalone filler words at the start of a sentence ONLY: 'um, ', 'uh, ', 'like, '.\" The transcript begins with \"um that poor boy...\", so \"um\" is a standalone filler at the start of the sentence. I should remove \"um\" (and the comma after it if present; here it's \"um that\", so \"um\" is followed by a space, not a comma? The rule says \"um, \" with a comma, but the example includes the comma. However, the transcript says \"um that\", so it's \"um\" followed by a space, not \"um, \". The rule says \"standalone filler words at the start of a sentence ONLY: 'um, ', 'uh, ', 'like, '.\" It likely means the exact phrases \"um, \", \"uh, \", \"like, \" where the comma is part of the filler phrase as spoken. But the transcript has \"um that\", so it's \"um\" without a comma? The user wrote \"um that poor boy...\", so it's \"um\" then space. The rule says \"um, \" with a comma, but in practice, we should remove \"um\" if it's at the start of a sentence, regardless of comma? Let's read: \"Remove standalone filler words at the start of a sentence ONLY: 'um, ', 'uh, ', 'like, '.\" It probably means the filler words themselves when they appear at the very beginning of a sentence, possibly with a comma after them as spoken. But to be safe, since it's \"um that\", and \"um\" is a filler word at the start, we should remove \"um\". However, the rule says \"standalone filler words\", and \"um\" is standalone at start, so remove it. But the instruction says \"Leave fillers mid-sentence alone.\" So only remove if at start of sentence.\n\nAlso, \"to night\" might be a homophone error. \"to night\" could be \"tonight\" but it's \"to night\" as spoken. \"to night\" might be \"tonight\", but \"tonight\" is not in the transcript; it's \"to night\". \"to\" vs \"too\" vs \"tonight\"? \"to night\" likely means \"tonight\", but \"tonight\" is two words? \"tonight\" is one word, but \"to night\" two words. Context: \"is in a very excited state to night she murmured...\" might be \"is in a very excited state tonight she murmured...\" but \"tonight\" would be \"tonight\", but \"to night\" could be \"to night\" as in \"to the night\", but \"she murmured after a pause...\" so probably \"tonight\" intended. However, \"to night\" as written might be ambiguous. But the rule says \"Fix obvious homophone or near-homophone errors when context makes the intended word unambiguous\". Is \"to night\" obvious? \"to night\" could be \"tonight\" (common phrase), but \"to\" might be a mistake for \"tonight\". However, \"to night\" isn't a standard phrase; \"tonight\" is. Given \"she murmured after a pause which lasted...\", likely \"tonight\" is intended, but \"to night\" might be \"to night\" as \"to the night\", but \"she murmured after a pause which lasted...\", so \"to night\" probably means \"tonight\". But is it obvious? \"to night\" vs \"tonight\": \"tonight\" is a single word, but spoken might be \"to night\" if someone says \"to night\" incorrectly. However, the rule says \"when context makes the intended word unambiguous\". Context: \"is in a very excited state to night she murmured...\" likely \"is in a very excited state tonight she murmured...\", so \"to\" might be a filler or mis-speech for \"tonight\". But \"to\" could also mean \"toward the night\", but \"she murmured after a pause...\" suggests describing the time, so \"tonight\" is probable. However, I should not invent; if it's ambiguous, leave as-is. But \"to night\" might be a clear error for \"tonight\", but \"tonight\" isn't in the transcript; the transcript says \"to night\", so I should not change it to \"tonight\" unless it's obvious and unambiguous. The rule says \"Fix obvious homophone or near-homophone errors when context makes the intended word unambiguous\". Is \"to\" a homophone of \"tonight\"? No, \"to\" and \"tonight\" aren't homophones; \"to\" might be a mistake for \"tonight\" if said quickly. But \"to night\" as two words could be \"tonight\" if the speaker said \"to night\" meaning \"tonight\", but it's not a homophone error per se; it's a possible slip. However, the safest is to not change unless clearly wrong. But \"to night\" at the start of \"is in a very excited state to night\" might be \"is in a very excited state tonight\", so \"to\" might be extraneous or part of \"tonight\". But \"to night\" could be read as \"to the night\", but \"she murmured after a pause...\" so likely \"tonight\". I think it's ambiguous, so better not change. But \"um\" at start should be removed.\n\nAlso, capitalize first letter of every sentence. The transcript is one sentence? It starts with \"um that...\", so after removing \"um\", it should start with \"That\" (capital T). But \"that\" might be lowercase; we need to capitalize first letter.\n\nLet's parse:\n\nOriginal: \"um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock\"\n\n- Start with \"um\", which is a filler at sentence start, so remove \"um\". Should we remove just \"um\" or \"um \"? The rule says \"standalone filler words at the start of a sentence ONLY: 'um, ', 'uh, ', 'like, '\". It likely means if the sentence starts with \"um\" followed by a comma and space, but here it's \"um that\", so \"um\" is at start, no comma after \"um\" in the transcript (it's \"um that\", so \"um\" then space). The phrase \"um, \" includes a comma, but the transcript might say \"um, that\" with a comma. Here it's \"um that\", no comma. The rule says \"um, \" as the filler phrase, but probably means the filler word possibly followed by a comma as spoken. To be precise, \"remove standalone filler words at the start of a sentence\", so if it starts with \"um\" (even without comma), remove \"um\". Similarly, \"uh\" or \"like\" at start. So remove \"um\".\n\nAfter removing \"um\", the sentence starts with \"that\". We should capitalize \"That\" as first letter of sentence.\n\nNow, punctuation: need to add sentence-ending punctuation. The transcript seems to be one sentence (no obvious period), so we should end with a period? But the rule says \"Add or correct sentence-ending punctuation: . ? !\". We need to add a period at the end if it's a statement. It ends with \"clock\", no punctuation, so add \".\"\n\nCommas: where hard to parse. \"is in a very excited state to night she murmured\" might be hard: \"is in a very excited state to night she murmured\" could be parsed as \"is in a very excited state, to night she murmured\" but \"to night\" might need a comma before \"she murmured\"? Let's see: \"the poor boy is in a very excited state to night she murmured after a pause...\" Probably \"to night\" is part of the state description, and \"she murmured\" is a clause. Might need a comma before \"she murmured\" for clarity: \"is in a very excited state, to night she murmured\" but \"to night\" is odd. Better: \"is in a very excited state tonight, she murmured after a pause...\" but we can't change \"to night\" to \"tonight\". However, we can add commas where genuinely hard to parse. \"she murmured after a pause\" might need a comma before \"she murmured\" if it's a parenthetical, but it's a direct report, so probably no comma needed. Let's read: \"the poor boy is in a very excited state to night she murmured after a pause which lasted...\" It might be parsed as \"the poor boy is in a very excited state; to night she murmured...\" but \"to night\" is unclear. However, as a rule, add commas only where genuinely hard to parse without one. \"she murmured\" after \"state to night\" might be confusing, so a comma before \"she murmured\" could help: \"is in a very excited state, to night she murmured...\" but \"to night\" still unclear. Alternatively, \"after a pause which lasted\" might need a comma before \"which\", but \"which\" is a relative pronoun, usually no comma needed if restrictive, but \"which lasted for three ticks\" might be non-restrictive? \"which lasted for three ticks\" is probably restrictive, so no comma. However, \"which\" at start of relative clause often doesn't need comma in restrictive, but sometimes for clarity. But the rule says \"genuinely hard to parse without one\", so if it's hard, add comma. Let's see: \"which lasted for three ticks of the clock\" \u2013 \"which\" refers to \"a pause\", so \"a pause which lasted...\" might be clear without comma, but \"which\" starting a clause could cause parsing pause. However, typically no comma needed for restrictive relative clause. I think no comma is necessary unless it's non-restrictive. Since it's \"a pause which lasted\", likely restrictive, so no comma.\n\nBut \"to night\" might cause parsing: \"state to night she murmured\" could be read as \"state to night\" vs \"state, to night she murmured\". Without comma, \"to night she murmured\" might be parsed as \"to night she\" which is wrong, so a comma might help. But \"to night\" is two words, \"she murmured\" is separate, so \"state to night she murmured\" might be ambiguous: is \"to night\" part of state or separate? Given context, \"the poor boy is in a very excited state to night she murmured\" probably means \"the poor boy is in a very excited state; tonight she murmured\", so a comma before \"she murmured\" would clarify. But \"she murmured\" is a verb phrase, not a clause with subject? \"she murmured\" has subject \"she\", so it's a finite clause, so a comma before \"she murmured\" might be appropriate for separating the main clause \"the poor boy is in a very excited state to night\" from \"she murmured\", but \"to night\" might be attached to state. Hard to say.\n\nHowever, the rule says \"add commas where a sentence is genuinely hard to parse without one\". I need to decide based on typical parsing. \"the poor boy is in a very excited state to night she murmured\" \u2013 without comma, one might read \"to night she\" as \"to night she murmured\", which could be misparsed as \"to night she\" (i.e., \"to the night she\"), but with \"she murmured\", it's probably \"tonight she murmured\", so a comma after \"state\" might help: \"is in a very excited state, to night she murmured\". But \"to night\" might still be unclear, but the comma would separate the state description from the murmur.\n\nSimilarly, \"which lasted for three ticks of the clock\" \u2013 \"which\" might need a comma if non-restrictive, but it's likely restrictive, so no.\n\nGiven the instruction to only add necessary commas, I should add a comma before \"she murmured\" if it makes parsing easier. But \"she murmured\" is a separate clause (\"she murmured after a pause...\"), so probably yes.\n\nBut let's not overthink; the safest is to add minimal punctuation. Since it's one sentence, end with \".\". For commas, only add where genuinely hard. \"she murmured after a pause\" \u2013 \"after a pause\" might be fine without comma. \"which lasted\" \u2013 fine.\n\nPerhaps no comma needed except end period.\n\nNow, capitalize first letter: after removing \"um\", start with \"That\" (capital T).\n\n\"she murmured\" \u2013 \"she\" should not be capitalized unless it's the start of a sentence; \"she\" is mid-sentence, so lowercase \"she\" is fine, but \"She\" with capital S would be wrong if not start. The rule says \"Capitalize the first letter of every sentence and proper nouns you are certain of\". So only first letter of sentence, not every \"she\". So \"she\" should be lowercase unless it's the start.\n\nNow, \"to night\" \u2013 no change as per ambiguity.\n\n\"three ticks of the clock\" \u2013 fine.\n\nNow, step by step:\n\n- Remove \"um\" at start: transcript starts with \"um that...\", so remove \"um\" (and the space? \"um that\" -> after removal, it should be \"that poor boy...\" without extra space? We should remove \"um\" and the preceding space? The transcript is \"um that poor boy...\", so \"um\" followed by space then \"that\". Removing \"um\" would leave \" that poor boy...\" with leading space, which is bad. We should remove \"um\" and the space after it if \"um\" is at start with space. Typically, \"um\" as filler might be spoken with a pause, so \"um\" then space. To clean, we should remove \"um\" and the space following it if it's immediately after \"um\". But the rule says \"remove standalone filler words at the start of a sentence\", so likely remove the word \"um\" itself, and the sentence should start with the next word. So \"um that\" -> \"that\". No leading space.\n\nThus, after removal: \"that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock\"\n\n- Capitalize first letter: \"That poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock\"\n\n- Add period at end: \"That poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock.\"\n\n- Check commas: \"is in a very excited state to night she murmured\" \u2013 \"to night she murmured\" might be hard: \"state to night she murmured\" could be read as \"state to night\" vs \"state, to night she murmured\". A comma after \"state\" might help: \"is in a very excited state, to night she murmured\". But \"to night\" might still be unclear, but comma separates the descriptive phrase from the murmur clause. Since \"she murmured\" is a finite clause (\"she murmured after...\"), it's reasonable to put a comma before \"she murmured\" for clarity. However, \"she murmured after a pause\" is part of the murmur, so \"she murmured after a pause which lasted...\" is a single clause. Better: \"is in a very excited state; to night she murmured after a pause...\" but semicolon not allowed, only commas. So comma might be appropriate: \"is in a very excited state, to night she murmured after a pause...\" But \"to night\" might be better as \"tonight\", but we can't change.\n\nGiven \"genuinely hard to parse without one\", without comma, one might think \"state to night\" as a phrase, but \"she murmured\" is separate, so comma could help. I think adding a comma after \"state\" is reasonable: \"is in a very excited state, to night she murmured after a pause...\" However, \"to night she murmured\" still has \"she\" after \"to night\", which might be parsed as \"to night she\" meaning \"to the night she\", but with comma it's clearer as \"state, to night she murmured\". But \"to night\" might be intended as \"tonight\", so \"tonight she murmured\" would be odd; usually \"she murmured tonight\" or \"tonight she murmured\". But \"tonight she murmured\" is possible.\n\nTo be safe, since the rule says \"add commas where a sentence is genuinely hard to parse without one\", and without comma, \"state to night she murmured\" could be ambiguous (is \"to night\" part of state or separate), I should add a comma after \"state\". Similarly, \"which lasted\" might not need comma.\n\nLet's test parsing: \"the poor boy is in a very excited state to night she murmured after a pause...\" Without comma, one might read \"state to night\" as a unit, then \"she murmured\", but it's probably two ideas: the boy's state, and she murmured. So comma after \"state\" would clarify.\n\nThus, add comma after \"state\": \"is in a very excited state, to night she murmured after a pause...\"\n\nBut \"to night\" might be followed by \"she\", so \"state, to night she murmured\" \u2013 still \"to night she\" might be parsed as \"to night she\", but with comma it's \"state, to night she murmured\", which is acceptable.\n\nAlternatively, no comma if the relative clause is restrictive. I think adding a comma is prudent for clarity.\n\nHowever, the instruction says \"add commas where a sentence is genuinely hard to parse without one\". I need to decide if it's genuinely hard. Possibly yes, because \"state to night she murmured\" could be misread as \"state to night she\" implying \"to the night she\", but with \"murmured\" it's clear she murmured, but still.\n\nGiven the need to be precise, I'll add a comma after \"state\" before \"to night\". So \"is in a very excited state, to night she murmured...\"\n\nBut \"to night\" might be \"tonight\", so \"state, tonight she murmured\" would be odd; usually \"tonight she murmured\" is fine. But \"state, to night she murmured\" might have a slight awkwardness, but it's minimal.\n\nSince I must only add commas where genuinely hard to parse, and it likely is hard without comma (because \"she murmured\" starts a new clause), I'll add the comma.\n\nSimilarly, check other parts: \"after a pause which lasted\" \u2013 \"which\" might need comma if non-restrictive, but it's restrictive (\"a pause which lasted...\"), so no comma needed.\n\nThus, corrected sentence: \"That poor boy is in a very excited state, to night she murmured after a pause which lasted for three ticks of the clock.\"\n\nBut \"she murmured\" should have \"she\" lowercase? \"she\" is not start of sentence, so \"she\" lowercase is fine. \"She\" with capital S would be wrong unless it's proper noun, but \"she\" is a pronoun, not proper noun, so lowercase.\n\nNow, \"to night\" \u2013 no change.\n\nNow, check homophone: \"to\" vs \"too\" \u2013 \"to night\" isn't \"too night\", so no. \"their\" vs \"there\" \u2013 no. So fine.\n\nNow, output the corrected transcript verbatim with these changes.\n\nBut \"um\" removal: should we remove \"um\" only, not \"um, \"? The transcript is \"um that...\", so remove \"um\" and the space? We should output \"that poor boy...\" without leading \"um \". So \"that poor boy...\" starts with \"that\", no leading space.\n\nThus, final: \"That poor boy is in a very excited state, to night she murmured after a pause which lasted for three ticks of the clock.\"\n\nBut is \"That\" correct? \"that\" becomes \"That\" with capital T, yes.\n\nNow, check if \"state,\" with comma is correct: \"is in a very excited state,\" \u2013 yes.\n\nBut \"to night\" might be \"tonight\", but we don't change it.\n\nNow, ensure no extra punctuation: end with period.\n\nNow, write the output exactly.\n\nBut let's confirm rules: \"Remove standalone filler words at the start of a sentence ONLY: 'um, ', 'uh, ', 'like, '.\" The phrase includes a comma, but the transcript has \"um that\" without comma after \"um\". Should we still remove \"um\"? The rule says \"standalone filler words\", so if it's \"um\" at start, remove it regardless of comma. I think yes, remove \"um\".\n\nSimilarly, \"like\" etc.\n\nThus, proceed.\n\nNow, output only the corrected transcript, nothing else.\n\nSo: \"That poor boy is in a very excited state, to night she murmured after a pause which lasted for three ticks of the clock.\"\n\nBut \"she murmured\" \u2013 \"she\" should be lowercase \"she\", yes.\n\nIs \"That\" correct? Yes, first letter capital.\n\nNow, check comma placement: \"state, to night\" \u2013 is it \"state, to night she murmured\" or \"state, to night she murmured after...\"? Yes.\n\nAlternatively, maybe no comma needed; but to be safe, I'll add it as it likely helps parsing.\n\nHowever, the rule says \"add commas where a sentence is genuinely hard to parse without one\". If I add a comma unnecessarily, it might be against \"genuinely hard\". But I think it is genuinely hard because \"she murmured\" is a separate clause.\n\nLet's imagine reading: \"the poor boy is in a very excited state to night she murmured...\" without comma, one might pause at \"state to night\" and wonder if \"to night\" modifies \"state\" or if \"she murmured\" is separate. With comma, it's clearer.\n\nThus, add comma.\n\nFinal output: \"That poor boy is in a very excited state, to night she murmured after a pause which lasted for three ticks of the clock.\"\n\nBut \"to night\" might be written as \"to night\" (two words), keep as is.\n\nNow, output exactly that string.\n\nWait, the original had \"um that poor boy...\", after removal \"that poor boy...\", so \"That poor boy...\" with capital T.\n\nYes.\n\nNow, write it.\n</think>\nThat poor boy is in a very excited state, to night she murmured after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "We will what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too\n\nWait, let's carefully apply the rules step by step.\n\nOriginal: \"we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too\"\n\nRules:\n- Capitalize first letter of every sentence and proper nouns you are certain of.\n  - \"we\" at start should be \"We\" (first letter of sentence)\n  - \"davy\" likely a name (Davy), so \"Davy\" (capital D)\n  - \"christie\" likely a name (Christie), so \"Christie\" (capital C)\n  - \"she\" is a pronoun, not a proper noun, so no capitalization needed for \"she\"\n  - \"too\" is an adverb, no capitalization\n- Add sentence-ending punctuation: need to identify sentence boundaries. The transcript seems to be one continuous sentence? But \"davy asked christie\" suggests a question or dialogue.\n  - \"we will what can i do for you\" seems like a fragment, but as spoken, likely one sentence.\n  - Should end with a period or question mark? \"what can i do for you\" sounds like a question, so maybe \"?\", but \"we will what can i do for you\" might be \"We will: what can I do for you?\" but we can't rephrase. Better to add a period at end since it's a statement/question mix.\n  - However, rule: \"Add or correct sentence-ending punctuation: . ? !\". We need to decide where sentences end. The transcript has no obvious period/question mark, so likely one sentence. But \"davy asked christie\" suggests a quoted question? No, it's \"davy asked christie wonderfully supported...\", so \"davy asked christie\" might be \"Davy asked Christie\" as part of sentence.\n  - Safer to add a period at end if no ? or !. But \"what can i do for you\" is interrogative, so maybe \"?\". However, we must not rephrase; we can only add punctuation. The phrase is \"we will what can i do for you\", which is awkward but spoken. Likely the speaker said \"We will what can I do for you?\" but wrote without punctuation. Since \"asked\" follows \"davy\", it's probably \"Davy asked Christie: 'what can I do for you?'\" but transcript says \"davy asked christie wonderfully supported...\", so it's \"Davy asked Christie wonderfully supported by the thought that she was going too\". So \"what can i do for you\" is part of what Davy said? The phrase \"we will what can i do for you\" seems like Davy's words: \"We will what can I do for you?\" But \"we will\" might be \"We will [do something], what can I do for you?\" Unclear.\n\nBut rule: only add punctuation, don't rephrase. So we should add a question mark at the very end if it's a question, but \"we will what can i do for you\" might not be purely interrogative. However, \"what can i do for you\" clearly is a question, so the sentence likely ends with a question. But \"davy asked christie wonderfully supported...\" continues, so it's one sentence: \"We will what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too\" \u2014 but \"wonderfully supported\" might be describing the support, not part of question.\n\nBetter to follow: capitalize first letter, fix obvious errors, add commas where hard to parse.\n\n- \"we will what can i do for you\" \u2014 \"i\" should be \"I\" (capital I for pronoun), yes, \"I\" is always capitalized.\n- \"i\" -> \"I\" (correct homophone/near-homophone: \"i\" as pronoun vs \"I\" as pronoun; \"i\" lowercase is incorrect for pronoun, so fix to \"I\")\n- \"davy\" -> \"Davy\" (proper noun, likely name)\n- \"christie\" -> \"Christie\" (proper noun)\n- \"she\" is fine\n- \"going too\" \u2014 \"too\" might be \"too\" (adverb), no error\n\n- \"we will what can i do for you\" \u2014 hard to parse without comma: \"we will, what can I do for you?\" but \"we will\" might be \"We will: what can I do for you?\" However, rule: \"Add commas where a sentence is genuinely hard to parse without one.\" \"we will what can i do for you\" is hard to parse: \"we will what\" sounds like \"we will [something], what can I do...\", so comma after \"will\" might help: \"We will, what can I do for you?\" But \"what can I do for you\" is a question, so perhaps \"We will: what can I do for you?\" but colon might not be needed; comma could separate the clause. However, we can only add commas, not colons if not spoken. But the transcript didn't have a comma, and we can add where genuinely hard to parse.\n\n\"we will what\" \u2014 \"will what\" is ambiguous; likely \"We will [do something], what can I do for you?\" so comma after \"will\" would clarify. But is it \"genuinely hard to parse without one\"? Yes, \"we will what\" might be read as \"we will what\" (incomplete), so comma after \"will\" could help: \"We will, what can I do for you?\" However, in standard punctuation, a comma before a question might be odd, but it's spoken style. Alternatively, the sentence might be \"We will what can I do for you?\" which is a question, so end with \"?\"; but the phrase \"we will\" might be part of the question.\n\nGiven the instruction: \"Add commas where a sentence is genuinely hard to parse without one.\" Let's see: \"we will what can i do for you\" \u2014 without comma, \"we will what\" could be misparsed as \"we will [what]\" but \"what can i do\" is the question, so \"we will\" might be a statement, then \"what can i do\" a question. So comma after \"will\" might separate: \"We will, what can I do for you?\" But \"what can I do for you\" is a complete question, so ending with \"?\" might be better. However, we must add sentence-ending punctuation too.\n\nRule: \"Add or correct sentence-ending punctuation: . ? !\" So we should ensure the sentence ends with appropriate punctuation. Since it contains \"what can i do for you\", likely a question, so end with \"?\". But \"we will what can i do for you\" might not be purely interrogative; \"we will\" could be \"We will [answer], what can I do for you?\" Still, safest to end with \"?\" because \"what can I do for you\" is the direct question.\n\nBut the transcript says \"davy asked christie wonderfully supported...\", so \"Davy asked Christie\" might indicate that Davy asked the question, so the sentence could be \"Davy asked Christie: 'what can I do for you?'\" but transcript merged it as \"davy asked christie wonderfully supported...\", so it's \"Davy asked Christie wonderfully supported by the thought that she was going too\" \u2014 \"wonderfully supported\" might describe the support, not part of question.\n\nTo minimize change, follow:\n- Capitalize first letter: \"We\"\n- Capitalize names: \"Davy\", \"Christie\"\n- Fix \"i\" to \"I\" (since \"i\" as pronoun should be \"I\"; \"i\" lowercase in middle of sentence for pronoun is incorrect, e.g., \"i\" -> \"I\"; yes, \"I\" is always capitalized)\n- Add comma after \"will\" if hard to parse: \"We will, what can I do for you...\" \u2014 \"we will what\" is hard, so comma helps: \"We will, what can I do for you...\"\n- End with appropriate punctuation. The sentence continues with \"davy asked christie wonderfully...\", but \"davy asked christie\" is part of the sentence, so the whole thing is one sentence? \"Davy asked Christie wonderfully supported...\" might be descriptive, so one sentence ending with \"too\" \u2014 \"too\" might be incomplete, but we must end with punctuation. Since it's spoken, likely ends with a period or question. Given \"what can I do for you\", probably a question, so end with \"?\". But \"too\" at end might be \"too\" as in \"going too [somewhere]\", so not necessarily a question end. However, rule says add sentence-ending punctuation; if no period/!/? in transcript, we must add one. But we should add the correct one based on meaning. \"what can i do for you\" suggests a question, so \"?\" is appropriate.\n\nBut \"we will what can i do for you\" \u2014 \"we will\" might be \"We will [answer], what can I do for you?\" so the main clause is \"what can I do for you\", thus end with \"?\".\n\nHowever, to be precise: we are to \"Add or correct sentence-ending punctuation\". If the transcript has no ending punctuation, we must add one. Choose \"?\" if it's interrogative, \".\" if declarative. \"what can i do for you\" is interrogative, so \"?\".\n\nBut \"davy asked christie\" \u2014 if Davy asked Christie the question, then the sentence might end with the question, so \"?\".\n\nSimilarly, \"going too\" \u2014 \"too\" might be \"too\" as in \"too much\", no punctuation needed inside.\n\nNow, \"um, \", \"uh, \", \"like, \" at start of sentence \u2014 here start is \"we will...\", no \"um,\" etc., so no removal needed.\n\nLet's draft:\n\n- Start: \"we will\" -> \"We will\" (capitalize first letter)\n- \"i\" -> \"I\" (since \"i\" is pronoun, should be \"I\"; \"i\" lowercase in \"i do\" is wrong; \"I do\" is correct)\n- \"davy\" -> \"Davy\"\n- \"christie\" -> \"Christie\"\n- Add comma after \"will\" if hard to parse: \"We will, what can I do for you...\" \u2014 \"We will what\" is ambiguous; \"will, what\" with comma clarifies it's \"will [something], what can I do...\", so yes, comma helps parsing.\n- End with \"?\" because it's a question phrase.\n\nBut \"wonderfully supported by the thought that she was going too\" \u2014 no obvious punctuation needed inside.\n\nSo corrected: \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\" \u2014 but \"Davy asked Christie\" \u2014 should \"Davy asked Christie\" be capitalized as \"Davy asked Christie\" (yes, names capitalized), and \"asked\" is fine.\n\nBut \"Christie wonderfully supported\" \u2014 \"wonderfully\" might modify \"supported\", so no comma needed there.\n\nIs \"what can I do for you\" a separate clause that needs comma after \"will\"? \"We will what can I do for you\" \u2014 spoken might be \"We will, what can I do for you?\" with a pause, so comma is appropriate.\n\nRule: \"Add commas where a sentence is genuinely hard to parse without one.\" \"We will what\" could be read as \"We willwhat\" (no space), but with space it's \"we will what\", still ambiguous: \"we will [what]\" vs \"we will, what can I do...\", so comma helps.\n\nThus: \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\" \u2014 but \"Davy asked Christie\" \u2014 should it be \"Davy asked Christie:\"? No, we can't add colon; only commas. So \"Davy asked Christie wonderfully...\" is fine.\n\nBut \"Davy asked Christie\" \u2014 \"asked\" might imply the question was asked by Davy, so \"Davy asked Christie\" is a statement, not part of the question punctuation.\n\nBetter to keep as is: \"We will, what can I do for you Davy asked Christie wonderfully supported by the thought that she was going too?\" \u2014 but \"Davy asked Christie\" should have a comma if it's a tag? No, \"Davy asked Christie\" is a clause, might need comma before \"Davy asked\" if it's interrupting, but \"we will what...\" then \"Davy asked...\" could be \"We will, what can I do for you? Davy asked Christie...\" but as one sentence, \"Davy asked Christie\" might follow, so \"We will, what can I do for you, Davy asked Christie...\" \u2014 comma before \"Davy asked\" might be needed if it's a tag, but \"Davy asked Christie\" is factual, not a tag like \"she said\". Probably no comma needed between \"you\" and \"Davy asked\", but \"what can I do for you Davy asked\" would be hard to parse, so comma after \"you\" might help: \"what can I do for you, Davy asked...\" Yes, \"what can I do for you Davy asked\" could be read as \"what can I do for you Davy asked\" (who asked?), so comma after \"you\" clarifies: \"what can I do for you, Davy asked...\"\n\nThus two commas might be needed: after \"will\" and after \"you\".\n\n\"we will what can i do for you davy asked christie...\" \u2014 \"we will what\" and \"what can i do for you davy asked\" both ambiguous.\n\n- \"we will what\" \u2014 \"will what\" unclear\n- \"what can i do for you davy asked\" \u2014 \"for you davy asked\" unclear who asked\n\nSo commas: \"We will, what can I do for you, Davy asked Christie...\" would parse well.\n\nYes, \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\" \u2014 end with \"?\" since it's questioning.\n\nBut \"wonderfully supported...\" might not require punctuation inside.\n\nNow, \"too\" at end \u2014 \"going too\" might be \"going too [somewhere]\", no period needed inside.\n\nThus corrected sentence: \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nBut \"Christie\" should be capitalized, yes. \"wonderfully\" not capitalized, fine. \"she\" not proper noun, fine. \"going too\" fine.\n\nCheck homophone: \"i\" -> \"I\" (correct), \"too\" vs \"to\" \u2014 \"too\" is correct as \"too\" (adverb), no confusion.\n\n\"um, \" etc. not at start now.\n\nIs \"Davy asked Christie\" correct? Yes, names capitalized.\n\nNow sentence-ending punctuation: \"?\" because it ends with a question implied by \"what can I do for you\".\n\nBut \"we will\" might make it not purely a question, but \"what can I do for you\" is the direct question, so \"?\" is appropriate.\n\nAlternatively, if we consider the whole as a statement, but \"what can i do for you\" is interrogative, so \"?\" is better.\n\nThus final corrected transcript: \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nBut let's check if we must keep exact words: \"we will what can i do for you davy asked christie...\" \u2014 we changed \"i\" to \"I\", added commas and \"?\"; that's allowed (fix pronoun capitalization, add punctuation/comma).\n\n\"i\" to \"I\" is fixing homophone (i vs I; \"i\" as pronoun should be \"I\", though in lowercase sometimes used, but standard is \"I\", and rule says \"Fix obvious homophone or near-homophone errors when context makes the intended word unambiguous\". Here \"i\" in \"i do\" is clearly the pronoun \"I\", so fix to \"I\".\n\nSimilarly, \"davy\" to \"Davy\", \"christie\" to \"Christie\" are proper nouns, capitalize.\n\nNow, \"we will\" \u2014 \"We\" capital W.\n\n\"too\" \u2014 no change.\n\nThus \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nBut \"Davy asked Christie\" \u2014 should it be \"Davy asked Christie\" or \"Davy asked, Christie\"? No, \"Davy asked Christie\" is fine as \"Davy asked Christie wonderfully...\" might need comma if \"wonderfully\" describes \"supported\", not \"asked\". \"Davy asked Christie wonderfully supported\" could be read as \"Davy asked Christie, wonderfully supported...\", but \"wonderfully supported\" likely modifies \"supported by the thought\", so \"Davy asked Christie wonderfully supported\" might be ambiguous. However, we can only add commas where genuinely hard to parse; \"Davy asked Christie wonderfully\" could be parsed as \"Davy asked Christie, wonderfully supported...\" but \"wonderfully\" might be an adverb for \"supported\", so \"Davy asked Christie; wonderfully supported\" but no semicolon allowed. Comma after \"Christie\" might help: \"Davy asked Christie, wonderfully supported...\" but \"wonderfully supported\" is a phrase, not necessarily requiring comma. However, \"Davy asked Christie wonderfully\" might be misparsed as \"Davy asked Christie wonderfully\" (i.e., Davy asked in a wonderful way), but \"wonderfully supported by the thought\" clarifies.\n\nTo be safe, add comma after \"you\" because \"what can I do for you Davy asked\" is hard: \"for you Davy asked\" could be read as \"for you, Davy asked\" who asked whom? So comma after \"you\" is helpful: \"what can I do for you, Davy asked...\"\n\nSimilarly, \"we will what\" \u2014 \"will what\" hard, so comma after \"will\": \"We will, what can I do for you...\"\n\nThus two commas seem justified.\n\nNow end with \"?\"; \"going too\" doesn't end the question, but the sentence ends with \"too\", which might be part of statement, but since \"what can I do for you\" is the question, the sentence likely ends with the thought, but spoken might end with a question. Given \"what can i do for you\", it's natural to end with \"?\".\n\nIf unsure, could end with \".\", but \"?\" is more accurate.\n\nRule: \"Add or correct sentence-ending punctuation\", so we must add one. Choose \"?\" because \"what can I do for you\" suggests a question.\n\nThus \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nBut \"Christie wonderfully supported\" \u2014 \"wonderfully\" might be an adverb for \"supported\", so no comma needed between \"Christie\" and \"wonderfully\", but \"Davy asked Christie wonderfully\" could be read as \"Davy asked Christie, wonderfully supported...\" \u2014 actually \"wonderfully supported by the thought\" is a phrase, so \"Davy asked Christie wonderfully supported\" might be ambiguous, but comma after \"Christie\" could clarify: \"Davy asked Christie, wonderfully supported...\" However, \"wonderfully supported\" is not a complete clause; it's \"supported by the thought that...\", so better to keep as \"Davy asked Christie wonderfully supported...\" without comma, but \"Davy asked Christie wonderfully\" might be parsed as \"Davy asked Christie in a wonderful way\", whereas \"Davy asked Christie; wonderfully supported...\" is different. Since we must not rephrase, and comma is only added where genuinely hard to parse, \"Davy asked Christie wonderfully\" might be hard if no comma, e.g., \"Davy asked Christie wonderfully supported\" could be read as \"Davy asked Christie, wonderfully supported\" implying the support is wonderful, but without comma it's \"Davy asked Christie wonderfully supported\" which might flow, but \"wonderfully\" could attach to \"asked\". However, \"wonderfully supported by the thought\" makes it clearer that \"supported\" is the verb phrase, so \"Davy asked Christie wonderfully supported\" might be okay, but to be safe, comma after \"Christie\" might help: \"Davy asked Christie, wonderfully supported...\" but \"wonderfully supported\" starts with \"wonderfully\", which is an adverb, so \"Davy asked Christie, wonderfully supported...\" could mean \"Davy asked Christie; then wonderfully supported...\", which might be intended.\n\nGiven the instruction to add commas only where genuinely hard to parse, and the transcript is short, I think adding comma after \"will\" and after \"you\" is reasonable:\n\n- \"We will what\" -> \"We will, what\" clarifies pause\n- \"what ... you Davy\" -> \"what ... you, Davy\" clarifies who asked\n\nThus \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nNow check: \"the thought that she was going too\" \u2014 \"going too\" might be \"going too [somewhere]\", no punctuation needed.\n\n\"she was going too\" \u2014 \"too\" might mean \"also\" or \"excessively\", fine.\n\nThus corrected transcript: \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nBut \"Christie\" should be \"Christie\" (capital C), yes.\n\n\"we\" -> \"We\", good.\n\n\"i\" -> \"I\", good.\n\nNow, is \"Davy asked Christie\" correct case? \"Davy\" and \"Christie\" are names, so capitalized.\n\n\"wonderfully\" not capitalized, fine.\n\n\"she\" not capitalized, fine.\n\n\"going\" not capitalized, fine.\n\n\"too\" not capitalized, fine.\n\nEnds with \"?\", good.\n\nNow, could there be no comma after \"will\"? Maybe \"We will what can I do for you\" without comma is hard, so comma is justified.\n\nThus output should be exactly: \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nBut let's confirm no standalone filler at start: start is \"We will\", no \"um,\" etc., fine.\n\nNow, the original had \"we will what can i do for you davy asked christie...\", we changed \"i\" to \"I\", added commas and \"?\"; all changes are allowed.\n\nThus final answer: \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nBut wait, \"davy asked christie\" in original is \"davy asked christie\" without comma, and we added comma after \"you\", making \"what can I do for you, Davy asked...\", is \"Davy asked\" part of the sentence correctly punctuated? Yes, it's a reporting clause.\n\nAlternatively, if \"Davy asked Christie\" is meant to be \"Davy asked: 'what can I do for you?'\", but transcript says \"davy asked christie wonderfully supported...\", so it's \"Davy asked Christie wonderfully supported...\", so comma after \"you\" might be better: \"what can I do for you, Davy asked Christie...\" indicating Davy asked Christie the question.\n\nYes.\n\nThus proceed.\n\nBut let's write exactly as per changes:\n\n- Capitalize first letter: \"We\"\n- \"i\" -> \"I\" (since \"i\" is pronoun)\n- \"davy\" -> \"Davy\", \"christie\" -> \"Christie\"\n- Add comma after \"will\" because \"we will what\" hard to parse: \"We will, what...\"\n- Add comma after \"you\" because \"what ... you Davy\" hard: \"what ... you, Davy...\"\n- End with \"?\" because interrogative\n\nSo \"We will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?\"\n\nYes.\n\nNow output verbatim, nothing else.\n</think>\nWe will, what can I do for you, Davy asked Christie wonderfully supported by the thought that she was going too?"
+        },
+        {
+          "cat": "initial_filler",
+          "input": "like tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "Like tomato baskets, tomato baskets are charming accessories for holding vegetable salad, chicken, shrimps, cold beans, asparagus tips, shredded celery, cucumbers cut in cubes, and minced peppers."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "i picked it up and coming up to him just as he was going down the steps i handed it to him",
+          "output": "I picked it up and came up to him just as he was going down the steps, I handed it to him."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "like also in all loves and friendships one has the experience that nothing of the kind continues when the discovery has been made that in using the same words one of the two parties has feelings thoughts intuitions wishes or fears different from those of the other",
+          "output": "Like also in all loves and friendships one has the experience that nothing of the kind continues when the discovery has been made that in using the same words one of the two parties has feelings thoughts intuitions wishes or fears different from those of the other."
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.008,
+        0.168
+      ],
+      "latency_ratio": 1.5820970128364058
+    },
+    "granite4.2:3b": {
+      "pass_rate": 0.6,
+      "by_category": {
+        "fidelity": 0.8,
+        "initial_filler": 0.24,
+        "mid_filler": 0.4,
+        "numbers": 0.84,
+        "punct_cap": 0.72
+      },
+      "median_latency_s": 0.3607621192932129,
+      "failures": [
+        {
+          "cat": "initial_filler",
+          "input": "um only his heart and lungs worked on at a strong measured rate",
+          "output": "Um, only his heart and lungs worked at a strong, measured rate."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "Only his heart and lungs worked at a strong, measured rate."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um illustration italian millet",
+          "output": "um illustration Italian millet"
+        },
+        {
+          "cat": "mid_filler",
+          "input": "illustration italian millet like",
+          "output": "The illustration shows an Italian millet like."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um by his default short while he sojourned here by his default to weeping and to toil he changed his innocent laughter and sweet play",
+          "output": "Um, by his default short while he sojourned here, by his default to weeping and toil he changed his innocent laughter and sweet play."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "by his default short while he sojourned here by his default to weeping and to toil he like changed his innocent laughter and sweet play",
+          "output": "By his default short while he sojourned here, by his default to weeping and toil he like changed his innocent laughter and sweet play."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock",
+          "output": "Um, that poor boy is in a very excited state tonight. She murmured after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight. She murmured after a pause which lasted like for three ticks of the clock."
+        }
+      ],
+      "diff_vs_baseline_ci95": [
+        -0.16,
+        0.056
+      ],
+      "latency_ratio": 0.7379133842524094
+    },
+    "gemma4:e2b#2": {
+      "pass_rate": 0.648,
+      "by_category": {
+        "fidelity": 0.88,
+        "initial_filler": 0.4,
+        "mid_filler": 0.48,
+        "numbers": 0.68,
+        "punct_cap": 0.8
+      },
+      "median_latency_s": 0.5370328426361084,
+      "failures": [
+        {
+          "cat": "initial_filler",
+          "input": "um only his heart and lungs worked on at a strong measured rate",
+          "output": "Only his heart and lungs worked at a strong measured rate."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "only his heart and lungs worked on at a like strong measured rate",
+          "output": "Only his heart and lungs worked at a strong measured rate."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "um that poor boy is in a very excited state to night she murmured after a pause which lasted for three ticks of the clock",
+          "output": "Um that poor boy is in a very excited state tonight she murmured after a pause which lasted for three ticks of the clock."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "that poor boy is in a very excited state to night she murmured after a pause which lasted like for three ticks of the clock",
+          "output": "That poor boy is in a very excited state tonight she murmured after a pause which lasted like for three ticks of the clock."
+        },
+        {
+          "cat": "punct_cap",
+          "input": "we will what can i do for you davy asked christie wonderfully supported by the thought that she was going too",
+          "output": "We will, what can I do for you? Davy asked Christie wonderfully supported by the thought that she was going to."
+        },
+        {
+          "cat": "initial_filler",
+          "input": "like tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets are charming accessories for holding vegetable salad, chicken, shrimps, cold beans, asparagus tips, shredded celery, cucumbers cut in cubes, and minced peppers."
+        },
+        {
+          "cat": "mid_filler",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad chicken shrimps cold beans asparagus tips shredded celery like cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets are charming accessories for holding vegetable salad, chicken, shrimps, cold beans, asparagus tips, shredded celery, cucumbers cut in cubes, and minced peppers."
+        },
+        {
+          "cat": "numbers",
+          "input": "tomato baskets tomato baskets are charming accessories for holding vegetable salad room 4 12 chicken shrimps cold beans asparagus tips shredded celery cucumbers cut in cubes and minced peppers",
+          "output": "Tomato baskets are charming accessories for holding vegetable salad, room 412, chicken, shrimps, cold beans, asparagus tips, shredded celery, cucumbers cut in cubes, and minced peppers."
+        }
+      ]
+    }
+  },
+  "baseline_flip_rate": 0.0
+}

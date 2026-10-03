@@ -18,6 +18,8 @@ not a dependency.
 | `ab_hard_*.{json,txt}` | `prosody-bench/ab_tag_response_hard.py` | Same, strict judge + placebo + congruent/incongruent. | Effect falls to 36% substantive; placebo fires 28% (judge over-fires). |
 | `ab_refine_*.json` (+ `_temp0`) | refine A/B | Effect net of a same-vs-same noise floor. | Code -12 pts, word -29 pts below the 50% floor. The headline effect is mostly noise. |
 | `ab_disentangle_*.{json,txt}` | `prosody-bench/ab_disentangle.py` | Is the value the arousal dimension or the emotion word? | Arousal tag competitive (MVP ok); emotion-word semantics carry more, which an energy tagger can't produce. |
+| `asr_bakeoff.{json,md}` | `experiments/asr_bakeoff.py` | Does any candidate beat `parakeet-tdt-0.6b-v3` as the final-pass model on 200 LibriSpeech utterances, clean and at 10 dB noise? | No. All within the paired-bootstrap interval except Whisper turbo (worse in noise). The sample cannot resolve gaps under ~0.4pp. |
+| `polish_bakeoff_*.json` + `polish_bakeoff.md` | `experiments/polish_bakeoff.py` | Do candidate Ollama models follow the polish prompts' own rules, per path (dictation edit-list vs whole-text rewrite)? | Dictation: no candidate beats `gemma4:e2b`; most of the spread was bad edits `apply_edits` accepted, fixed in code. Rewrite path: `gemma4:12b` leads (92.8% vs 64.8%) at 4.7x latency. Rule-following and latency only, not text quality. |
 
 Read top to bottom the story is consistent: the soft eval looked like a 100%
 effect and each harder control shrank it. The shipped emphasis tag rests on the
