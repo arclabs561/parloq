@@ -73,6 +73,37 @@ def main() -> int:
     assert text == "Their plan starts Tuesday", text
     assert applied == 0, applied
 
+    # Anchors inside a longer word must not match: a partial anchor used to
+    # splice punctuation or a capital into the middle of the word.
+    text, applied = rec.apply_edits(
+        "nothing works with the word",
+        [
+            ("INS_AFTER", "nothin", ","),
+            ("CAP", "wor", ""),
+            ("SUB", "wit", "with"),
+            ("INS_AFTER", "word", "."),
+        ],
+    )
+    assert text == "nothing works with the word.", text
+    assert applied == 1, applied
+
+    # SUBs the prompt forbids are skipped; the ones it allows still apply.
+    cases = [
+        ("um yeah we shipped", "um yeah we", "Yeah, we", "Yeah, we shipped"),
+        ("their plan", "their", "there", "there plan"),
+        ("went to the store", "to", "too", "went too the store"),
+        ("but evidently so", "but evidently", "butbut, evidentlyevidently,", None),
+        ("by his default way", "by his default", "By default", None),
+        ("we will what can i do", "we will what can i do", "What can I do can i do", None),
+        ("the terms would be five", "would be", "were", None),
+    ]
+    for original, find, repl, expected in cases:
+        got, applied = rec.apply_edits(original, [("SUB", find, repl)])
+        if expected is None:
+            assert (got, applied) == (original, 0), (original, repl, got)
+        else:
+            assert got == expected and applied == 1, (original, repl, got)
+
     print("PASS: polish edit parsing and cursor application")
     return 0
 

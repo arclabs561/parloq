@@ -3105,9 +3105,57 @@ def _find_after(out: str, needle: str, cursor: int, case_insensitive: bool) -> i
     (e.g. two INS_AFTER "users" both targeting the first occurrence would
     end up double-stacking on a single anchor). Drop the edit instead.
     """
-    if case_insensitive:
-        return out.lower().find(needle.lower(), cursor)
-    return out.find(needle, cursor)
+    # Matches must start and end on word boundaries. An anchor that lands inside
+    # a longer word ("nothin" in "nothing") would splice punctuation or a
+    # capital into the middle of it.
+    pattern = re.escape(needle)
+    if needle[:1].isalnum() or needle[:1] == "_":
+        pattern = r"(?<!\w)" + pattern
+    if needle[-1:].isalnum() or needle[-1:] == "_":
+        pattern += r"(?!\w)"
+    match = re.compile(pattern, re.IGNORECASE if case_insensitive else 0).search(
+        out, cursor)
+    return match.start() if match else -1
+
+
+_LEADING_FILLERS = ("um", "uh", "like")
+
+
+def _edit_words(text: str) -> list[str]:
+    return re.sub(r"[^\w\s]", "", text.lower()).split()
+
+
+def _sub_preserves_words(old: str, new: str) -> bool:
+    """True when a SUB only does what the prompt allows.
+
+    Allowed: punctuation or case changes, dropping leading fillers, and one
+    near-homophone word swap ("their" -> "there"). Anything else (a repeated
+    word, a dropped content word, a rewritten phrase) is the model breaking
+    the prompt, and the edit is skipped rather than applied.
+    """
+    old_words, new_words = _edit_words(old), _edit_words(new)
+    while old_words and old_words[0] in _LEADING_FILLERS and new_words != old_words:
+        old_words = old_words[1:]
+    if new_words == old_words:
+        return True
+    if len(new_words) != len(old_words):
+        return False
+    changed = [(a, b) for a, b in zip(old_words, new_words, strict=True) if a != b]
+    if len(changed) != 1:
+        return False
+    a, b = changed[0]
+    if b in (a + a, a[:1] + a):
+        return False
+    return _levenshtein(a, b) <= 2
+
+
+def _levenshtein(a: str, b: str) -> int:
+    row = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        prev, row[0] = row[0], i
+        for j, cb in enumerate(b, 1):
+            prev, row[j] = row[j], min(row[j] + 1, row[j - 1] + 1, prev + (ca != cb))
+    return row[len(b)]
 
 
 def apply_edits(text: str, edits: list[tuple[str, str, str]]) -> tuple[str, int]:
@@ -3129,7 +3177,7 @@ def apply_edits(text: str, edits: list[tuple[str, str, str]]) -> tuple[str, int]
             continue
         actual = out[idx:idx + len(find)]
         if op == "SUB":
-            if actual != find:
+            if actual != find or not _sub_preserves_words(find, repl):
                 continue
             out = out[:idx] + repl + out[idx + len(find):]
             cursor = idx + len(repl)
