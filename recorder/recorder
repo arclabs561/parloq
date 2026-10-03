@@ -4759,8 +4759,12 @@ class DictateSessionController:
                     f"paste failed: {detail}"
                 )
             if prev_clip is not None:
-                time.sleep(0.15)
-                _clipboard_set(prev_clip)
+                # osascript returns before the target app has read the
+                # clipboard, so restore late, and only if the clipboard is
+                # still our dictation (not something the user copied since).
+                time.sleep(0.4)
+                if _clipboard_get() == text:
+                    _clipboard_set(prev_clip)
 
         paste_text = " pasted" if paste else ""
         return (
@@ -4869,7 +4873,6 @@ class DictateSessionController:
 
                     should_flush_asr = bool(asr_buf) and (
                         len(asr_buf) >= chunk_bytes
-                        or stop_event.is_set()
                         or not buf
                         or len(buf) < meter_bytes
                     )
@@ -4901,7 +4904,16 @@ class DictateSessionController:
                                 session_id, finalized, draft, elapsed)
                             last_snapshot = snapshot
 
-                    if stop_event.is_set() or not buf or len(buf) < meter_bytes:
+                    # Stop signals ffmpeg (stop() or the check below) but the
+                    # session keeps reading to EOF: breaking on stop_event
+                    # discarded whatever ffmpeg had captured but we had not
+                    # yet read, clipping the last words of the dictation.
+                    if stop_event.is_set() and ffmpeg.poll() is None:
+                        try:
+                            ffmpeg.send_signal(signal.SIGINT)
+                        except ProcessLookupError:
+                            pass
+                    if not buf or len(buf) < meter_bytes:
                         break
 
                 draft = "".join(token.text for token in tx.draft_tokens)
@@ -5462,12 +5474,16 @@ def cmd_dictate(rest: list[str]) -> int:
         stop_event = threading.Event()
         rec_start = time.time()
 
-        def drain():
-            while not stop_event.is_set():
+        # Bind the per-recording objects as defaults: a closure over the loop
+        # variables would follow the next recording's ffmpeg and buffer. Read
+        # to EOF rather than until stop_event, so the audio ffmpeg flushes on
+        # SIGINT is kept instead of clipping the last words.
+        def drain(ff=ff, buf=samples_buf):
+            while True:
                 chunk = ff.stdout.read(CHUNK_BYTES)
                 if not chunk:
                     break
-                samples_buf.extend(chunk)
+                buf.extend(chunk)
         t = threading.Thread(target=drain, daemon=True)
         t.start()
 
@@ -5475,7 +5491,7 @@ def cmd_dictate(rest: list[str]) -> int:
         # see capture is happening (the "recording into the void" problem). The
         # toggle stays Enter; true press-and-hold isn't reliable in a terminal
         # (see docs/design/dictation-tui.md).
-        def status_line():
+        def status_line(stop_event=stop_event, rec_start=rec_start):
             while not stop_event.is_set():
                 el = time.time() - rec_start
                 sys.stderr.write(f"\r● recording {el:5.1f}s · Enter to stop ")
@@ -5499,6 +5515,7 @@ def cmd_dictate(rest: list[str]) -> int:
             ff.wait(timeout=3)
         except subprocess.TimeoutExpired:
             ff.kill()
+        t.join(timeout=2)
 
         # Transcribe in one shot (offline, full-attention).
         if not samples_buf:
