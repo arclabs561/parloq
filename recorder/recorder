@@ -1656,7 +1656,27 @@ def make_handler(state: TranscriptState):
         def log_message(self, *_):
             pass  # quiet
 
+        def _local_request(self) -> bool:
+            """Reject requests a web page could aim at 127.0.0.1.
+
+            Binding to loopback does not stop a browser tab: a cross-origin
+            POST needs no preflight, and DNS rebinding makes reads same-origin.
+            Requiring our own Host (and a matching Origin when sent) closes
+            both without breaking the page's same-origin fetches.
+            """
+            port = self.server.server_address[1]
+            host = self.headers.get("Host", "")
+            origin = self.headers.get("Origin")
+            if host in (f"127.0.0.1:{port}", f"localhost:{port}") and (
+                origin is None or origin == f"http://{host}"
+            ):
+                return True
+            self.send_error(403)
+            return False
+
         def do_GET(self):  # noqa: N802
+            if not self._local_request():
+                return
             if self.path == "/" or self.path == "/index.html":
                 body = INDEX_HTML.encode("utf-8")
                 self.send_response(200)
@@ -1690,6 +1710,8 @@ def make_handler(state: TranscriptState):
             self.send_error(404)
 
         def do_POST(self):  # noqa: N802
+            if not self._local_request():
+                return
             if self.path == "/control/stop":
                 state.request_stop()
                 self._json_ok({"stopping": True})
@@ -5028,6 +5050,19 @@ class DictateSessionController:
                 print(completion.message, file=sys.stderr)
 
 
+def _dictate_socket_answers(sock_path: Path) -> bool:
+    """True when a daemon is serving on sock_path (a `status` round trip)."""
+    import socket as _sock
+    try:
+        with _sock.socket(_sock.AF_UNIX, _sock.SOCK_STREAM) as probe:
+            probe.settimeout(2.0)
+            probe.connect(str(sock_path))
+            probe.sendall(b"status\n")
+            return bool(probe.recv(1))
+    except OSError:
+        return False
+
+
 def _dictate_daemon(args) -> int:
     """Run the warm streaming engine and its legacy + JSONL unix protocol."""
     import select as _select
@@ -5035,7 +5070,12 @@ def _dictate_daemon(args) -> int:
 
     sock_path = _dictate_sock()
     if sock_path.exists():
-        # Stale socket from a crashed daemon? Try to claim it.
+        # Unlinking a live daemon's socket would orphan it, and its exit
+        # cleanup would then delete ours. Only claim a socket nobody answers.
+        if _dictate_socket_answers(sock_path):
+            print(f"dictate daemon already running (socket: {sock_path})",
+                  file=sys.stderr)
+            return 1
         try:
             sock_path.unlink()
         except Exception:
@@ -5103,7 +5143,13 @@ def _dictate_daemon(args) -> int:
 
     # Listen on the unix socket
     srv = _sock.socket(_sock.AF_UNIX, _sock.SOCK_STREAM)
-    srv.bind(str(sock_path))
+    # bind() creates the node with the umask applied; restrict it up front so
+    # there is no window where other local users can connect.
+    old_umask = os.umask(0o177)
+    try:
+        srv.bind(str(sock_path))
+    finally:
+        os.umask(old_umask)
     sock_path.chmod(0o600)  # user-only
     srv.listen(4)
 
