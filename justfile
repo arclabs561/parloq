@@ -2,7 +2,9 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 check:
     uvx ruff check --select F recorder/recorder prosody-bench/ recorder/evals/ experiments/
-    PYTHONPYCACHEPREFIX=/tmp/parloq-pycache python3 -m py_compile recorder/recorder recorder/evals/run_eval.py recorder/evals/run_dictate_e2e.py recorder/evals/test_ui_fixture.py recorder/evals/test_device_resolution.py recorder/evals/test_dictate_protocol.py recorder/evals/test_dictate_session.py recorder/evals/test_dictate_trigger.py recorder/evals/test_eval_corpus_paths.py recorder/evals/test_eval_report_format.py recorder/evals/test_fragment_join.py recorder/evals/test_polish_edits.py recorder/evals/test_render_md.py recorder/evals/test_search_cli.py recorder/evals/test_vocab.py recorder/evals/test_agent_plist.py prosody-bench/test_emphasis_tag.py
+    uvx ruff check --select B023 recorder/recorder
+    for f in recorder/evals/test_*.py prosody-bench/test_*.py; do grep -Eq "(uv run|python3) $f( |$)" justfile || { echo "test not run by just check: $f" >&2; exit 1; }; done
+    PYTHONPYCACHEPREFIX=/tmp/parloq-pycache python3 -m py_compile recorder/recorder recorder/evals/run_eval.py recorder/evals/run_dictate_e2e.py recorder/evals/test_ui_fixture.py recorder/evals/test_device_resolution.py recorder/evals/test_dictate_protocol.py recorder/evals/test_dictate_session.py recorder/evals/test_dictate_trigger.py recorder/evals/test_eval_corpus_paths.py recorder/evals/test_eval_report_format.py recorder/evals/test_fragment_join.py recorder/evals/test_polish_edits.py recorder/evals/test_render_md.py recorder/evals/test_search_cli.py recorder/evals/test_vocab.py recorder/evals/test_agent_plist.py recorder/evals/test_local_surfaces.py prosody-bench/test_emphasis_tag.py
     python3 recorder/evals/test_device_resolution.py
     uv run recorder/evals/test_dictate_protocol.py
     uv run recorder/evals/test_dictate_session.py
@@ -17,6 +19,7 @@ check:
     uv run recorder/evals/test_vocab.py
     uv run recorder/evals/test_agent_plist.py
     uv run recorder/evals/test_ui_fixture.py
+    uv run recorder/evals/test_local_surfaces.py
     swift test --package-path macos/ParloqMenu
     swift run --package-path macos/ParloqMenu ParloqMenu --render-ui-fixtures "test-results/ui-fixtures"
 
