@@ -789,9 +789,11 @@ enum UIFixtureRenderer {
         ].flatMap { appearance, urls in
             try urls.map { url in
                 let data = try Data(contentsOf: url)
+                // status-icons is 520x92 points: 1x runners render 92 px high,
+                // Retina hosts 184, so the floor must sit below 92.
                 guard let bitmap = NSBitmapImageRep(data: data),
                       bitmap.pixelsWide >= 200,
-                      bitmap.pixelsHigh >= 100,
+                      bitmap.pixelsHigh >= 64,
                       data.count >= 1_000
                 else {
                     throw fixtureError(
