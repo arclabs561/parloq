@@ -21,6 +21,7 @@ import pathlib
 import plistlib
 import subprocess
 import sys
+import tempfile
 from types import SimpleNamespace
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -64,13 +65,33 @@ def main():
     assert d2["ProgramArguments"] == ["/r", "dictate", "--daemon"], \
         d2["ProgramArguments"]
 
-    # A resolved script interpreter runs the engine directly, so no resident
-    # `uv run` parent holds the uv cache lock for the daemon's lifetime.
+    # With a resolved uv, the agent syncs and execs the script interpreter on
+    # each start, so no resident `uv run` parent holds the uv cache lock and a
+    # pruned cache environment is rebuilt rather than left dangling.
     d3 = plistlib.loads(rec._render_agent_plist(
-        "/r", ["--prosody"], "/l", "/env/bin/python3").encode("utf-8"))
-    assert d3["ProgramArguments"] == [
-        "/env/bin/python3", "/r", "dictate", "--daemon", "--prosody"], \
-        d3["ProgramArguments"]
+        "/r", ["--prosody"], "/l", "/opt/uv").encode("utf-8"))
+    args = d3["ProgramArguments"]
+    assert args[:2] == ["/bin/sh", "-c"], args
+    assert args[3:] == ["parloq-dictate", "/opt/uv", "/r", "dictate",
+                        "--daemon", "--prosody"], args
+
+    # Execute the real launcher string with a fake uv: it must sync, then exec
+    # the found interpreter with the script and every daemon argument intact.
+    with tempfile.TemporaryDirectory() as tmp:
+        fake_uv = pathlib.Path(tmp) / "uv"
+        log = pathlib.Path(tmp) / "uv.log"
+        fake_uv.write_text(
+            "#!/bin/sh\n"
+            f'printf "%s\\n" "$*" >> "{log}"\n'
+            'if [ "$1" = python ]; then echo /bin/echo; fi\n')
+        fake_uv.chmod(0o755)
+        out = subprocess.run(
+            [*args[:3], args[3], str(fake_uv), "/r", "dictate", "two words"],
+            check=True, capture_output=True, text=True).stdout
+        assert out == "/r dictate two words\n", repr(out)
+        assert log.read_text().splitlines() == [
+            "sync --quiet --script /r", "python find --script /r"], \
+            log.read_text()
 
     calls = []
 
@@ -80,14 +101,14 @@ def main():
             return subprocess.CompletedProcess(command, 0, stdout=sys.executable)
         return subprocess.CompletedProcess(command, 0)
 
-    assert rec._resolve_script_python(
-        pathlib.Path("/r"), runner=fake_runner) == sys.executable
+    assert rec._resolve_script_uv(
+        pathlib.Path("/r"), runner=fake_runner) is not None
     assert calls == [["sync", "--quiet"], ["python", "find"]], calls
 
     def failing_runner(command, **_kwargs):
         raise subprocess.CalledProcessError(1, command)
 
-    assert rec._resolve_script_python(
+    assert rec._resolve_script_uv(
         pathlib.Path("/r"), runner=failing_runner) is None
 
     # The installed engine must not execute from ~/Documents. macOS denies

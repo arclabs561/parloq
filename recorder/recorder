@@ -4118,15 +4118,19 @@ def _dictate_installed_recorder_path() -> Path:
     )
 
 
-def _resolve_script_python(script_path: Path, *, runner=None):
-    """Return the interpreter of the script's uv environment, or None.
+# Run by its shebang, `uv run --script` stays resident as the daemon's parent,
+# and uv refuses cache-modifying commands such as `uv cache prune` while any uv
+# process runs. The agent instead syncs the script environment and execs its
+# interpreter on every start. The interpreter is not pinned in the plist
+# because `uv cache prune` may remove cached script environments.
+_AGENT_LAUNCHER = ('uv=$1; script=$2; shift 2; '
+                   '"$uv" sync --quiet --script "$script" && '
+                   'exec "$("$uv" python find --script "$script")" '
+                   '"$script" "$@"')
 
-    Run by the shebang, `uv run --script` stays resident as the daemon's parent
-    for its whole life, and uv refuses cache-modifying commands such as
-    `uv cache prune` while any uv process runs. Syncing the environment once at
-    install time and launching its interpreter directly avoids that. Each
-    install-agent copies a fresh script, so the environment matches it.
-    """
+
+def _resolve_script_uv(script_path: Path, *, runner=None):
+    """Return a uv that can sync and locate the script environment, or None."""
     import shutil
     runner = runner or subprocess.run
     uv = shutil.which("uv") or "/opt/homebrew/bin/uv"
@@ -4137,12 +4141,11 @@ def _resolve_script_python(script_path: Path, *, runner=None):
                        check=True, capture_output=True, text=True)
     except (OSError, subprocess.CalledProcessError):
         return None
-    python = found.stdout.strip()
-    return python if python and Path(python).exists() else None
+    return uv if found.stdout.strip() else None
 
 
 def _render_agent_plist(recorder_path: str, daemon_args: list,
-                        log_path: str, python: str | None = None) -> str:
+                        log_path: str, uv: str | None = None) -> str:
     """Render the launchd agent plist for the dictation daemon.
 
     launchd starts agents with a minimal PATH, so ffmpeg (usually under
@@ -4155,8 +4158,10 @@ def _render_agent_plist(recorder_path: str, daemon_args: list,
     import plistlib
     d = {
         "Label": _dictate_agent_label(),
-        "ProgramArguments": [*([python] if python else []), recorder_path,
-                             "dictate", "--daemon", *daemon_args],
+        "ProgramArguments": [
+            *(["/bin/sh", "-c", _AGENT_LAUNCHER, "parloq-dictate", uv]
+              if uv else []),
+            recorder_path, "dictate", "--daemon", *daemon_args],
         "RunAtLoad": True,
         "KeepAlive": True,
         "ProcessType": "Interactive",
@@ -4224,12 +4229,12 @@ def _dictate_install_agent(rest: list) -> int:
     log_path = str(Path.home() / "Library" / "Logs" / "parloq-dictate.log")
     plist_path.parent.mkdir(parents=True, exist_ok=True)
     Path(log_path).parent.mkdir(parents=True, exist_ok=True)
-    python = _resolve_script_python(installed_path)
-    if python is None:
+    uv = _resolve_script_uv(installed_path)
+    if uv is None:
         print("could not resolve the script environment; the agent will run "
               "through `uv run` and hold the uv cache lock", file=sys.stderr)
     plist_path.write_text(
-        _render_agent_plist(str(installed_path), rest, log_path, python),
+        _render_agent_plist(str(installed_path), rest, log_path, uv),
         encoding="utf-8",
     )
     print(f"installed engine {installed_path}", file=sys.stderr)
