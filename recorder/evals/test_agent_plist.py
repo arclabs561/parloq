@@ -19,6 +19,8 @@ import importlib.util
 import os
 import pathlib
 import plistlib
+import subprocess
+import sys
 from types import SimpleNamespace
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -61,6 +63,32 @@ def main():
         "/r", [], "/l").encode("utf-8"))
     assert d2["ProgramArguments"] == ["/r", "dictate", "--daemon"], \
         d2["ProgramArguments"]
+
+    # A resolved script interpreter runs the engine directly, so no resident
+    # `uv run` parent holds the uv cache lock for the daemon's lifetime.
+    d3 = plistlib.loads(rec._render_agent_plist(
+        "/r", ["--prosody"], "/l", "/env/bin/python3").encode("utf-8"))
+    assert d3["ProgramArguments"] == [
+        "/env/bin/python3", "/r", "dictate", "--daemon", "--prosody"], \
+        d3["ProgramArguments"]
+
+    calls = []
+
+    def fake_runner(command, **_kwargs):
+        calls.append(command[1:3])
+        if command[1:3] == ["python", "find"]:
+            return subprocess.CompletedProcess(command, 0, stdout=sys.executable)
+        return subprocess.CompletedProcess(command, 0)
+
+    assert rec._resolve_script_python(
+        pathlib.Path("/r"), runner=fake_runner) == sys.executable
+    assert calls == [["sync", "--quiet"], ["python", "find"]], calls
+
+    def failing_runner(command, **_kwargs):
+        raise subprocess.CalledProcessError(1, command)
+
+    assert rec._resolve_script_python(
+        pathlib.Path("/r"), runner=failing_runner) is None
 
     # The installed engine must not execute from ~/Documents. macOS denies
     # launchd access to that protected tree even when an interactive shell can
