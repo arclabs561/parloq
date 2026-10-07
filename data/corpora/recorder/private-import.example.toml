@@ -1,0 +1,10 @@
+# Copy to private-import.toml (ignored), then edit locally.
+# source is relative to your source directory; destination to corpus/private/.
+
+[[files]]
+source = "my-recording.flac"
+destination = "sample.flac"
+
+[[files]]
+source = "my-reference.txt"
+destination = "sample.txt"

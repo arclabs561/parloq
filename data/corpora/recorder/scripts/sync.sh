@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: data/corpora/recorder/scripts/sync.sh <target> [source]
+Usage: data/corpora/recorder/scripts/sync.sh <target> [source] [import-manifest]
 
 Targets:
   librispeech          download the public LibriSpeech smoke clips
@@ -17,6 +17,8 @@ Targets:
 
 Private source resolution:
   source arg > PARLOQ_PRIVATE_RECORDINGS_DIR. No home-directory fallback is used.
+  import-manifest arg > PARLOQ_PRIVATE_IMPORT_MANIFEST (required for private imports).
+  Python 3.11+ reads the TOML mapping; destinations are relative to corpus/private/.
 
 Environment:
   PARLOQ_RECORDER_CORPUS_DIR overrides the destination corpus root.
@@ -153,31 +155,41 @@ sync_librivox() {
   msg "librivox ready: $out"
 }
 
-copy_if_present() {
-  local src=$1 dst=$2
-  if [[ -f $src ]]; then
-    mkdir -p "$(dirname -- "$dst")"
-    cp "$src" "$dst"
-    printf '  copied %s\n' "$dst" >&2
-  else
-    printf '  missing %s\n' "$src" >&2
-  fi
-}
-
 sync_private_meetings() {
   local src=${1:-${PARLOQ_PRIVATE_RECORDINGS_DIR:-}}
+  local manifest=${2:-${PARLOQ_PRIVATE_IMPORT_MANIFEST:-}}
   [[ -n $src ]] || die "private-meetings requires a source arg or PARLOQ_PRIVATE_RECORDINGS_DIR"
-  [[ -d $src ]] || die "private source is not a directory: $src"
-  local trimmed="$corpus_root/meeting-trimmed"
-  local private="$corpus_root/private"
-  local name
-  for name in m1_2min REDACTED_PRIVATE_RECORDING REDACTED_PRIVATE_RECORDING REDACTED_PRIVATE_RECORDING; do
-    copy_if_present "$src/meeting-trimmed/$name.flac" "$trimmed/$name.flac"
-    copy_if_present "$src/meeting-trimmed/$name.offline-frozen.txt" "$trimmed/$name.offline-frozen.txt"
-  done
-  copy_if_present "$src/REDACTED_PRIVATE_RECORDING" "$REDACTED_PRIVATE_RECORDING"
-  copy_if_present "$src/REDACTED_PRIVATE_RECORDING" "$REDACTED_PRIVATE_RECORDING"
-  msg "private meeting import complete: $corpus_root"
+  [[ -d $src ]] || die "private source is not a directory"
+  [[ -n $manifest ]] || die "private-meetings requires an import manifest"
+  need python3
+  python3 - "$src" "$corpus_root/private" "$manifest" <<'PYIMPORT'
+from pathlib import Path
+import os
+import shutil
+import sys
+import tomllib
+
+source_root, dest_root, manifest = (Path(arg).expanduser().resolve() for arg in sys.argv[1:])
+with manifest.open("rb") as stream:
+    entries = tomllib.load(stream).get("files", [])
+if not entries:
+    raise SystemExit("error: import manifest must contain [[files]] entries")
+copies = []
+for entry in entries:
+    source = (source_root / entry["source"]).resolve()
+    dest = (dest_root / entry["destination"]).resolve()
+    if not source.is_relative_to(source_root) or not dest.is_relative_to(dest_root):
+        raise SystemExit("error: import paths must stay within source and private destination roots")
+    if not source.is_file():
+        raise SystemExit("error: an import source file is missing")
+    copies.append((source, dest))
+os.umask(0o077)
+for source, dest in copies:
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, dest)
+    dest.chmod(0o600)
+print(f"imported {len(copies)} private corpus files")
+PYIMPORT
 }
 
 target=${1:-}
@@ -187,7 +199,7 @@ case "$target" in
   ami) sync_ami ;;
   extended-generated) sync_extended_generated ;;
   librivox) sync_librivox ;;
-  private-meetings) sync_private_meetings "${2:-}" ;;
+  private-meetings) sync_private_meetings "${2:-}" "${3:-}" ;;
   all-public)
     sync_librispeech
     sync_extended_generated
@@ -198,7 +210,7 @@ case "$target" in
     sync_extended_generated
     sync_ami
     if [[ -n ${2:-${PARLOQ_PRIVATE_RECORDINGS_DIR:-}} ]]; then
-      sync_private_meetings "${2:-}"
+      sync_private_meetings "${2:-}" "${3:-}"
     else
       msg "skip private meetings: no source configured"
     fi

@@ -8,7 +8,11 @@ __pycache__/
 !/data/corpora/recorder/
 /data/corpora/recorder/*
 !/data/corpora/recorder/README.md
-!/data/corpora/recorder/*.toml
+!/data/corpora/recorder/corpus.toml
+!/data/corpora/recorder/ami-corpus.toml
+!/data/corpora/recorder/extended-corpus.toml
+!/data/corpora/recorder/meeting-corpus.example.toml
+!/data/corpora/recorder/private-import.example.toml
 !/data/corpora/recorder/scripts/
 !/data/corpora/recorder/scripts/**
 .venv/

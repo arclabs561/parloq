@@ -1,0 +1,11 @@
+# Synthetic template: copy to meeting-corpus.toml (ignored), then edit locally.
+# Paths are relative to the corpus root. Supply consented recordings/references.
+
+[[clips]]
+id = "sample-meeting"
+path = "private/sample.flac"
+duration_s = 10.0
+speakers = 1
+ref_transcript = "private/sample.txt"
+ref_rttm = ""
+notes = "Replace these illustrative values with local clip metadata"
