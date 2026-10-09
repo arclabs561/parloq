@@ -104,6 +104,23 @@ def main() -> int:
         else:
             assert got == expected and applied == 1, (original, repl, got)
 
+    # The live polish pass filters SUBs before applying them. Homophone fixes
+    # are what the prompt asks for, so the filter must keep them; content
+    # drops ("se em" vanishing) must still be rejected.
+    kept = rec.filter_polish_edits([
+        ("SUB", "their", "there"),
+        ("SUB", "went to", "went too"),
+        ("SUB", "your welcome", "you're welcome"),
+        ("SUB", "on um they se em", "On them"),
+        ("INS_AFTER", "done", "."),
+    ])
+    assert kept == [
+        ("SUB", "their", "there"),
+        ("SUB", "went to", "went too"),
+        ("SUB", "your welcome", "you're welcome"),
+        ("INS_AFTER", "done", "."),
+    ], kept
+
     print("PASS: polish edit parsing and cursor application")
     return 0
 

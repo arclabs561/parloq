@@ -2973,43 +2973,7 @@ class StreamingPolisher:
             self.last_polish_audio_s = audio_s
             return
 
-        # Defenses on SUB edits:
-        # 1. drop any SUB > ~10 words on either side (rewrite-disguised-as-edit).
-        # 2. drop any SUB that DROPS content words. We allow filler removal
-        #    ("um, ", "uh, ", "like, ") explicitly; otherwise the replacement
-        #    must contain every content word from the find. This catches the
-        #    "On them" replacing "on um they se em" case.
-        FILLERS = {"um", "uh", "like", "you", "know", "i", "mean", "so",
-                   "well", "right", "yeah", "ok", "okay"}
-        kept = []
-        for op, find, repl in edits:
-            if op == "SUB":
-                find_words = find.split()
-                repl_words = repl.split()
-                if len(find_words) > 10 or len(repl_words) > 12:
-                    continue
-                # Check word-preservation: every non-filler word in find that
-                # isn't trivially cased-out must be in repl. Allow case-insensitive
-                # match for words.
-                # Punctuation- and hyphen-tolerant word-preservation check.
-                # We want to reject "on um they se em" -> "On them" (drops "se em")
-                # but allow "self aware" -> "self-aware" (hyphenation fix).
-                # Strategy: treat hyphens as soft separators on the replacement
-                # side so a bare word in find matches as a hyphen-bordered token.
-                find_lc = [w.lower().strip(",.;:!?\"'") for w in find_words]
-                # Replace common joiners with spaces, then check membership.
-                normalized = " ".join(
-                    w.lower().strip(",.;:!?\"'") for w in repl_words
-                ).replace("-", " ").replace("/", " ")
-                repl_lc = " " + normalized + " "
-                dropped = [
-                    w for w in find_lc
-                    if w and w not in FILLERS and (" " + w + " ") not in repl_lc
-                ]
-                if dropped:
-                    continue
-            kept.append((op, find, repl))
-        edits = kept
+        edits = filter_polish_edits(edits)
         if not edits:
             self.state.set_polish_status("idle")
             self.last_polish_seg_count = len(segments)
@@ -3064,6 +3028,72 @@ def load_glossary(path: Path) -> list[str]:
         if line and not line.startswith("#"):
             out.append(line)
     return out
+
+
+# Homophone groups the polish prompt asks the model to fix. A SUB may swap a
+# word for another member of its group without counting as a dropped word.
+_HOMOPHONE_GROUPS = [
+    {"their", "there", "they're"},
+    {"to", "too", "two"},
+    {"your", "you're"},
+    {"its", "it's"},
+    {"whose", "who's"},
+    {"then", "than"},
+    {"were", "where", "we're"},
+    {"here", "hear"},
+    {"know", "no"},
+    {"weather", "whether"},
+    {"right", "write"},
+    {"by", "buy", "bye"},
+    {"for", "four"},
+    {"affect", "effect"},
+]
+_HOMOPHONES = {w: group for group in _HOMOPHONE_GROUPS for w in group}
+
+
+def filter_polish_edits(edits):
+    """Drop SUB edits that rewrite instead of correcting (see the defenses below)."""
+    # Defenses on SUB edits:
+    # 1. drop any SUB > ~10 words on either side (rewrite-disguised-as-edit).
+    # 2. drop any SUB that DROPS content words. We allow filler removal
+    #    ("um, ", "uh, ", "like, ") explicitly; otherwise the replacement
+    #    must contain every content word from the find. This catches the
+    #    "On them" replacing "on um they se em" case.
+    FILLERS = {"um", "uh", "like", "you", "know", "i", "mean", "so",
+               "well", "right", "yeah", "ok", "okay"}
+    kept = []
+    for op, find, repl in edits:
+        if op == "SUB":
+            find_words = find.split()
+            repl_words = repl.split()
+            if len(find_words) > 10 or len(repl_words) > 12:
+                continue
+            # Check word-preservation: every non-filler word in find that
+            # isn't trivially cased-out must be in repl. Allow case-insensitive
+            # match for words.
+            # Punctuation- and hyphen-tolerant word-preservation check.
+            # We want to reject "on um they se em" -> "On them" (drops "se em")
+            # but allow "self aware" -> "self-aware" (hyphenation fix).
+            # Strategy: treat hyphens as soft separators on the replacement
+            # side so a bare word in find matches as a hyphen-bordered token.
+            find_lc = [w.lower().strip(",.;:!?\"'") for w in find_words]
+            # Replace common joiners with spaces, then check membership.
+            normalized = " ".join(
+                w.lower().strip(",.;:!?\"'") for w in repl_words
+            ).replace("-", " ").replace("/", " ")
+            repl_lc = " " + normalized + " "
+            dropped = [
+                w for w in find_lc
+                if w and w not in FILLERS
+                and not any(
+                    (" " + alt + " ") in repl_lc
+                    for alt in _HOMOPHONES.get(w, {w})
+                )
+            ]
+            if dropped:
+                continue
+        kept.append((op, find, repl))
+    return kept
 
 
 # Edit-format parsing + application. Format:
