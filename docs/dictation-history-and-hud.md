@@ -5,7 +5,7 @@
 Parloq delivers live text well, but its HUD turns longer speech into a
 single-line ticker and its menu remembers only the last transcript. Escape also
 has no recording-specific meaning, so trying to dismiss the HUD can interrupt
-the focused application. The user wants Maccy-like recovery after every
+the focused application. The goal is Maccy-like recovery after every
 recording without requiring Maccy or changing focus.
 
 ## Chosen approach
@@ -68,4 +68,4 @@ current has one owner and one observable result. A custom history window adds
 focus, search, and keyboard-navigation complexity before the native menu has
 failed.
 
-Decided: 2026-07-27 | Session: Codex
+Decided: 2026-07-27
