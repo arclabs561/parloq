@@ -66,4 +66,4 @@ would create a second mutation authority beside the daemon and make conflicts
 and live reload behavior harder to reason about.
 
 ---
-Decided: 2026-07-27 | Session: Codex
+Decided: 2026-07-27
