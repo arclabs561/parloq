@@ -7,14 +7,14 @@ Platform: macOS on Apple Silicon only (ASR runs on MLX through parakeet-mlx).
 ```sh
 brew install ffmpeg uv
 recorder/recorder dictate     # push-to-talk; transcript goes to the clipboard
-recorder/recorder team-sync   # record a meeting with a live transcript page
+recorder/recorder team-sync   # record a meeting named team-sync, with a live transcript page
 ```
 
 `recorder/recorder` is a uv script that installs its own Python dependencies on
 first run. See [recorder/README.md](recorder/README.md) for system-audio
 capture, diarization, summaries, and the menu-bar client.
 
-`recorder/` is the daily-driver tool: meeting capture, live transcription,
+`recorder/` covers meeting capture, live transcription,
 offline re-pass, diarization, summaries, search, and push-to-talk dictation.
 `prosody-bench/`, `experiments/`, and `results/` are the evidence bench for deciding
 which speech/prosody signals should graduate into recorder.
@@ -49,3 +49,7 @@ Before changing recorder behavior, run:
 ```sh
 just check
 ```
+
+## License
+
+MIT
