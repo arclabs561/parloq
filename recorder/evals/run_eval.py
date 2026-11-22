@@ -1024,7 +1024,7 @@ def cmd_diarize_stability(flac_path: Path, runs: int = 2,
             return 1
         d = json.loads(json_path.read_text(encoding="utf-8"))
         spans = d.get("speaker_spans", [])
-        speakers = d.get("speakers_detected", 0)
+        speakers = len({span["speaker"] for span in spans})
         total_speech = sum(s["end"] - s["start"] for s in spans)
         results.append({
             "run": i + 1,
@@ -1120,10 +1120,10 @@ def cmd_diarize_der(corpus_toml: Path, clip_filter: Optional[str] = None,
                       clip.id, r.returncode, r.stderr[-160:])
             continue
         d = json.loads(json_path.read_text(encoding="utf-8"))
-        detected = d.get("speakers_detected", 0)
         # speaker_spans is the diarizer's raw timeline: [{start, end, speaker}].
         spans = [(s["start"], s["end"] - s["start"], f"SPK{s['speaker']}")
                  for s in d.get("speaker_spans", [])]
+        detected = len({speaker for _, _, speaker in spans})
         # clip.ref_rttm is non-None here (scored = clips with ref_rttm).
         der = (compute_der(spans, clip.ref_rttm)
                if spans and clip.ref_rttm else None)
