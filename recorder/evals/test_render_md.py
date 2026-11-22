@@ -8,7 +8,12 @@ from __future__ import annotations
 
 import importlib.machinery
 import importlib.util
+import json
+import sys
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
 
 
 RECORDER = Path(__file__).resolve().parent.parent / "recorder"
@@ -28,8 +33,44 @@ def index_of(text: str, needle: str) -> int:
     return idx
 
 
+def check_unattributed_first_turn(rec):
+    sentences = [
+        {"start": 0, "end": 1, "text": "Hello."},
+        {"start": 1, "end": 2, "text": "Anyone there?"},
+        {"start": 2, "end": 3, "text": "Yes."},
+        {"start": 4, "end": 5, "text": "Thanks."},
+    ]
+    sherpa = MagicMock()
+    result = sherpa.OfflineSpeakerDiarization.return_value.process.return_value
+    result.sort_by_start_time.return_value = [SimpleNamespace(start=2, end=3, speaker=0)]
+    soundfile = MagicMock()
+    soundfile.read.return_value = (rec.np.zeros(16000), 16000)
+    with (
+        TemporaryDirectory() as tmp,
+        patch.dict(sys.modules, {"sherpa_onnx": sherpa, "soundfile": soundfile}),
+        patch.object(rec, "_ensure_diarize_models", return_value=("seg", "emb")),
+    ):
+        root = Path(tmp)
+        offline = root / "sample.offline.json"
+        offline.write_text(json.dumps({"sentences": sentences}))
+        md = rec.run_diarize_pass(root / "sample.flac", offline, "sample")
+        assert md is not None
+        transcript = md.read_text().split("## Transcript\n\n", 1)[1].strip()
+        assert transcript.split("\n\n") == [
+            "**Speaker ?:** Hello. Anyone there?",
+            "**Speaker 1:** Yes.",
+            "**Speaker ?:** Thanks.",
+        ], transcript
+        sidecar = json.loads((root / "sample.diarized.json").read_text())
+        assert sidecar["speakers_detected"] == 1
+        assert sidecar["sentences"] == [
+            {**s, "speaker": speaker} for s, speaker in zip(sentences, (None, None, 0, None))
+        ]
+
+
 def main() -> int:
     rec = load_recorder()
+    check_unattributed_first_turn(rec)
     state = rec.TranscriptState({
         "name": "render-fixture",
         "started": "2026-06-20 10:00:00 EDT",
