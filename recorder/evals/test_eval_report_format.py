@@ -70,6 +70,10 @@ def check_diarizer_speaker_count(run_eval):
             assert run_eval.cmd_diarize_der(corpus) == 0
             score.assert_called_once_with([], root / "test.rttm")
             assert "mean DER: 100.0%  (n=1" in output_empty.getvalue()
+            (root / "test.diarized.json").write_text("{}")
+            score.reset_mock()
+            assert run_eval.cmd_diarize_der(corpus) == 1
+            score.assert_not_called()
 
         rows = [line.split() for line in output.getvalue().splitlines()]
         assert ["meeting", "2", "2", "0.0%"] in rows, rows

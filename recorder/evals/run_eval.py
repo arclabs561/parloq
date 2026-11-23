@@ -1121,8 +1121,12 @@ def cmd_diarize_der(corpus_toml: Path, clip_filter: Optional[str] = None,
             continue
         d = json.loads(json_path.read_text(encoding="utf-8"))
         # speaker_spans is the diarizer's raw timeline: [{start, end, speaker}].
+        timeline = d.get("speaker_spans")
+        if not isinstance(timeline, list):
+            log.error("diarization output lacks a speaker timeline for %s", clip.id)
+            continue
         spans = [(s["start"], s["end"] - s["start"], f"SPK{s['speaker']}")
-                 for s in d.get("speaker_spans", [])]
+                 for s in timeline]
         detected = len({speaker for _, _, speaker in spans})
         # clip.ref_rttm is non-None here (scored = clips with ref_rttm).
         der = compute_der(spans, clip.ref_rttm)
