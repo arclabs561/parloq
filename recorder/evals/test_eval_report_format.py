@@ -59,6 +59,22 @@ def check_diarizer_speaker_count(run_eval):
             recorder.return_value.returncode = 0
             assert run_eval.cmd_diarize_der(corpus) == 0
             assert run_eval.cmd_diarize_stability(audio, runs=1) == 0
+        (root / "test.diarized.json").write_text(json.dumps({"speaker_spans": []}))
+        output_empty = io.StringIO()
+        with (
+            patch.object(run_eval.subprocess, "run") as recorder,
+            patch.object(run_eval, "compute_der", return_value=1.0) as score,
+            redirect_stdout(output_empty),
+        ):
+            recorder.return_value.returncode = 0
+            assert run_eval.cmd_diarize_der(corpus) == 0
+            score.assert_called_once_with([], root / "test.rttm")
+            assert "mean DER: 100.0%  (n=1" in output_empty.getvalue()
+            (root / "test.diarized.json").write_text("{}")
+            score.reset_mock()
+            assert run_eval.cmd_diarize_der(corpus) == 1
+            score.assert_not_called()
+
         rows = [line.split() for line in output.getvalue().splitlines()]
         assert ["meeting", "2", "2", "0.0%"] in rows, rows
         assert any(row[:4] == ["run", "1:", "2", "speakers,"] for row in rows), rows

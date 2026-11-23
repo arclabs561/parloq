@@ -2242,13 +2242,11 @@ def run_diarize_pass(
             spk_spans.append((float(seg.start), float(seg.end), int(seg.speaker)))
     except TypeError:
         # if not directly iterable, try .segments or call result()
-        items = getattr(result, "segments", None) or list(result)
+        items = getattr(result, "segments", None)
+        if items is None:
+            items = list(result)
         for seg in items:
             spk_spans.append((float(seg.start), float(seg.end), int(seg.speaker)))
-
-    if not spk_spans:
-        log("diarize: no speaker segments produced")
-        return None
 
     # Load the offline transcript JSON: list of sentences with start/end.
     offline = json.loads(offline_json_path.read_text(encoding="utf-8"))

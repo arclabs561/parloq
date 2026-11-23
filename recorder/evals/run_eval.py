@@ -492,7 +492,7 @@ def compute_der(
     """
     Compute Diarization Error Rate using pyannote.metrics.
     collar: time in seconds around segment boundaries that is excluded from scoring (NIST standard: 0.25s).
-    Returns DER in [0, 1+]. Returns None if pyannote.metrics is unavailable or input is empty.
+    Returns DER in [0, 1+]. Returns None if pyannote.metrics is unavailable or the reference has no speech.
 
     Limitation: does not handle overlapping speech; both speakers' overlap region
     is counted against the hypothesis simultaneously.
@@ -503,7 +503,7 @@ def compute_der(
     except ImportError:
         return None
 
-    if not reference_rttm.exists() or not hypothesis_segments:
+    if not reference_rttm.exists():
         return None
 
     ref_segs = parse_rttm(reference_rttm)
@@ -1121,12 +1121,15 @@ def cmd_diarize_der(corpus_toml: Path, clip_filter: Optional[str] = None,
             continue
         d = json.loads(json_path.read_text(encoding="utf-8"))
         # speaker_spans is the diarizer's raw timeline: [{start, end, speaker}].
+        timeline = d.get("speaker_spans")
+        if not isinstance(timeline, list):
+            log.error("diarization output lacks a speaker timeline for %s", clip.id)
+            continue
         spans = [(s["start"], s["end"] - s["start"], f"SPK{s['speaker']}")
-                 for s in d.get("speaker_spans", [])]
+                 for s in timeline]
         detected = len({speaker for _, _, speaker in spans})
         # clip.ref_rttm is non-None here (scored = clips with ref_rttm).
-        der = (compute_der(spans, clip.ref_rttm)
-               if spans and clip.ref_rttm else None)
+        der = compute_der(spans, clip.ref_rttm)
         if der is not None:
             ders.append(der)
         der_str = f"{der*100:.1f}%" if der is not None else "n/a"
