@@ -66,6 +66,15 @@ def check_unattributed_first_turn(rec):
         assert sidecar["sentences"] == [
             {**s, "speaker": speaker} for s, speaker in zip(sentences, (None, None, 0, None))
         ]
+        result.sort_by_start_time.return_value = []
+        audio = root / "sample.flac"
+        audio.touch()
+        assert rec.cmd_diarize_cli([str(audio), "--force"]) == 0
+        empty = json.loads((root / "sample.diarized.json").read_text())
+        assert empty["speaker_spans"] == []
+        assert empty["speakers_detected"] == 0
+        assert empty["sentences"] == [{**s, "speaker": None} for s in sentences]
+        assert "**Speaker ?:** Hello. Anyone there? Yes. Thanks." in md.read_text()
 
 
 def main() -> int:

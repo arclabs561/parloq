@@ -2246,10 +2246,6 @@ def run_diarize_pass(
         for seg in items:
             spk_spans.append((float(seg.start), float(seg.end), int(seg.speaker)))
 
-    if not spk_spans:
-        log("diarize: no speaker segments produced")
-        return None
-
     # Load the offline transcript JSON: list of sentences with start/end.
     offline = json.loads(offline_json_path.read_text(encoding="utf-8"))
     sentences = offline.get("sentences", [])
